@@ -5,7 +5,7 @@
 Add native support for multi-dimensional array indexing and slicing in
 TinyPC (TPC), supporting comma-separated multi-index access
 (`A[i, j, k]`) returning elements and comma-separated range slicing
-(`A[iS..iE, jS..jE]`) returning sub-spans or multi-dimensional slices.
+(`A[iS..iE, jS..jE]` half-open or `A[iS..=iE, jS..=jE]` inclusive) returning sub-spans or multi-dimensional slices.
 Take inspiration from Mojo and Julia syntax and ergonomics.
 
 ## Syntax & Semantics
@@ -19,10 +19,9 @@ Take inspiration from Mojo and Julia syntax and ergonomics.
      dynamic/slice multi-dimensional views.
 
 2. **Multi-Dimensional Slicing:**
-   - Syntax: `arr[iS..iE, jS..jE, ...]`
+   - Syntax: `arr[iS..iE, jS..jE, ...]` (half-open) and `arr[iS..=iE, jS..=jE, ...]` (inclusive upper limit).
    - Semantics: Returns a multi-dimensional slice (or strided view)
-     consisting of bounds `[iS..iE)` along axis 0, `[jS..jE)` along axis
-     1, etc.
+   - consisting of bounds `[iS..iE)` or `[iS..=iE]` along axis 0, etc.
    - Integrates with TPC's existing slice system (`T[..]`) and bounds
      checking (`-bt`).
 
@@ -30,7 +29,7 @@ Take inspiration from Mojo and Julia syntax and ergonomics.
 
 1. **Parser Changes (`tccpp.c`, `tccgen.c`):**
    - Extend bracket expression parsing (`[...]`) to recognize comma-separated
-     expressions and range expressions (`..`).
+   - expressions and range expressions (`..` and `..=`).
    - Distinguish single-index/slice from multi-dimensional comma-separated
      index/slice tuples.
 2. **Type Representation (`tcc.h`, `tccgen.c`):**
@@ -48,7 +47,7 @@ Take inspiration from Mojo and Julia syntax and ergonomics.
 - **P1:** Support `A[i, j]` and `A[i, j, k]` indexing on multi-dimensional
   arrays and slices, correctly computing strided addresses and returning
   elements.
-- **P2:** Support `A[iS..iE, jS..jE]` slicing, returning a valid multi-dimensional
+- **P2:** Support `A[iS..iE, jS..jE]` and `A[iS..=iE, jS..=jE]` slicing, returning a valid multi-dimensional
   slice view with correct bounds and strides.
 - **P3:** Full integration with bounds checking (`-bt`) and D-style safety/purity checks.
 - **Verification:** `./configure && make -j$(nproc) -B && make -j$(nproc) test`
