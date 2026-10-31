@@ -18,7 +18,7 @@ regressions are introduced. Choose the command by what you changed:
 
 - **Compiler performance benchmark** (whenever you changed compiler
   sources): after the regression tests pass, run `make pgo-bench`
-  (or `make pgo PGO_CC=clang`) both *without* the changes (e.g. on
+  (or `make pgo`) both *without* the changes (e.g. on
   `HEAD^`) and *with* the changes, and include both printed results
   (throughput in Mlines/s and instruction count) in your final
   summary to demonstrate performance impact.
