@@ -241,6 +241,9 @@ endif
 415_d_return_local_error.test : GEN = $(GEN-TCC)
 416_d_stack_address_false_positives.test : FLAGS += -lang=d
 416_d_stack_address_false_positives.test : GEN = $(GEN-TCC)
+418_auto_assignment_operator.test : GEN = $(GEN-TCC)
+419_auto_assignment_operator_error.test : FLAGS += -dt
+419_auto_assignment_operator_error.test : GEN = $(GEN-TCC)
 417_d_foreach_qualifiers.test : FLAGS += -lang=d
 417_d_foreach_qualifiers.test : GEN = $(GEN-TCC)
 104_inline.test : FLAGS += $(subst 104,104+,$1)

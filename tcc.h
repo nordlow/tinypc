@@ -1310,6 +1310,7 @@ struct filespec {
 #define TOK_TWODOTS 0xa2 /**< C++ token ? */
 #define TOK_TWOSHARPS 0xa3 /**< ## preprocessing token */
 #define TOK_PLCHLDR 0xa4 /**< placeholder token as defined in `C99` */
+#define TOK_COLON_ASSIGN 0xa5 /**< := assignment/declaration operator */
 #define TOK_PPJOIN  (TOK_TWOSHARPS | SYM_FIELD) /**< A '##' in a macro to mean pasting */
 #define TOK_SOTYPE  0xa7 /**< alias of '(' for parsing sizeof (type) */
 

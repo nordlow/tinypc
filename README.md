@@ -433,9 +433,19 @@ auto x = 42;       /* int */
 auto p = &x;       /* int * */
 ```
 
+Alternatively, the `SYM := EXPR;` shorthand operator can be used as a
+direct alias for `auto SYM = EXPR;` (inspired by Go, Zig, and Julia):
+
+```c
+x := 42;           /* int x = 42; */
+result := calculate();
+```
+
+Re-declaration of an existing symbol in the same scope with `:=` is
+rejected with an error.
+
 The initializer is mandatory; a declaration such as `auto x;` is
 rejected with `declaration with 'auto' has no initializer`.
-
 ### Immutable
 
 The `immutable` qualifier declares deeply immutable objects:

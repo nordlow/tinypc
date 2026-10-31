@@ -93,6 +93,7 @@ static const unsigned char tok_two_chars[] =
     '|','=', TOK_A_OR,
     '-','>', TOK_ARROW,
     '.','.', TOK_TWODOTS,
+    ':','=', TOK_COLON_ASSIGN,
     '#','#', TOK_TWOSHARPS,
     0
 };
@@ -3065,11 +3066,19 @@ maybe_newline:
     case '}':
     case ',':
     case ';':
-    case ':':
     case '?':
     parse_simple:
         tok = c;
         p++;
+        break;
+    case ':':
+        PEEKC(c, p);
+        if (c == '=') {
+            p++;
+            tok = TOK_COLON_ASSIGN;
+        } else {
+            tok = ':';
+        }
         break;
     case 0xEF: /* `UTF8` `BOM` ? */
         if (p[1] == 0xBB && p[2] == 0xBF && p == file->buffer) {

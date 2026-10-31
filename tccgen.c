@@ -11672,6 +11672,21 @@ static int decl(int l)
     ElfSym *esym;
 
     while (1) {
+        int colon_assign = 0;
+        if (tok >= TOK_UIDENT) {
+            int saved_tok = tok;
+            next();
+            if (tok == TOK_COLON_ASSIGN) {
+                next(); /* consume := */
+                btype.t = VT_AUTO;
+                btype.ref = NULL;
+                memset(&adbase, 0, sizeof(adbase));
+                unget_tok(saved_tok);
+                colon_assign = 1;
+            } else {
+                unget_tok(saved_tok);
+            }
+        }
         memset(&adbase, 0, sizeof(adbase));
         oldint = 0;
         if (check_d_conditional(l, 0))
@@ -11698,7 +11713,7 @@ static int decl(int l)
             do_d_alias();
             continue;
         }
-        if (!parse_btype(&btype, &adbase, l == VT_LOCAL)) {
+        if (!colon_assign && !parse_btype(&btype, &adbase, l == VT_LOCAL)) {
             if (l == VT_JMP)
                 return 0;
             /* skip redundant ';' if not in old parameter decl scope */
@@ -11763,9 +11778,11 @@ static int decl(int l)
                 ptype("TYPE", &type, v);
 
             if (has_auto_type(&type)) {
-                if (tok != '=')
-                    tcc_error("declaration with 'auto' has no initializer");
-                next();
+                if (!colon_assign) {
+                    if (tok != '=')
+                        tcc_error("declaration with 'auto' has no initializer");
+                    next();
+                }
                 has_init = 1;
                 init_str = tok_str_alloc();
                 {
