@@ -818,19 +818,46 @@ static uint8_t *parse_line_comment(uint8_t *p)
  */
 static uint8_t *parse_comment(uint8_t *p)
 {
-    int c;
+    size_t rem;
+    uint8_t *p_nl, *p_star, *p_bs, *stop;
+    int c, ch;
+    StringSlice slice;
     for(;;) {
-        /* fast skip loop */
-        for(;;) {
-            c = *++p;
-        redo:
-            if (c == '\n' || c == '*' || c == '\\')
-                break;
-            c = *++p;
-            if (c == '\n' || c == '*' || c == '\\')
-                break;
+        rem = file->buf_end - (p + 1);
+        if (rem == 0) {
+            /* the comment starts at the end of the buffer: refill it */
+            file->buf_ptr = p + 1;
+            ch = handle_eob();
+            if (ch == CH_EOF)
+                tcc_error("unexpected end of file in comment");
+            p = file->buf_ptr;
+            if (ch == '\n') {
+                file->line_num++;
+                p++;
+                continue;
+            }
+            if (ch == '\\') {
+                ch = handle_bs(&p);
+                if (ch == CH_EOF)
+                    tcc_error("unexpected end of file in comment");
+                if (ch == '\n')
+                    file->line_num++;
+            }
+            continue;
         }
-        /* now we can handle all the cases */
+        slice.ptr = (const char *)(p + 1);
+        slice.len = rem;
+        p_nl = (uint8_t *)slice_memchr(slice, '\n');
+        p_star = (uint8_t *)slice_memchr(slice, '*');
+        p_bs = (uint8_t *)slice_memchr(slice, '\\');
+        stop = p + 1 + rem;
+        if (p_nl && p_nl < stop) stop = p_nl;
+        if (p_star && p_star < stop) stop = p_star;
+        if (p_bs && p_bs < stop) stop = p_bs;
+
+        p = stop - 1;
+        c = *++p;
+    redo:
         if (c == '\n') {
             file->line_num++;
         } else if (c == '*') {
@@ -847,8 +874,10 @@ static uint8_t *parse_comment(uint8_t *p)
         check_eof:
             if (c == CH_EOF)
                 tcc_error("unexpected end of file in comment");
-            if (c != '\\')
-                goto redo;
+            if (c != '\\') {
+                if (c == '\n' || c == '*' || c == '\\')
+                    goto redo;
+            }
         }
     }
     return p + 1;

@@ -560,45 +560,46 @@ typedef struct SValue {
  */
 struct SymAttr {
     unsigned int
-    aligned     : 5, /**< `Alignment` constraint specified as log2 + 1 (0 == unspecified). */
-    packed      : 1, /**< `Struct` or field packing attribute (forces byte alignment and removes padding). */
-    weak        : 1, /**< `Weak` symbol linkage attribute (permits overriding by strong definitions at link time). */
-    visibility  : 2, /**< `Symbol` visibility level (e.g., default, hidden, internal, protected). */
-    dllexport   : 1, /**< `Windows` `PE` dllexport attribute (exports symbol from a dynamic library/`DLL`). */
-    nodecorate  : 1, /**< `Windows` `PE` nodecorate attribute (suppresses standard name decoration mangling). */
-    dllimport   : 1, /**< `Windows` `PE` dllimport attribute (imports symbol from an external dynamic library/`DLL`). */
-    addrtaken   : 1, /**< `Address`-taken flag (indicates that the address of the variable or function has been taken). */
-    nodebug     : 1, /**< `Nodebug` attribute (suppresses emission of debugging metadata and debug entries for this symbol). */
-    nocopy      : 1, /**< `Non`-copyable struct type attribute (prevents structural copying or assignment of struct instances). */
-    is_slice    : 1, /**< `Slice` type flag (indicates a synthesized struct generated for a D/`TPC` slice type T[..]). */
-    str_lit     : 1, /**< `String` literal array flag (indicates an array created for a string literal including terminating null). */
-    used        : 1, /**< `Symbol` used flag (tracks whether a variable or function symbol has been referenced in expressions or assignments). */
-    is_param    : 1, /**< `Function` parameter flag (indicates that the symbol represents a formal parameter of a function). */
+    aligned     : 5, /**< Alignment constraint specified as log2 + 1 (0 == unspecified). */
+    packed      : 1, /**< Struct or field packing attribute (forces byte alignment and removes padding). */
+    weak        : 1, /**< Weak symbol linkage attribute (permits overriding by strong definitions at link time). */
+    visibility  : 2, /**< Symbol visibility level (e.g., default, hidden, internal, protected). */
+    dllexport   : 1, /**< Windows PE dllexport attribute (exports symbol from a dynamic library/DLL). */
+    nodecorate  : 1, /**< Windows PE nodecorate attribute (suppresses standard name decoration mangling). */
+    dllimport   : 1, /**< Windows PE dllimport attribute (imports symbol from an external dynamic library/DLL). */
+    addrtaken   : 1, /**< Address-taken flag (indicates that the address of the variable or function has been taken). */
+    nodebug     : 1, /**< Nodebug attribute (suppresses emission of debugging metadata and debug entries for this symbol). */
+    nocopy      : 1, /**< Non-copyable struct type attribute (prevents structural copying or assignment of struct instances). */
+    is_slice    : 1, /**< Slice type flag (indicates a synthesized struct generated for a D/TPC slice type T[..]). */
+    str_lit     : 1, /**< String literal array flag (indicates an array created for a string literal including terminating null). */
+    used        : 1, /**< Symbol used flag (tracks whether a variable or function symbol has been referenced in expressions or assignments). */
+    is_param    : 1, /**< Function parameter flag (indicates that the symbol represents a formal parameter of a function). */
     final_var   : 1, /**< Final variable attribute (prevents reassignment). */
+    scoped      : 1, /**< Scoped variable attribute. */
     assigned    : 1; /**< Whether a final variable has been assigned/initialized. */
 };
 /**
- * @brief `Function` purity level representing mathematical purity guarantees.
+ * @brief Function purity level representing mathematical purity guarantees.
  */
 typedef enum {
-    FUNC_PURITY_UNKNOWN = 0,     /**< `Purity` not explicitly specified nor yet inferred */
-    FUNC_PURITY_TRUE,            /**< `Purity` enforced to true via `@pure`. */
-    FUNC_PURITY_INFERRED_FALSE,  /**< `Purity` inferred false */
-    FUNC_PURITY_INFERRED_TRUE,   /**< `Function` was inferred pure */
+    FUNC_PURITY_UNKNOWN = 0,     /**< Purity not explicitly specified nor yet inferred */
+    FUNC_PURITY_TRUE,            /**< Purity enforced to true via `@pure`. */
+    FUNC_PURITY_INFERRED_FALSE,  /**< Purity inferred false */
+    FUNC_PURITY_INFERRED_TRUE,   /**< Function was inferred pure */
 } FuncPurity;
 
 #define IS_PURE(p) ((p) == FUNC_PURITY_TRUE || (p) == FUNC_PURITY_INFERRED_TRUE)
 
 /**
- * @brief `Function` safety level for memory safety checks.
+ * @brief `Function safety level for memory safety checks.
  */
 typedef enum {
-    FUNC_SAFETY_UNKNOWN = 0,         /**< `Safety` not explicitly specified nor yet inferred */
-    FUNC_SAFETY_SAFE,            /**< `Safe` level (@safe attribute, pointer checks enforced) */
-    FUNC_SAFETY_SYSTEM,          /**< `System` safety level (unchecked) */
-    FUNC_SAFETY_TRUSTED,         /**< `Trusted` safety level (exempt from checks) */
-    FUNC_SAFETY_INFERRED_SYSTEM, /**< `Safety` inferred system / unsafe */
-    FUNC_SAFETY_INFERRED_SAFE,   /**< `Function` was inferred safe */
+    FUNC_SAFETY_UNKNOWN = 0,     /**< Safety not explicitly specified nor yet inferred */
+    FUNC_SAFETY_SAFE,            /**< Safe level (`@safe` attribute, pointer checks enforced) */
+    FUNC_SAFETY_SYSTEM,          /**< System safety level (unchecked) */
+    FUNC_SAFETY_TRUSTED,         /**< Trusted safety level (exempt from checks) */
+    FUNC_SAFETY_INFERRED_SYSTEM, /**< Safety inferred system / unsafe */
+    FUNC_SAFETY_INFERRED_SAFE,   /**< Function was inferred safe */
 } FuncSafety;
 
 #define IS_SAFE(s) ((s) == FUNC_SAFETY_SAFE || (s) == FUNC_SAFETY_INFERRED_SAFE || (s) == FUNC_SAFETY_TRUSTED)
@@ -611,7 +612,7 @@ struct FuncAttr {
     func_noreturn : 1, /**< Whether the function is declared `noreturn` via `attribute((noreturn))`. */
     func_ctor   : 1, /**< Whether the function is registered via `attribute((constructor))`. */
     func_dtor   : 1, /**< Whether the function is registered via `attribute((destructor))`. */
-    func_args   : 8, /**< Number of argument words affected by the `PE` `__stdcall` calling convention. */
+    func_args   : 8, /**< Number of argument words affected by the PE `__stdcall` calling convention. */
     func_alwinl : 1, /**< Whether the function was marked `always_inline`. */
     func_pure   : 2, /**< Purity level: `FUNC_PURITY_UNKNOWN`, `FUNC_PURITY_TRUE` or an inferred purity variant. */
     func_safety : 3, /**< Memory safety level: `FUNC_SAFETY_UNKNOWN`, `FUNC_SAFETY_SAFE`, `FUNC_SAFETY_SYSTEM`, `FUNC_SAFETY_TRUSTED` or an inferred safety variant. */

@@ -5577,6 +5577,9 @@ static int parse_btype(CType *type, AttributeDef *ad, int ignore_label)
                 } else if (tok >= TOK_IDENT && !strcmp(get_tok_str(tok, &tokc), "final")) {
                     ad->a.final_var = 1;
                     next();
+                } else if (tok >= TOK_IDENT && !strcmp(get_tok_str(tok, &tokc), "scoped")) {
+                    ad->a.scoped = 1;
+                    next();
                 } else if (tok >= TOK_IDENT && !strcmp(get_tok_str(tok, &tokc), "nocopy")) {
                     ad->a.nocopy = 1;
                     next();
@@ -5920,6 +5923,9 @@ static void parse_d_attributes(AttributeDef *ad)
                 next();
             } else if (tok >= TOK_IDENT && !strcmp(get_tok_str(tok, &tokc), "final")) {
                 ad->a.final_var = 1;
+                next();
+            } else if (tok >= TOK_IDENT && !strcmp(get_tok_str(tok, &tokc), "scoped")) {
+                ad->a.scoped = 1;
                 next();
             } else if (tok >= TOK_IDENT && !strcmp(get_tok_str(tok, &tokc), "nocopy")) {
                 ad->a.nocopy = 1;
@@ -8742,7 +8748,7 @@ static void lblock(int *bsym, int *csym)
 static void do_foreach(int reverse)
 {
     Scope *o;
-    AttributeDef ad, adbase;
+    AttributeDef ad, adbase, adbases[2];
     CType btype, type, agg_type, slice_type, elem_type, len_type, ptr_type;
     CType vtypes[2];
     int names[2], vaddr[2], nvars, explicit[2], i;
@@ -8753,23 +8759,26 @@ static void do_foreach(int reverse)
     skip('(');
 
     nvars = 0;
-    memset(&adbase, 0, sizeof(adbase));
+    memset(&adbases[0], 0, sizeof(adbases));
     btype.t = VT_INT;
     btype.ref = NULL;
 
     for (;;) {
+        memset(&adbase, 0, sizeof(adbase));
         if (is_type_start(tok)) {
             parse_btype(&btype, &adbase, 0);
             type = btype;
             ad = adbase;
             type_decl(&type, &ad, &names[nvars], TYPE_DIRECT);
             vtypes[nvars] = type;
+            adbases[nvars] = adbase;
             explicit[nvars] = 1;
         } else {
             if (tok < TOK_UIDENT)
                 expect("identifier");
             names[nvars] = tok;
             explicit[nvars] = 0;
+            memset(&adbases[nvars], 0, sizeof(AttributeDef));
             next();
         }
         ++nvars;
@@ -8816,24 +8825,27 @@ static void do_foreach(int reverse)
         if (!explicit[0])
             vtypes[0] = start_type;
 
-        memset(&ad, 0, sizeof(ad));
-        decl_initializer_alloc(&vtypes[0], &ad, VT_LOCAL | VT_LVAL, 0,
+        decl_initializer_alloc(&vtypes[0], &adbases[0], VT_LOCAL | VT_LVAL, 0,
                                names[0], 0);
         vaddr[0] = sym_find(names[0])->c;
 
         /* i = reverse ? end - 1 : start */
-        vset(&vtypes[0], VT_LOCAL | VT_LVAL, vaddr[0]);
-        if (reverse) {
-            vset(&end_type, VT_LOCAL | VT_LVAL, end_addr);
-            vpushi(1);
-            gen_op('-');
-            gen_assign_cast(&vtypes[0]);
-        } else {
-            vset(&start_type, VT_LOCAL | VT_LVAL, start_addr);
-            gen_assign_cast(&vtypes[0]);
+        {
+            CType mut_vtype = vtypes[0];
+            mut_vtype.t &= ~(VT_CONSTANT | VT_IMMUTABLE);
+            vset(&mut_vtype, VT_LOCAL | VT_LVAL, vaddr[0]);
+            if (reverse) {
+                vset(&end_type, VT_LOCAL | VT_LVAL, end_addr);
+                vpushi(1);
+                gen_op('-');
+                gen_assign_cast(&mut_vtype);
+            } else {
+                vset(&start_type, VT_LOCAL | VT_LVAL, start_addr);
+                gen_assign_cast(&mut_vtype);
+            }
+            vstore();
+            vpop();
         }
-        vstore();
-        vpop();
 
         a = b = 0;
         c = gind();
@@ -8851,12 +8863,16 @@ static void do_foreach(int reverse)
         d = gind();
 
         /* increment: ++i, or --i when iterating in reverse */
-        vset(&vtypes[0], VT_LOCAL | VT_LVAL, vaddr[0]);
-        vset(&vtypes[0], VT_LOCAL | VT_LVAL, vaddr[0]);
-        vpushi(1);
-        gen_op(reverse ? '-' : '+');
-        vstore();
-        vpop();
+        {
+            CType mut_vtype = vtypes[0];
+            mut_vtype.t &= ~(VT_CONSTANT | VT_IMMUTABLE);
+            vset(&mut_vtype, VT_LOCAL | VT_LVAL, vaddr[0]);
+            vset(&mut_vtype, VT_LOCAL | VT_LVAL, vaddr[0]);
+            vpushi(1);
+            gen_op(reverse ? '-' : '+');
+            vstore();
+            vpop();
+        }
         gjmp_addr(c);
         gsym(e);
 
@@ -8926,8 +8942,7 @@ static void do_foreach(int reverse)
     for (i = 0; i < nvars; ++i) {
         if (!explicit[i])
             vtypes[i] = (nvars == 2 && i == 0) ? len_type : elem_type;
-        memset(&ad, 0, sizeof(ad));
-        decl_initializer_alloc(&vtypes[i], &ad, VT_LOCAL | VT_LVAL, 0,
+        decl_initializer_alloc(&vtypes[i], &adbases[i], VT_LOCAL | VT_LVAL, 0,
                                names[i], 0);
         vaddr[i] = sym_find(names[i])->c;
     }
@@ -8967,13 +8982,15 @@ static void do_foreach(int reverse)
 
     /* index variable */
     if (nvars == 2) {
+        CType mut_vtype0 = vtypes[0];
+        mut_vtype0.t &= ~(VT_CONSTANT | VT_IMMUTABLE);
         vset(&len_type, VT_LOCAL | VT_LVAL, idx_addr);
         if (reverse) {
             vpushi(1);
             gen_op('-');
         }
-        gen_assign_cast(&vtypes[0]);
-        vset(&vtypes[0], VT_LOCAL | VT_LVAL, vaddr[0]);
+        gen_assign_cast(&mut_vtype0);
+        vset(&mut_vtype0, VT_LOCAL | VT_LVAL, vaddr[0]);
         vswap();
         vstore();
         vpop();
@@ -8981,19 +8998,23 @@ static void do_foreach(int reverse)
 
     /* value variable */
     i = nvars - 1;
-    vset(&ptr_type, VT_LOCAL | VT_LVAL, ptr_addr);
-    vset(&len_type, VT_LOCAL | VT_LVAL, idx_addr);
-    if (reverse) {
-        vpushi(1);
-        gen_op('-');
+    {
+        CType mut_vtypei = vtypes[i];
+        mut_vtypei.t &= ~(VT_CONSTANT | VT_IMMUTABLE);
+        vset(&ptr_type, VT_LOCAL | VT_LVAL, ptr_addr);
+        vset(&len_type, VT_LOCAL | VT_LVAL, idx_addr);
+        if (reverse) {
+            vpushi(1);
+            gen_op('-');
+        }
+        gen_op('+');
+        indir();
+        gen_assign_cast(&mut_vtypei);
+        vset(&mut_vtypei, VT_LOCAL | VT_LVAL, vaddr[i]);
+        vswap();
+        vstore();
+        vpop();
     }
-    gen_op('+');
-    indir();
-    gen_assign_cast(&vtypes[i]);
-    vset(&vtypes[i], VT_LOCAL | VT_LVAL, vaddr[i]);
-    vswap();
-    vstore();
-    vpop();
 
     lblock(&a, &b);
     gjmp_addr(d);
