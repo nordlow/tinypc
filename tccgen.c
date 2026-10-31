@@ -171,6 +171,11 @@ static void skip_or_save_block(TokenString **str);
 static void gv_dup(void);
 static int get_temp_local_var(int size,int align,int *r2);
 static void cast_error(CType *st, CType *dt);
+static int is_tuple_type(CType *type);
+static int tuple_arity(CType *type);
+static Sym *tuple_field(CType *type, int idx, int *pofs);
+static Sym *make_tuple_type(CType *elems, int n);
+static int parse_tuple_type_opt(CType *type);
 static int is_slice_type(CType *type);
 static Sym *make_slice_type(CType *elem);
 static int convert_array_to_slice(CType *dt);
@@ -2884,6 +2889,21 @@ static void type_to_str(char *buf, int buf_size,
         pstrcat(buf, buf_size, tstr);
         break;
     case VT_STRUCT:
+        if (is_tuple_type(type)) {
+            Sym *f;
+            pstrcat(buf, buf_size, "(");
+            for (f = type->ref->next; f; f = f->next) {
+                char buf2[256];
+                type_to_str(buf2, sizeof(buf2), &f->type, NULL);
+                pstrcat(buf, buf_size, buf2);
+                if (f->next)
+                    pstrcat(buf, buf_size, ", ");
+            }
+            if (type->ref->next && !type->ref->next->next)
+                pstrcat(buf, buf_size, ",");
+            pstrcat(buf, buf_size, ")");
+            break;
+        }
         if (is_slice_type(type) && type->ref->next && type->ref->next->next) {
             CType *elem = &type->ref->next->next->type.ref->type;
             if (varstr && '*' == *varstr)
@@ -3069,6 +3089,15 @@ static int compare_types(CType *type1, CType *type2, int unqualified)
         Sym *s1 = type1->ref, *s2 = type2->ref;
         if (s1 == s2)
             return 1;
+        if (s1 && s2 && s1->a.is_tuple && s2->a.is_tuple) {
+            Sym *f1 = s1->next, *f2 = s2->next;
+            for (; f1 && f2; f1 = f1->next, f2 = f2->next)
+                if (!compare_types(&f1->type, &f2->type, unqualified))
+                    return 0;
+            return f1 == NULL && f2 == NULL;
+        }
+        if (s1 && s2 && (s1->a.is_tuple || s2->a.is_tuple))
+            return 0;
         /* `Slice` types are represented as anonymous structs.  `Compare` their
            element types instead of requiring the same struct symbol.  */
         if (s1 && s2 && s1->a.is_slice && s2->a.is_slice
@@ -5311,8 +5340,10 @@ static int parse_btype(CType *type, AttributeDef *ad, int ignore_label)
     t = VT_INT;
     bt = st = -1;
     type->ref = NULL;
-
     while(1) {
+        if (tcc_state->lang_d && tok == '(' && !pp_expr && !is_expanding_macro() && file && file->filename[0] != '<') {
+            return parse_tuple_type_opt(type);
+        }
         switch(tok) {
         case TOK_EXTENSION:
             /* currently, we really ignore extension */
@@ -5714,6 +5745,185 @@ static int asm_label_instr(void)
     return v;
 }
 
+static int is_tuple_type(CType *type)
+{
+    return (type->t & VT_BTYPE) == VT_STRUCT
+        && type->ref && type->ref->a.is_tuple;
+}
+
+static int tuple_arity(CType *type)
+{
+    Sym *s = type->ref;
+    Sym *f;
+    int n = 0;
+    if (!s || !s->a.is_tuple)
+        return 0;
+    for (f = s->next; f; f = f->next)
+        n++;
+    return n;
+}
+
+static Sym *tuple_field(CType *type, int idx, int *pofs)
+{
+    Sym *s = type->ref;
+    Sym *f;
+    int i = 0;
+    if (!s || !s->a.is_tuple)
+        return NULL;
+    for (f = s->next; f; f = f->next, i++) {
+        if (i == idx) {
+            if (pofs)
+                *pofs = f->c;
+            return f;
+        }
+    }
+    return NULL;
+}
+
+static Sym *make_tuple_type(CType *elems, int n)
+{
+    CType st;
+    Sym *s, **ps;
+    AttributeDef ad;
+    int i;
+    st.t = VT_STRUCT;
+    st.ref = NULL;
+    s = sym_push2(&global_stack, SYM_STRUCT | (anon_sym++), st.t, 0);
+    s->r = 0;
+    s->type.ref = s;
+    ps = &s->next;
+    for (i = 0; i < n; ++i) {
+        Sym *f = sym_push2(&global_stack, anon_sym++ | SYM_FIELD,
+                           elems[i].t, 0);
+        f->type.ref = elems[i].ref;
+        *ps = f, ps = &f->next;
+    }
+    memset(&ad, 0, sizeof ad);
+    check_fields(&s->type, 1);
+    check_fields(&s->type, 0);
+    struct_layout(&s->type, &ad);
+    s->a.is_tuple = 1;
+    s->a.nodebug = 1;
+    return s;
+}
+
+static int parse_tuple_type_opt(CType *type)
+{
+    TokenString *inner_str;
+    int depth = 1, t, has_comma = 0;
+    int first_token_inside = 0;
+    int saved_tok = tok;
+    CValue saved_tokc = tokc;
+    const uint8_t *saved_buf_ptr = file ? file->buf_ptr : NULL;
+    int saved_line_num = file ? file->line_num : 0;
+
+    if (is_expanding_macro() || pp_expr)
+        return 0;
+
+    inner_str = tok_str_alloc();
+    next(); /* consume '(' */
+    do {
+        t = tok;
+        if (t == TOK_EOF) {
+            tok_str_free(inner_str);
+            tok = saved_tok;
+            tokc = saved_tokc;
+            if (file) {
+                file->buf_ptr = (uint8_t *)saved_buf_ptr;
+                file->line_num = saved_line_num;
+            }
+            return 0;
+        }
+        if (depth == 1 && t == ')') {
+            next();
+            --depth;
+            break;
+        }
+        if (depth == 1 && t != TOK_LINENUM && !first_token_inside && t != '(') {
+            first_token_inside = t;
+        }
+        tok_str_add2(inner_str, t, &tokc);
+        if (depth == 1 && t == ',') {
+            has_comma = 1;
+        }
+        next();
+        if (t == '(') {
+            ++depth;
+        } else if (t == ')') {
+            --depth;
+            if (depth == 0) {
+                break;
+            }
+        }
+    } while (depth > 0);
+    tok_str_add(inner_str, TOK_EOF);
+
+    if (!has_comma || !is_type_start(first_token_inside)) {
+        tok_str_free(inner_str);
+        tok = saved_tok;
+        tokc = saved_tokc;
+        if (file) {
+            file->buf_ptr = (uint8_t *)saved_buf_ptr;
+            file->line_num = saved_line_num;
+        }
+        return 0;
+    }
+
+    begin_macro(inner_str, 1);
+    next();
+    {
+        CType elems[64];
+        int n = 0;
+        int success = 1;
+        while (tok != TOK_EOF) {
+            CType el;
+            AttributeDef ad1;
+            if (tok == ')')
+                break;
+            memset(&ad1, 0, sizeof(AttributeDef));
+            if (!parse_btype(&el, &ad1, 0)) {
+                success = 0;
+                break;
+            }
+            int dummy; type_decl(&el, &ad1, &dummy, TYPE_ABSTRACT);
+            if ((el.t & VT_BTYPE) == VT_VOID || (el.t & VT_BTYPE) == VT_FUNC || (el.t & VT_STORAGE)) {
+                success = 0;
+                break;
+            }
+            if (n < 64)
+                elems[n++] = el;
+            else {
+                success = 0;
+                break;
+            }
+            if (tok == ',') {
+                next();
+            } else if (tok == ')' || tok == TOK_EOF) {
+                break;
+            } else {
+                success = 0;
+                break;
+            }
+        }
+        end_macro();
+        next();
+        if (!success || n == 0) {
+            tok_str_free(inner_str);
+            tok = saved_tok;
+            tokc = saved_tokc;
+            if (file) {
+                file->buf_ptr = (uint8_t *)saved_buf_ptr;
+                file->line_num = saved_line_num;
+            }
+            return 0;
+        }
+        tok_str_free(inner_str);
+        type->t = VT_STRUCT;
+        type->ref = make_tuple_type(elems, n);
+        return 1;
+    }
+}
+
 /* `Create` the anonymous struct type used to represent a T[..] slice.  */
 static Sym *make_slice_type(CType *elem)
 {
@@ -5958,7 +6168,7 @@ static int post_type(CType *type, AttributeDef *ad, int storage, int td)
     TokenString *vla_array_tok = NULL;
     int *vla_array_str = NULL;
 
-    if (tok == '(') {
+    if (tok == '(' && !is_tuple_type(type)) {
         /* function type, or recursive declarator (return if so) */
         next();
 	if (TYPE_DIRECT == (td & (TYPE_DIRECT|TYPE_ABSTRACT)))
@@ -6362,7 +6572,7 @@ static CType *type_decl(CType *type, AttributeDef *ad, int *v, int td)
 	    ret = pointed_type(type);
     }
 
-    if (tok == '(') {
+    if (tok == '(' && !is_tuple_type(type)) {
 	/* `This` is possibly a parameter type list for abstract declarators
 	   ('int ()'), use `post_type` for testing this.  */
 	if (!post_type(type, ad, 0, td)) {
@@ -7620,6 +7830,24 @@ special_math_val:
             next();
             base_type = vtop->type;
             base_sv = vtop;
+            if (is_tuple_type(&base_type)) {
+                int idx = expr_const();
+                int cumofs = 0;
+                Sym *f = tuple_field(&base_type, idx, &cumofs);
+                if (!f)
+                    tcc_error("tuple index %d out of range", idx);
+                skip(']');
+                gaddrof();
+                vtop->c.i += cumofs;
+                vtop->type = f->type;
+                if (!(f->type.t & VT_ARRAY))
+                    vtop->r |= VT_LVAL;
+#ifdef CONFIG_TCC_BCHECK
+                if (tcc_state->do_bounds_check)
+                    vtop->r |= VT_MUSTBOUND;
+#endif
+                continue;
+            }
             base_is_slice = is_slice_type(&base_type);
             if ((base_type.t & VT_BTYPE) == VT_PTR) {
                 if (cur_scope->fn.safety == FUNC_SAFETY_SAFE)

@@ -244,6 +244,8 @@ endif
 418_auto_assignment_operator.test : GEN = $(GEN-TCC)
 419_auto_assignment_operator_error.test : FLAGS += -dt
 419_auto_assignment_operator_error.test : GEN = $(GEN-TCC)
+420_tuple_type.test : FLAGS += -lang=d
+420_tuple_type.test : GEN = $(GEN-TCC)
 417_d_foreach_qualifiers.test : FLAGS += -lang=d
 417_d_foreach_qualifiers.test : GEN = $(GEN-TCC)
 104_inline.test : FLAGS += $(subst 104,104+,$1)

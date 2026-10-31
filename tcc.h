@@ -571,6 +571,7 @@ struct SymAttr {
     nodebug     : 1, /**< Nodebug attribute (suppresses emission of debugging metadata and debug entries for this symbol). */
     nocopy      : 1, /**< Non-copyable struct type attribute (prevents structural copying or assignment of struct instances). */
     is_slice    : 1, /**< Slice type flag (indicates a synthesized struct generated for a D/TPC slice type T[..]). */
+    is_tuple    : 1, /**< Tuple type flag (indicates a synthesized struct generated for a tuple type (T1, ..., Tn)). */
     str_lit     : 1, /**< String literal array flag (indicates an array created for a string literal including terminating null). */
     used        : 1, /**< Symbol used flag (tracks whether a variable or function symbol has been referenced in expressions or assignments). */
     is_param    : 1, /**< Function parameter flag (indicates that the symbol represents a formal parameter of a function). */
@@ -1617,6 +1618,7 @@ ST_FUNC int tok_alloc_const(const char *str);
 ST_FUNC const char *get_tok_str(int v, CValue *cv);
 ST_FUNC void begin_macro(TokenString *str, int alloc);
 ST_FUNC void end_macro(void);
+ST_FUNC int is_expanding_macro(void);
 ST_FUNC int set_idnum(int c, int val);
 ST_INLN void tok_str_new(TokenString *s);
 ST_FUNC TokenString *tok_str_alloc(void);

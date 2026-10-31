@@ -1166,6 +1166,10 @@ ST_FUNC void begin_macro(TokenString *str, int alloc)
     macro_stack = str;
 }
 
+ST_FUNC int is_expanding_macro(void)
+{
+    return macro_stack != NULL;
+}
 ST_FUNC void end_macro(void)
 {
     TokenString *str = macro_stack;
