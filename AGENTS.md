@@ -17,14 +17,11 @@ regressions are introduced. Choose the command by what you changed:
   -j$(nproc) test` is sufficient.
 
 - **Compiler performance benchmark** (whenever you changed compiler
-  sources): after the regression tests pass, run
-
-      make -j$(nproc) pgo PGO_CC=clang
-
-  This rebuilds `tcc` with Profile-Guided Optimization and then
-  benchmarks it by compiling itself. Include the printed throughput
-  (Mlines/s) and Valgrind instruction count in your final summary.
-
+  sources): after the regression tests pass, run `make pgo-bench`
+  (or `make pgo PGO_CC=clang`) both *without* the changes (e.g. on
+  `HEAD^`) and *with* the changes, and include both printed results
+  (throughput in Mlines/s and instruction count) in your final
+  summary to demonstrate performance impact.
 Run the applicable command after every change while
 iterating. Incremental builds are fast, so don't batch up edits before
 verifying.
