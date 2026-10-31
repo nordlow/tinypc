@@ -326,8 +326,6 @@ When analyzing and optimizing performance hot spots:
    ```
 
 ## Code style
-- **Prose/Comments in Markdown & Org-Mode:** wrap at 70 columns (Emacs
-  `fill-column`, compatible with `fill-paragraph`).
 - **Helper scripts in `tools/`:** name them without a language
   extension (`tools/pgo-history`, not `tools/pgo-history.sh`), and
   give them a shebang plus the executable bit. The extension pins the
