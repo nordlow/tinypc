@@ -5,7 +5,8 @@
 Refactor raw `(char *buf, size_t buf_size)` passing across compiler utility
 functions (`pstrcpy`, `pstrcat`, `pstrncpy`) to reuse and unify around
 existing codebase string buffer types (`CString` and `StringSlice` defined in
-`tcc.h`).
+`tcc.h`), drawing inspiration from advanced D-style fat pointer slice layouts
+(such as those in `blitz/str.h` and `blitz/fstr.h`).
 
 ## Motivation
 
@@ -16,15 +17,17 @@ structured buffer types:
 - **`CString`**: Dynamic string buffer descriptor (`size`, `size_allocated`,
   `data`).
 
-Reusing and extending these existing structs avoids verbose parameter passing,
-eliminates manual buffer size tracking errors, and provides consistent string
-building abstractions.
+Additionally, referencing design patterns from `blitz` (`str.h` / `fstr.h`),
+we can enrich string slices with metadata bitfields (such as `isNullTerm`,
+`isASCII`, `isImmutable`) mimicking D-style fat pointers and ensuring memory
+safety and high performance.
 
 ## Proposed Design
 
-1. **Leverage Existing Structs (`tcc.h`):**
+1. **Leverage and Extend Existing Structs (`tcc.h`):**
    - Use `CString` for mutable, growing or bounded buffers.
-   - Use `StringSlice` for read-only string slices and views.
+   - Use `StringSlice` (optionally enhanced with bitfield flags from blitz)
+     for read-only string slices and views.
 2. **Method-like / Helper API Refactoring:**
    - Adapt string copy/cat utilities to accept `CString *` or bounded buffers
      rather than raw `char *buf, size_t buf_size` pairs.
