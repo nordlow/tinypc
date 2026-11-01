@@ -3,11 +3,12 @@
 ## Goal
 
 Add native support for multi-dimensional array indexing and slicing in
-TinyPC (TPC), supporting comma-separated multi-index access
-(`A[i, j, k]`) returning elements, comma-separated range slicing
-(`A[iS..iE, jS..jE]` half-open or `A[iS..=iE, jS..=jE]` inclusive), Julia-style full-axis
-colons (`A[i, j, :]`), and Unicode subscript indexing (`Aᵢⱼ₉`).
-Take inspiration from Mojo and Julia syntax and ergonomics.
+TinyPC (TPC), supporting comma-separated multi-index access (`A[i, j,
+k]`) returning elements, comma-separated range slicing (`A[iS..iE,
+jS..jE]` half-open or `A[iS..=iE, jS..=jE]` inclusive), Julia-style
+full-axis colons (`A[i, j, :]`), and Unicode subscript indexing
+(`Aᵢⱼ₉`).  Take inspiration from Mojo and Julia syntax and
+ergonomics.
 
 ## Syntax & Semantics
 
@@ -19,39 +20,49 @@ Take inspiration from Mojo and Julia syntax and ergonomics.
    - Works on static multi-dimensional arrays (`T[N1][N2][N3]`) and
      dynamic/slice multi-dimensional views.
 
-- **Multi-Dimensional Slicing:**
-  - Syntax: `arr[iS..iE, jS..jE, ...]` (half-open), `arr[iS..=iE, jS..=jE, ...]` (inclusive), and full-axis colons (`arr[i, :, k]`).
-  - Semantics: Returns a multi-dimensional slice or strided view spanning bounds `[iS..iE)` or entire axes for `:`.
-  - Integrates with TPC's existing slice system (`T[..]`) and bounds
-  - checking (`-bt`).
+2. **Multi-Dimensional Slicing:**
+   - Syntax: `arr[iS..iE, jS..jE, ...]` (half-open),
+     `arr[iS..=iE, jS..=jE, ...]` (inclusive), and full-axis colons
+     (`arr[i, :, k]`).
+   - Semantics: Returns a multi-dimensional slice or strided view
+     spanning bounds `[iS..iE)` or entire axes for `:`.
+   - Integrates with TPC's existing slice system (`T[..]`) and bounds
+     checking (`-bt`).
+
 3. **Subscript / Unicode Indexing (`Aᵢⱼ₉`):**
-  - Syntax: Identifiers and indexing expressions incorporating Unicode subscript characters (e.g., `₀₋₉`, `ₐ`, `ᵢ`, `ⱼ`, `ₖ`).
-  - Semantics: Lexical and identifier normalization mapping subscript characters to standard indices or variable components for mathematical conciseness inspired by Julia/APL.
+   - Syntax: Identifiers and indexing expressions incorporating Unicode
+     subscript characters (e.g., `₀₋₉`, `ₐ`, `ᵢ`, `ⱼ`, `ₖ`).
+   - Semantics: Lexical and identifier normalization mapping subscript
+     characters to standard indices or variable components for
+     mathematical conciseness inspired by Julia/APL.
 
 ## Design & Implementation Plan
 
 1. **Parser Changes (`tccpp.c`, `tccgen.c`):**
-   - Extend bracket expression parsing (`[...]`) to recognize comma-separated
-   - expressions and range expressions (`..` and `..=`).
-   - Distinguish single-index/slice from multi-dimensional comma-separated
-     index/slice tuples.
+   - Extend bracket expression parsing (`[...]`) to recognize
+     comma-separated expressions and range expressions (`..` and
+     `..=`).
+   - Distinguish single-index/slice from multi-dimensional
+     comma-separated index/slice tuples.
 2. **Type Representation (`tcc.h`, `tccgen.c`):**
    - Support multi-dimensional array types and multi-dimensional slice
      descriptors (storing dimensions, shapes, and strides).
 3. **Code Generation (`x86_64-gen.c`, `tccgen.c`):**
-   - Emit efficient address calculation code for strided multi-dimensional
-     indexing and slice descriptor construction.
+   - Emit efficient address calculation code for strided
+     multi-dimensional indexing and slice descriptor construction.
 4. **Bounds Checking & Safety (`bcheck.c`):**
    - Extend pointer and bounds checking (`-bt`) to validate indices and
      slice ranges across all dimensions.
 
 ## Acceptance Criteria
 
-- **P1:** Support `A[i, j]` and `A[i, j, k]` indexing on multi-dimensional
-  arrays and slices, correctly computing strided addresses and returning
-  elements.
-- **P2:** Support `A[iS..iE, jS..jE]` and `A[iS..=iE, jS..=jE]` slicing, returning a valid multi-dimensional
-  slice view with correct bounds and strides.
-- **P3:** Full integration with bounds checking (`-bt`) and D-style safety/purity checks.
+- **P1:** Support `A[i, j]` and `A[i, j, k]` indexing on
+  multi-dimensional arrays and slices, correctly computing strided
+  addresses and returning elements.
+- **P2:** Support `A[iS..iE, jS..jE]` and `A[iS..=iE, jS..=jE]`
+  slicing, returning a valid multi-dimensional slice view with correct
+  bounds and strides.
+- **P3:** Full integration with bounds checking (`-bt`) and D-style
+  safety/purity checks.
 - **Verification:** `./configure && make -j$(nproc) -B && make -j$(nproc) test`
   passes with new regression tests under `tests/tests2/`.
