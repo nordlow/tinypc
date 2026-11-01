@@ -1216,6 +1216,28 @@ Status: implemented.  Notes:
   equivalent struct mismatch.  Element-wise conversion on assignment
   and casts is M3; `(T)` casts to a tuple type stay rejected by the
   M1 rule.
+- `make sani-tests2.421` through `429` are clean.  The sanitizer
+  build caught one leak in the first version: when an element after
+  the first turned out not to be constant, the `types`, `vals` and
+  `nested` arrays collected for the earlier elements were dropped on
+  the `tcc_error()` path.  They are freed before the diagnostic now.
+  The blob and its side-table entry are not reported, because LSan
+  finds them through the `tuple_consts` root.
+- Cost of M2, recorded in `bench/pgo-history.tsv` against
+  `e1d9d2ec` (the last commit before it, whose numbers are identical
+  to M1's `0fcb9ae4`, since the commits in between are docs only):
+
+  - clang: 264,184,304 -> 264,620,964 Valgrind `I refs`
+    (+0.165%);
+  - gcc: 231,490,739 -> 232,242,076 (+0.325%).
+
+  The throughput readings (clang 4.00 -> 3.86, gcc 4.17 -> 4.36
+  Mlines/s) move in opposite directions, which confirms that they
+  are inside the timer's 1 ms resolution; `I refs` is the number to
+  trust.  The added cost is the `$(` test in `unary()`'s identifier
+  path (short-circuited by `lang_d`) and the side-table lookup in the
+  tuple subscript path, so a C self-compile pays a little for a
+  feature it never uses.
 
 **M3 -- run-time value tuples (P3).**  `(...)` as a tuple literal in
 the six tuple-expected contexts, in both modes; the tuple-context
