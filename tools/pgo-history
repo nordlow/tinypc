@@ -6,13 +6,20 @@
 # are touched, and one row per commit and host compiler is appended to a
 # tab-separated history file:
 #
-#     commit <TAB> date <TAB> host_cc <TAB> Mlines/s <TAB> instructions
+#     commit <TAB> date <TAB> host_cc <TAB> Mlines/s <TAB> Mtokens/s
+#             <TAB> MB/s <TAB> instructions
 #
 # The numbers are obtained with exactly the same commands that
 # `make pgo-bench` uses (best of 5 self-compiles with `-bench`, then
 # `valgrind --tool=cachegrind`), which also makes the target usable for
-# commits that predate `pgo-bench`.  A "-" in either numeric column means
-# that the build or the measurement failed for that commit and compiler.
+# commits that predate `pgo-bench`.  A "-" in a numeric column means
+# that the metric was not measured: either the build or the measurement
+# failed for that commit and compiler, or the row predates the column
+# (Mtokens/s and MB/s were added after Mlines/s).
+#
+# Mlines/s is kept for continuity, but it tracks the formatting of the
+# input as well as the work: tokens/s and MB/s are the metrics to
+# compare when the codebase grows.
 #
 # Usage: tools/pgo-history [OPTIONS] [REV-RANGE]
 #
@@ -86,7 +93,7 @@ esac
 
 mkdir -p "$workdir"
 log=$workdir/pgo-history.log
-[ -f "$out" ] || printf 'commit\tdate\thost_cc\tMlines/s\tinstructions\n' > "$out"
+[ -f "$out" ] || printf 'commit\tdate\thost_cc\tMlines/s\tMtokens/s\tMB/s\tinstructions\n' > "$out"
 
 say() {
     printf '%s %s\n' "$(date +%H:%M:%S)" "$*" >> "$log"
@@ -98,7 +105,9 @@ recorded() { # commit compiler
         '$1 == c && $3 == h { found = 1 } END { exit !found }' "$out"
 }
 
-# Same commands as the `pgo-bench` Makefile target.
+# Same commands as the `pgo-bench` Makefile target.  Prints
+# "lines/s tokens/s MB/s", each the best of five runs, or nothing if
+# the measurements failed.
 bench() { # worktree
     (cd "$1" &&
         i=0
@@ -107,13 +116,20 @@ bench() { # worktree
             i=$((i + 1))
         done |
         awk '/lines\/s/ {
-                for (i = 1; i <= NF; i++)
+                for (i = 1; i <= NF; i++) {
                     if ($i == "lines/s,") {
                         l = $(i - 1) + 0
-                        if (l > best) best = l
+                        if (l > blines) blines = l
+                    } else if ($i == "tokens/s,") {
+                        t = $(i - 1) + 0
+                        if (t > btokens) btokens = t
+                    } else if ($i == "MB/s") {
+                        m = $(i - 1) + 0
+                        if (m > bbytes) bbytes = m
                     }
+                }
              }
-             END { if (best) printf "%d\n", best }')
+             END { if (blines) printf "%d %d %.1f\n", blines, btokens, bbytes }')
 }
 
 instr() { # worktree
@@ -135,7 +151,8 @@ for sha in $commits; do
         say "build $short ($cc)"
         if ! git worktree add -f --detach "$wt" "$sha" >/dev/null 2>&1; then
             say "  worktree add failed"
-            printf '%s\t%s\t%s\t-\t-\n' "$short" "$date" "$cc" >> "$out"
+            printf '%s\t%s\t%s\t-\t-\t-\t-\n' \
+                "$short" "$date" "$cc" >> "$out"
             continue
         fi
         if ! (cd "$wt" &&
@@ -144,13 +161,19 @@ for sha in $commits; do
             cp "$wt"/.pgo-*.log "$workdir/$short-$cc.failed.log" 2>/dev/null ||
                 true
             say "  FAILED (see $workdir/$short-$cc.failed.log)"
-            printf '%s\t%s\t%s\t-\t-\n' "$short" "$date" "$cc" >> "$out"
+            printf '%s\t%s\t%s\t-\t-\t-\t-\n' \
+                "$short" "$date" "$cc" >> "$out"
             git worktree remove --force "$wt" >/dev/null 2>&1 || rm -rf "$wt"
             continue
         fi
 
-        thr=$(bench "$wt" || true)
-        [ -n "$thr" ] && [ "$thr" -gt 0 ] 2>/dev/null || thr=-
+        # `bench` prints "lines/s tokens/s MB/s", or nothing on failure.
+        set -- $(bench "$wt" || true)
+        lines= tokens= mbytes=
+        if [ $# -eq 3 ]; then
+            lines=$1 tokens=$2 mbytes=$3
+        fi
+        case $lines in '' | *[!0-9]* | 0) lines=- ;; esac
         if vg=$(instr "$wt"); then
             ins=$(printf '%s\n' "$vg" |
                 sed -n 's/.*I *refs: *\([0-9][0-9,]*\).*/\1/p' | tail -1)
@@ -163,15 +186,16 @@ for sha in $commits; do
             say "  valgrind could not measure this build"
         fi
 
-        if [ "$thr" = - ]; then
-            printf '%s\t%s\t%s\t-\t%s\n' "$short" "$date" "$cc" \
+        if [ "$lines" = - ]; then
+            printf '%s\t%s\t%s\t-\t-\t-\t%s\n' "$short" "$date" "$cc" \
                 "$ins" >> "$out"
             say "  $cc: throughput measurement failed"
         else
-            printf '%s\t%s\t%s\t%s\t%s\n' "$short" "$date" "$cc" \
-                "$(awk -v l="$thr" 'BEGIN { printf "%.3f", l / 1e6 }')" \
-                "$ins" >> "$out"
-            say "  $cc: $(awk -v l="$thr" 'BEGIN { printf "%.3f", l / 1e6 }') Mlines/s, $ins instructions"
+            ml=$(awk -v l="$lines" 'BEGIN { printf "%.3f", l / 1e6 }')
+            mt=$(awk -v t="$tokens" 'BEGIN { printf "%.3f", t / 1e6 }')
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+                "$short" "$date" "$cc" "$ml" "$mt" "$mbytes" "$ins" >> "$out"
+            say "  $cc: $ml Mlines/s, $mt Mtokens/s, $mbytes MB/s, $ins instructions"
         fi
         git worktree remove --force "$wt" >/dev/null 2>&1 || rm -rf "$wt"
     done

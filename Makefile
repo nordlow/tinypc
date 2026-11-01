@@ -383,23 +383,39 @@ PGO_CFLAGS = -O3 $(PGO_CFLAGS_ARCH)
 PGO_CLEAN = rm -f *.profraw *.gcda lib/*.profraw lib/*.gcda tcc.profdata
 
 # Benchmark the current tcc by compiling itself, reporting throughput
-# and the number of executed instructions (Valgrind cachegrind).
+# in lines, tokens and input bytes (best of 5) and the number of
+# executed instructions (Valgrind cachegrind).  Lines/s is kept for
+# continuity, but it measures formatting as much as work: a commit
+# that adds blank lines or rewraps a comment moves it without changing
+# any lexing.  Tokens/s counts what next_nomacro() actually produced,
+# and MB/s counts the bytes read from the input files, so both stay
+# comparable while the codebase grows.  See bench/pgo-history.tsv.
 pgo-bench:
 	@echo "=== Benchmark: tcc compiling itself ==="
 	@for i in 1 2 3 4 5; do \
 	  ./tcc -B. -Iinclude -I. -bench tcc.c -o /dev/null 2>&1; \
 	done | awk '/lines\/s/ { \
-	    for (i = 1; i <= NF; i++) \
+	    for (i = 1; i <= NF; i++) { \
 	      if ($$i == "lines/s,") { \
 	        l = $$(i - 1) + 0; \
-	        if (l > best) best = l; \
+	        if (l > blines) blines = l; \
+	      } else if ($$i == "tokens/s,") { \
+	        t = $$(i - 1) + 0; \
+	        if (t > btokens) btokens = t; \
+	      } else if ($$i == "MB/s") { \
+	        m = $$(i - 1) + 0; \
+	        if (m > bbytes) bbytes = m; \
 	      } \
+	    } \
 	  } \
 	  END { \
-	    if (best) \
+	    if (blines) { \
 	      printf "Throughput: %.2f Mlines/s (%d lines/s, best of 5)\n", \
-	             best / 1000000, best; \
-	    else \
+	             blines / 1000000, blines; \
+	      printf "            %.2f Mtokens/s (%d tokens/s, best of 5)\n", \
+	             btokens / 1000000, btokens; \
+	      printf "            %.1f MB/s (best of 5)\n", bbytes; \
+	    } else \
 	      print "Throughput: (no -bench data)"; \
 	  }'
 	@if command -v valgrind >/dev/null 2>&1; then \
