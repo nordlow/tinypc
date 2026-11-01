@@ -77,7 +77,8 @@ $run {
 - `$run` is one member of the `$` compile-time family (`$(...)`,
   `$if`, `$foreach`, `$assert`).  The shared lexing rule -- `$` is
   special only before `(` (or `{` for `$run`) -- is specified in
-  `tasks/support_tuples.md`.
+  `tasks/support_tuples.md`, including the rule that `$if` opens no
+  scope of its own (only its explicit braces do).
 - The statement form is a block, so `$run { ... }` needs no trailing
   `;`, but one is accepted and ignored.
 - `#run` as an alias is listed under M4: `#` starts a preprocessor

@@ -11,3 +11,6 @@ if-taken
 else-taken
 nested-taken
 scope 5 8
+shadow 2
+decls 11 14 15 1
+outer 40

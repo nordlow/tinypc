@@ -61,6 +61,9 @@ Consequences:
 - **Separate value spellings.**  `$(...)` builds at compile time and
   `(...)` builds at run time.  Neither is sugar for the other, and
   `$(...)` is never accepted with run-time elements.
+- **No extra scope.**  `$if` itself opens no scope, unlike C's `if`
+  with a braced body: a braceless `$if` branch declares into the
+  enclosing scope, and only explicit braces create a block (see D9).
 
 ### Why bare `$EXPR` is not adopted
 
@@ -227,6 +230,19 @@ compile-time constructor.
   `decl_designator()`'s bitfield padding skip and `check_fields()`'s
   `table_ident` lookup; `$` is an identifier character, so these
   names are not spellable from source.
+
+- **D9 -- `$if` and scope.**  `$if` introduces no scope of its own.
+  A braceless branch is a declaration or statement in the enclosing
+  scope: `$if (1) int x = 1;` leaves `x` visible after the `$if`, and
+  declaring the same name again is an ordinary redeclaration.  A
+  braced branch is a compound statement inside a function and keeps
+  the usual block scope; at file scope the braces are stripped and
+  the declarations become module-scope declarations, exactly as for
+  `version`/`debug` blocks.  Only the selected branch declares
+  anything -- the other one is scanned, not parsed.  This matches D's
+  `static if` and the existing `version`/`debug` conditionals; an
+  implicit scope per `$if` would make `$if (1) int x = 1;` useless
+  and would differ from D.
 
 ## Surface syntax
 
@@ -934,6 +950,14 @@ Two entry points, one per spelling.
     `begin_macro()`/`decl()`/`block()`.
   - `d_scan_body()` must recognise `$if` next to `TOK_IF` so a
     skipped branch that contains a nested `$if` still balances.
+  - `$if` opens no scope of its own (D9): the selected branch is
+    replayed into the enclosing scope, so a braceless
+    `$if (1) int x = 1;` makes `x` visible after the statement,
+    while `$if (1) { int x = 1; }` is an ordinary block inside a
+    function and, at file scope, a brace group whose declarations
+    `d_scan_body(file_scope = 1)` flattens into module scope.
+    Tests `428` (visible after) and `429` (not visible out of
+    braces, redeclaration) pin both halves.
   - `$foreach` iterates a constant tuple and replays its body once
     per element (M4).  Both are shared with the reflection task; the
     token-replay machinery they need is the same one
@@ -1210,6 +1234,15 @@ Status: implemented.  Notes:
   unchanged and is covered by `427`.  `$` as the subscript length
   still works in D mode because the check in `unary()` comes before
   the `nb_dollar_ctx` branch.
+- `$if` opens no scope of its own (D9): the selected branch is
+  replayed into the enclosing scope, so `$if (1) int x = 1;` leaves
+  `x` visible after the statement, `$if (0) int a; else int b;`
+  leaves `b`, and a nested `$if` behaves the same way.  Braces keep
+  the meaning they have everywhere else: inside a function
+  `$if (1) { int x = 1; }` is a block, so `x` is gone afterwards and
+  can shadow an outer name; at file scope the braces are stripped by
+  `d_scan_body(..., file_scope = 1)` and the declarations land in
+  module scope, exactly as for `version`/`debug`.
 - A constant tuple has the tuple type of its elements, by structural
   identity, so `(int, int) p = $(1, 2);` works while
   `(long, long) q = $(1, 2);` is diagnosed exactly like the
@@ -1289,8 +1322,8 @@ and pulled in with `FLAGS += $(subst 425,425+,$1)`.
 | `424_d_tuple_comma_compat.c` (`-lang=d`) | M1 | the same comma expressions in D mode, plus `a[$]`, `a[$-1]`, `s[0..$]` and `$assert` |
 | `425_tuple_abi.c` | M1 | pass/return tuples of 8, 16 and >16 bytes, mixed int/float, nested tuples; compare against the equivalent struct |
 | `426_tuple_abi_bcheck.c` (`-b`) | M1 | tuple field access under bounds checking |
-| `428_d_tuple_value.c` (`-lang=d`) | M2 | `$(...)` constants in `enum`, array bounds, `static assert`, `$assert`; `$(e)` as a value and `$(e,)` as a 1-tuple; nested `$(...)`; constant folding of `t[i]` (also next to `a[$-1]`); static and local constant tuple initializers; mixed element types; `$if` with dead, else and nested branches |
-| `429_d_tuple_value_error.c` (`-dt -lang=d`) | M2 | non-constant element (plain, inside a tuple, nested, `void`, struct, string, function address), empty `$()`, leading comma, out-of-range and negative index, non-constant index, `$(e)` used as a tuple, `$if` without parens, with an empty condition, with a non-constant condition, and with a `:` declaration |
+| `428_d_tuple_value.c` (`-lang=d`) | M2 | `$(...)` constants in `enum`, array bounds, `static assert`, `$assert`; `$(e)` as a value and `$(e,)` as a 1-tuple; nested `$(...)`; constant folding of `t[i]` (also next to `a[$-1]`); static and local constant tuple initializers; mixed element types; `$if` with dead, else and nested branches; `$if` scope: a braceless branch declares into the enclosing scope, a braced one shadows |
+| `429_d_tuple_value_error.c` (`-dt -lang=d`) | M2 | non-constant element (plain, inside a tuple, nested, `void`, struct, string, function address), empty `$()`, leading comma, out-of-range and negative index, non-constant index, `$(e)` used as a tuple, `$if` without parens, with an empty condition, with a non-constant condition, with a `:` declaration, a braced `$if` declaring out of scope, and a `$if` declaration colliding with a later one |
 | `430_tuple_runtime.c` | M3 | `(x, y)` in initializer, assignment, argument, return, cast and destructuring contexts; copy/assign; element-wise conversion |
 | `431_tuple_runtime_error.c` (`-dt`) | M3 | arity/type mismatch in a tuple literal, tuple arithmetic, indexing a non-tuple, non-tuple parameter with `(...)` |
 | `432_tuple_paren_compat.c` | M3 | `(a, b)` remains a comma expression everywhere else; `auto t = (a, b)` is an int; `x + (a, b)` is an int |

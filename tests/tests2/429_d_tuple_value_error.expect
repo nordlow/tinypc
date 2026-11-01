@@ -51,3 +51,9 @@
 
 [test_if_colon_declaration]
 429_d_tuple_value_error.c:60: error: '$if' colon declarations are not supported
+
+[test_if_braced_scope]
+429_d_tuple_value_error.c:63: error: 'x' undeclared
+
+[test_if_redeclaration]
+429_d_tuple_value_error.c:66: error: redeclaration of 'x'

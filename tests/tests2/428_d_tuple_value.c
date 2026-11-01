@@ -68,5 +68,22 @@ int main(void)
         else printf("nested-taken\n");
     }
     printf("scope %d %d\n", gv, gw);
+
+    /* `$if` opens no scope of its own: a braceless branch declares
+       into the enclosing scope, while braces keep their ordinary
+       meaning.  */
+    $if (1) int sx = 11;
+    $if (0) int sx_dead = 12;
+    $if (0) int sy = 13; else int sy = 14;
+    $if (1) $if (1) int sz = 15;
+    {
+        int shadow = 1;
+        $if (1) {
+            int shadow = 2;
+            printf("shadow %d\n", shadow);
+        }
+        printf("decls %d %d %d %d\n", sx, sy, sz, shadow);
+    }
+    printf("outer %d\n", sx + sy + sz);
     return 0;
 }

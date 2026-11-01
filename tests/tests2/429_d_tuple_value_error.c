@@ -58,4 +58,10 @@ int f(void) { $if () return 1; }
 
 #elif defined test_if_colon_declaration
 int f(void) { $if (1) : int x; }
+
+#elif defined test_if_braced_scope
+int f(void) { $if (1) { int x = 1; } return x; }
+
+#elif defined test_if_redeclaration
+int f(void) { $if (1) int x = 1; int x = 2; return x; }
 #endif
