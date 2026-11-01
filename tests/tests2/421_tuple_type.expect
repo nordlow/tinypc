@@ -1,0 +1,20 @@
+p 1 a
+n 2 b 3.5
+o 7
+g 1 a 2 b 3.5 7
+box 4 d 5
+local box 11 k 12
+arr 8 h 9 i
+ptr 1 a
+const 10 j
+literal 13 l
+macro 14 m 15 n 16 o
+size 8 4 16 4 12
+size expr 8 4
+size typeof 8
+assign 21 a
+call 118 22 m
+return 23 n
+copy 21 a
+generic 1 2
+compat 1 0 0 1

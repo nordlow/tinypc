@@ -1,0 +1,18 @@
+init 2
+stmt 2
+one 102
+two 42
+add 7
+cast 2
+castel 2
+cond 7
+sizeof 4
+typeof 4
+generic 1
+nested 103
+ret 2
+for 9 3 6
+subscript 12
+field 120
+switch 2
+while 6

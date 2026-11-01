@@ -35,6 +35,7 @@ spelling has to be fixed with the rest of it:
 | `$if (c) ...` | static `if` | M2 (shared with the reflection task) |
 | `$foreach (x; t) ...` | static `foreach` over a tuple | M4 (shared with the reflection task) |
 | `$assert(...)` | static assert | exists (`tccgen.c:10640`) |
+| `$tupleof(T)` | member types of struct `T` as a type tuple (D's `T.tupleof`); the type-level projection of `$fields(T)` | future (open question 15) |
 | `$run(...)`, `$run { ... }` | compile-time function execution | `tasks/compile_time_function_execution.md` |
 | `$T`, `$param` | template type/value parameter | future; out of scope |
 | `$EXPR` | **not adopted** | see below |
@@ -191,6 +192,26 @@ compile-time constructor.
   the value of `e`.  This matches Python and Swift and keeps the
   compile-time and run-time spellings in agreement about arity.
   `()` is an error in M1 (a unit type can be added later).
+- **D8 -- M1 parsing probe and field naming.**  The hook lives inside
+  `parse_btype()`'s specifier loop (`tok == '(' && !typespec_found`),
+  so `typedef (int, char) P;`, `(int, char) x;` and
+  `sizeof((int, char))` all take the same path; `unary()` only builds
+  the remaining elements after its own `parse_btype()` call returned
+  the first one.  The group is scanned into a `TokenString` and
+  replayed to *probe* it: commit only if it has a top-level comma and
+  every top-level element parses as a complete abstract type.
+  Committing on "the first token can start a type" alone is unsound:
+  the elements of `((void)0, (T){0})` in
+  `tests/tests2/94_generic.c:36` look like types, yet the group is a
+  comma expression.  A group whose elements all parse as types can
+  never be a valid expression, so the probe never changes the meaning
+  of a valid program.  On failure the group is replayed unchanged and
+  the macro stack is unwound to its saved top.  Elements are stored
+  as named struct fields `$0`, `$1`, ... (`tok_alloc_const()`) rather
+  than anonymous ones, because anonymous fields break
+  `decl_designator()`'s bitfield padding skip and `check_fields()`'s
+  `table_ident` lookup; `$` is an identifier character, so these
+  names are not spellable from source.
 
 ## Surface syntax
 
@@ -417,25 +438,33 @@ already commits on the first type token.
 In `decl()` (`tccgen.c:11444`), `parse_btype()` is called
 speculatively on every statement: a statement beginning with `(T)x;`
 is a cast expression, not a declaration.  The type-tuple hook must
-therefore be non-committing there:
+therefore be non-committing, and it is a *probe*:
 
-1. Scan the balanced parenthesised token group into a `TokenString`
-   without parsing it, tracking `()`, `[]` and `{}` nesting so a
-   comma inside a nested construct is not mistaken for a tuple
-   separator.
-2. If the group has no top-level comma, or its first token cannot
-   start a type, replay the group into the parser unchanged
-   (`begin_macro(str, 1); next();`, the same replay mechanism that
-   backs `unget_tok()` at `tccpp.c:3589`) and return "not a type".
-3. Otherwise commit: consume the opening `(` and parse the tuple type
-   from a replay of the group.  Consuming `(` first is essential; a
-   replay that still starts with `(` would re-enter the hook and
-   recurse.
+1. Scan the balanced parenthesised token group into two identical
+   `TokenString`s without parsing it, tracking `()`, `[]` and `{}`
+   nesting so a comma inside a nested construct is not mistaken for a
+   tuple separator.  If the first token cannot start a type
+   (`is_type_start()`) and is not itself `(`, bail out before
+   scanning: every ordinary parenthesised expression stays cheap.
+2. If the group has no top-level comma, replay the group into the
+   parser unchanged (`begin_macro(str, 1); next();`, the same replay
+   mechanism that backs `unget_tok()` at `tccpp.c:3589`) and return
+   "not a type".
+3. Otherwise replay a copy of the group and parse every top-level
+   element as a complete abstract type.  Commit only if all of them
+   parse, and then finish the type from the parsed elements.  If any
+   element is not a type, unwind the macro stack to its saved top,
+   replay the group unchanged and return "not a type".
 
-The scan is side-effect free, so a group that turns out not to be a
-tuple is restored exactly.  The cost is one token scan and replay per
-`parse_btype()` call that sees `(`, which in practice means only
-statements that start with a parenthesis.
+The probe cannot misread an expression, because a group whose
+elements all parse as types can never be a valid expression.  A
+"first token can start a type" heuristic alone is not enough: in
+`((void)0, (T){0})` (`tests/tests2/94_generic.c:36`) the second
+element starts with a type name, yet the group is a comma
+expression.  The scan is side-effect free, so a group that turns out
+not to be a tuple is restored exactly.  The cost is one token scan
+and replay per `parse_btype()` call that sees `(`, which in practice
+means only statements that start with a parenthesis.
 
 `for (i = 0, j = 0; ...)` is unaffected because `for` clauses call
 `gexpr()` directly (`tccgen.c:9068`, `9083`), not a parenthesised
@@ -1038,11 +1067,11 @@ static TCC_TLS int nb_tuple_consts;
 | file | symbol | change |
 | --- | --- | --- |
 | `tcc.h` | `struct SymAttr` (521) | add `is_tuple:1` |
-| `tccgen.c` | new | `is_tuple_type()`, `make_tuple_type()`, `tuple_arity()`, `tuple_field()` |
-| `tccgen.c` | new | `parse_tuple_type_opt()`, `parse_tuple_type_rest()`, `parse_dollar_tuple()`, `parse_paren_tuple()` |
+| `tccgen.c` | new | `is_tuple_type()`, `tuple_field()`, `tuple_begin()`, `tuple_add_field()`, `tuple_layout()`, `tuple_field_name()` |
+| `tccgen.c` | new | `parse_tuple_type_opt()`, `parse_tuple_type_rest()`, `parse_tuple_group()`, `scan_paren_group()`, `gen_tuple_field()`, `check_tuple_element()` |
 | `tccgen.c` | `compare_types()` (2947) | structural tuple branch |
 | `tccgen.c` | `type_to_str()` (2730) | print `(T1, T2)` |
-| `tccgen.c` | `parse_btype()` (5160) | tuple hook at the top |
+| `tccgen.c` | `parse_btype()` (5160) | tuple hook in the specifier loop |
 | `tccgen.c` | `unary()` `case '(':` (6678) | continue a tuple type after the first element; M3: run-time tuple literal |
 | `tccgen.c` | `unary()` `tok_identifier:` (7136) | intercept `$(` in `-lang=d` |
 | `tccgen.c` | `gen_dollar()` (7144) | no change; the `$(` hook must run before it |
@@ -1061,11 +1090,12 @@ static TCC_TLS int nb_tuple_consts;
 ## Milestones
 
 **M0 -- decisions and scaffolding.**  This document; the
-`SymAttr.is_tuple` bit; `is_tuple_type()`, `make_tuple_type()`,
-`tuple_arity()`, `tuple_field()`; the `compare_types()` and
-`type_to_str()` branches.  No user-visible syntax yet; the code is
-exercised by M1.  Exit criterion: `make -j$(nproc) && make
--j$(nproc) test` passes with no behaviour change.
+`SymAttr.is_tuple` bit; `is_tuple_type()`, `tuple_begin()`,
+`tuple_add_field()`, `tuple_layout()`, `tuple_field()`; the
+`compare_types()` and `type_to_str()` branches.  No user-visible
+syntax yet; the code is exercised by M1.  Exit criterion: `make
+-j$(nproc) && make -j$(nproc) test` passes with no behaviour change.
+Status: implemented; it ships together with M1 (see D8).
 
 **M1 -- type tuples (P1).**  Parse `(T1, ..., Tn)` in declarations,
 typedefs, `alias`, fields, parameters and return types; `(T,)` for
@@ -1073,8 +1103,9 @@ typedefs, `alias`, fields, parameters and return types; `(T,)` for
 compound literals, pointers/arrays of tuples, `t[i]` with a constant
 index, and `__builtin_types_compatible_p`.  Structural identity.
 Tuple ABI = struct ABI.  Debug info suppressed.  Type tuples enabled
-in C and D modes.  Exit criteria: `407`-`412` pass, including the
+in C and D modes.  Exit criteria: `421`-`427` pass, including the
 comma-expression compatibility tests and a cross-mode build.
+Status: implemented (see D8).
 
 **M2 -- compile-time value tuples (P2).**  `$(...)` in `-lang=d`,
 compile-time constants only; `$(e)` is a value and `$(e,)` a 1-tuple;
@@ -1082,7 +1113,7 @@ a non-constant element is an error everywhere, not only in a constant
 context; side table; rodata blob via `init_putv()`; constant indexing
 in `enum`, array bounds, `static assert`, `$assert`; nested `$(...)`;
 empty `$()` rejected; `$if (c) ...` over a compile-time condition.
-Exit criteria: `413`-`414` pass; a compile-time `$(...)` produces no
+Exit criteria: `428`-`429` pass; a compile-time `$(...)` produces no
 code beyond the rodata blob; `-lang=c` still parses `$(x)` as a call
 to `$`.
 
@@ -1091,7 +1122,7 @@ the six tuple-expected contexts, in both modes; the tuple-context
 flag and its clearing rules; tuple temporaries; assignment, copy,
 arguments and returns; element-wise conversion on assignment and
 casts; `t[i]` on rvalues.  No inferred-type tuple local:
-`auto t = (a, b);` stays `int t = b`.  Exit criteria: `415`-`419`
+`auto t = (a, b);` stays `int t = b`.  Exit criteria: `430`-`434`
 pass; the comma-expression suite passes in both modes; the ABI
 matches the equivalent struct for 8-, 16- and >16-byte tuples.
 
@@ -1099,7 +1130,7 @@ matches the equivalent struct for 8-, 16- and >16-byte tuples.
 `auto (a, b) = expr;`; evaluation exactly once; arity and type
 checks; destructuring a tuple-typed variable and a function result;
 `$foreach (x; t) ...` over a constant tuple.  Exit criteria:
-`420`-`421` pass; the initializer's side effects occur once.
+`435`-`436` pass; the initializer's side effects occur once.
 
 **M5 -- type-level and constant-level operations (P2/P3).**
 Hash-consing/interning if profiling justifies it; `typeof(t[i])`;
@@ -1107,41 +1138,46 @@ compile-time tuple concatenation with `~` (reusing the slice `~`
 operator at `tccgen.c:7852` if it fits); element-wise `==`/`!=`
 (optional); struct and array elements in compile-time tuples;
 manifest-constant destructuring; proper debug info; `-fdump-decls`
-polish.  Exit criteria: `422`-`423` pass; `make pgo PGO_CC=clang`
+polish.  Exit criteria: `437`-`438` pass; `make pgo PGO_CC=clang`
 shows no regression.
 
 The reflection task in `TODO.md:151` can then build
 `$fields(T)`/`$members(T)` and `$for` on top of `$foreach` (M4);
-that work is not part of this task.
+that work is not part of this task.  A `$tupleof(T)` that returns
+the member types of a struct (D's `T.tupleof`, see open question 15)
+would sit alongside them, as the type-level projection of
+`$fields(T)`.
 
 ## Test plan
 
 New tests go in `tests/tests2/`, starting at the next free prefix
-`407`, following the conventions in that `Makefile` (`FLAGS +=
--lang=d` for D tests, `GEN = $(GEN-TCC)` where the test depends on
-tcc-specific behaviour, `-dt` for multi-snippet error tests, `-b`
-for bounds checking).  The latest existing test is
-`406_d_noinit.c`.
+(`407`-`420` were taken by other work while this was written, so M1
+uses `421`-`427`), following the conventions in that `Makefile`
+(`FLAGS += -lang=d` for D tests, `GEN = $(GEN-TCC)` where the test
+depends on tcc-specific behaviour, `-dt` for multi-snippet error
+tests, `-b` for bounds checking).  The multi-file ABI test follows
+`120_alias.c`: the extra translation unit is named `425+_tuple_abi.c`
+and pulled in with `FLAGS += $(subst 425,425+,$1)`.
 
 | file | milestone | asserts |
 | --- | --- | --- |
-| `407_tuple_type.c` | M1 | typedef, declaration, nested tuple, `sizeof`/`_Alignof`, compound literal, field access, `typeof`, `_Generic`, `__builtin_types_compatible_p` |
-| `408_tuple_type_error.c` (`-dt`) | M1 | `()`, `(void, int)`, function element, incomplete element, out-of-range index, non-constant index, cast to tuple, tuple arithmetic |
-| `409_tuple_comma_compat.c` | M1 | `(a, b)`, `f((a, b))`, `for (i = 0, j = 0; ...)`, `return (a, b);`, `(T)x` casts; all unchanged in C mode |
-| `410_d_tuple_comma_compat.c` (`-lang=d`) | M1 | the same comma expressions in D mode, plus `a[$]`, `a[$-1]`, `s[0..$]` and `$assert` |
-| `411_tuple_abi.c` | M1 | pass/return tuples of 8, 16 and >16 bytes, mixed int/float, nested tuples; compare against the equivalent struct |
-| `412_tuple_abi_bcheck.c` (`-b`) | M1 | tuple field access under bounds checking |
-| `413_d_tuple_value.c` (`-lang=d`) | M2 | `$(...)` constants in `enum`, array bounds, `static assert`, `$assert`; `$(e)` as a value and `$(e,)` as a 1-tuple; nested `$(...)`; `$if` over a constant condition; mixed element types |
-| `414_d_tuple_value_error.c` (`-dt -lang=d`) | M2 | non-constant element (in any context), struct-valued element, empty `$()`, `$(e)` where a tuple is required, out-of-range index, `$` without `(`, function named `$`, non-constant `$if` condition |
-| `415_tuple_runtime.c` | M3 | `(x, y)` in initializer, assignment, argument, return, cast and destructuring contexts; copy/assign; element-wise conversion |
-| `416_tuple_runtime_error.c` (`-dt`) | M3 | arity/type mismatch in a tuple literal, tuple arithmetic, indexing a non-tuple, non-tuple parameter with `(...)` |
-| `417_tuple_paren_compat.c` | M3 | `(a, b)` remains a comma expression everywhere else; `auto t = (a, b)` is an int; `x + (a, b)` is an int |
-| `418_d_tuple_paren_compat_d.c` (`-lang=d`) | M3 | the same comma expressions in D mode, plus `a[$(1)]` and `a[$]` next to each other |
-| `419_tuple_c_mode.c` | M3 | type tuples and `(...)` run-time literals in C mode; `$(...)` still calls a function named `$`; `$x` and `$if` remain identifiers |
-| `420_d_tuple_destructure.c` (`-lang=d`) | M4 | `auto (a, b) = f();`, destructuring a variable and a compile-time tuple, evaluation once, `$foreach` over a compile-time tuple |
-| `421_d_tuple_destructure_error.c` (`-dt -lang=d`) | M4 | arity mismatch, non-tuple initializer, duplicate names |
-| `422_d_tuple_type_ops.c` (`-lang=d`) | M5 | `typeof(t[i])`, tuple `~`/`==` if implemented, qualifiers, interning identity |
-| `423_d_tuple_manifest_destructure.c` (`-lang=d`) | M5 | destructuring a compile-time tuple into manifest constants; no side effects at the binding site |
+| `421_tuple_type.c` | M1 | typedef, declaration, nested tuple, `sizeof`/`_Alignof`, compound literal, field access, `typeof`, `_Generic`, `__builtin_types_compatible_p` |
+| `422_tuple_type_error.c` (`-dt`) | M1 | `()`, `(void, int)`, function element, incomplete element, out-of-range index, non-constant index, cast to tuple, tuple arithmetic |
+| `423_tuple_comma_compat.c` | M1 | `(a, b)`, `f((a, b))`, `for (i = 0, j = 0; ...)`, `return (a, b);`, `(T)x` casts; all unchanged in C mode |
+| `424_d_tuple_comma_compat.c` (`-lang=d`) | M1 | the same comma expressions in D mode, plus `a[$]`, `a[$-1]`, `s[0..$]` and `$assert` |
+| `425_tuple_abi.c` | M1 | pass/return tuples of 8, 16 and >16 bytes, mixed int/float, nested tuples; compare against the equivalent struct |
+| `426_tuple_abi_bcheck.c` (`-b`) | M1 | tuple field access under bounds checking |
+| `428_d_tuple_value.c` (`-lang=d`) | M2 | `$(...)` constants in `enum`, array bounds, `static assert`, `$assert`; `$(e)` as a value and `$(e,)` as a 1-tuple; nested `$(...)`; `$if` over a constant condition; mixed element types |
+| `429_d_tuple_value_error.c` (`-dt -lang=d`) | M2 | non-constant element (in any context), struct-valued element, empty `$()`, `$(e)` where a tuple is required, out-of-range index, `$` without `(`, function named `$`, non-constant `$if` condition |
+| `430_tuple_runtime.c` | M3 | `(x, y)` in initializer, assignment, argument, return, cast and destructuring contexts; copy/assign; element-wise conversion |
+| `431_tuple_runtime_error.c` (`-dt`) | M3 | arity/type mismatch in a tuple literal, tuple arithmetic, indexing a non-tuple, non-tuple parameter with `(...)` |
+| `432_tuple_paren_compat.c` | M3 | `(a, b)` remains a comma expression everywhere else; `auto t = (a, b)` is an int; `x + (a, b)` is an int |
+| `433_d_tuple_paren_compat_d.c` (`-lang=d`) | M3 | the same comma expressions in D mode, plus `a[$(1)]` and `a[$]` next to each other |
+| `434_tuple_c_mode.c` | M3 | type tuples and `(...)` run-time literals in C mode; `$(...)` still calls a function named `$`; `$x` and `$if` remain identifiers |
+| `435_d_tuple_destructure.c` (`-lang=d`) | M4 | `auto (a, b) = f();`, destructuring a variable and a compile-time tuple, evaluation once, `$foreach` over a compile-time tuple |
+| `436_d_tuple_destructure_error.c` (`-dt -lang=d`) | M4 | arity mismatch, non-tuple initializer, duplicate names |
+| `437_d_tuple_type_ops.c` (`-lang=d`) | M5 | `typeof(t[i])`, tuple `~`/`==` if implemented, qualifiers, interning identity |
+| `438_d_tuple_manifest_destructure.c` (`-lang=d`) | M5 | destructuring a compile-time tuple into manifest constants; no side effects at the binding site |
 
 Additional coverage:
 
@@ -1269,6 +1305,36 @@ Additional coverage:
 14. Should `$T`/`$param` be the template-parameter spelling?
     Recommendation: yes as a naming convention, but templates are a
     separate task and must not constrain the tuple grammar.
+15. Should there be a `$tupleof` counterpart of D's `T.tupleof`?
+    D returns the types of a struct's members as a tuple; the same
+    is convenient here for a struct type `T` (and for a tuple type,
+    where it is the identity).  Recommendation: yes, later, behind a
+    `$`-word rather than a `.tupleof` property: `$tupleof(T)` keeps
+    the spelling out of the D namespace, where `T.tupleof` would
+    also read as a field access on a type.
+
+    How it relates to `$fields(T)` (`TODO.md:158`): they are two
+    projections of one member list, one type-level and one
+    value-level.
+
+    - `$tupleof(T)` is a *type tuple*: the member types in
+      declaration order.  It is usable wherever a type is
+      (`$tupleof(S) x;`, a parameter list, a typedef), needs no side
+      table and no rodata, and is the one to implement first --
+      it is M1 machinery applied to a struct's member list.
+    - `$fields(T)` is a *compile-time value tuple* of reflection
+      nodes, each with `.name`, `.type`, `.offset`, `.size`,
+      `.is_pointer`, ...  It needs M2 (value tuples, a node type,
+      rodata) and M4's `$foreach` to be useful.
+    - They must agree exactly: same arity and declaration order, so
+      that `$fields(T)[i].type` is `$tupleof(T)[i]` and generic code
+      can walk `$foreach (f; $fields(T))` and index either form by
+      the same `i`.  `$fields` is `$tupleof` plus per-member
+      metadata, not a different list.  `$members` is that list
+      widened to methods and nested types, so only its field
+      entries project to `$tupleof`.
+    - Anonymous aggregates are flattened in both, because their
+      members are members of the enclosing struct.
 
 ## Alternatives considered
 

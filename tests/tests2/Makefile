@@ -244,8 +244,16 @@ endif
 418_auto_assignment_operator.test : GEN = $(GEN-TCC)
 419_auto_assignment_operator_error.test : FLAGS += -dt
 419_auto_assignment_operator_error.test : GEN = $(GEN-TCC)
-420_tuple_type.test : FLAGS += -lang=d
-420_tuple_type.test : GEN = $(GEN-TCC)
+421_tuple_type.test : GEN = $(GEN-TCC)
+422_tuple_type_error.test : FLAGS += -dt
+424_d_tuple_comma_compat.test : FLAGS += -lang=d
+424_d_tuple_comma_compat.test : GEN = $(GEN-TCC)
+425_tuple_abi.test : FLAGS += $(subst 425,425+,$1)
+425_tuple_abi.test : GEN = $(GEN-TCC)
+425_tuple_abi.test : NORUN = true
+426_tuple_abi_bcheck.test : FLAGS += -b
+426_tuple_abi_bcheck.test : GEN = $(GEN-TCC)
+427_tuple_c_dollar.test : GEN = $(GEN-TCC)
 417_d_foreach_qualifiers.test : FLAGS += -lang=d
 417_d_foreach_qualifiers.test : GEN = $(GEN-TCC)
 104_inline.test : FLAGS += $(subst 104,104+,$1)

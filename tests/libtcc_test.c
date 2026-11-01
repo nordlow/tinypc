@@ -29,6 +29,7 @@ char my_program[] =
 " __attribute__((dllimport))\n"
 "#endif\n"
 "extern const char hello[];\n"
+"typedef (int, char) Pair;\n"
 "int fib(int n)\n"
 "{\n"
 "    if (n <= 2)\n"
@@ -42,6 +43,10 @@ char my_program[] =
 "    printf(\"%s\\n\", hello);\n"
 "    printf(\"fib(%d) = %d\\n\", n, fib(n));\n"
 "    printf(\"add(%d, %d) = %d\\n\", n, 2 * n, add(n, 2 * n));\n"
+"    {\n"
+"        Pair p = { n, 'p' };\n"
+"        printf(\"pair(%d, %c)\\n\", p[0], p[1]);\n"
+"    }\n"
 "    return 0;\n"
 "}\n";
 

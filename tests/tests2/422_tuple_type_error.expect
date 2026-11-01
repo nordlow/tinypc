@@ -1,0 +1,29 @@
+[test_empty_tuple]
+422_tuple_type_error.c:2: error: empty tuple type
+
+[test_void_element]
+422_tuple_type_error.c:5: error: tuple element has type 'void'
+
+[test_function_element]
+422_tuple_type_error.c:8: error: tuple element has a function type
+
+[test_incomplete_element]
+422_tuple_type_error.c:12: error: tuple element has an incomplete type
+
+[test_storage_element]
+422_tuple_type_error.c:15: error: storage class specifier in tuple type
+
+[test_vla_element]
+422_tuple_type_error.c:18: error: tuple element has a variable length array type
+
+[test_index_out_of_range]
+422_tuple_type_error.c:22: error: tuple index 2 out of range for type '(int, char)'
+
+[test_index_not_constant]
+422_tuple_type_error.c:26: error: constant expression expected
+
+[test_cast_to_tuple]
+422_tuple_type_error.c:30: error: cannot cast to tuple type
+
+[test_tuple_arithmetic]
+422_tuple_type_error.c:34: error: invalid operand types for binary operation

@@ -228,6 +228,7 @@ The following features are available in all modes:
 - D-style `@safe`, `@system`, `@trusted`, and `@pure` attributes
 - D-style slices, slice expressions, dynamic arrays, `foreach`,
   `alias`, manifest constants, `immutable`, and `unittest` blocks
+- type tuples `(T1, T2, ...)` with positional `t[i]` access
 
 `-lang=d` additionally enables the D-specific forms that
 would otherwise change the meaning of valid C or reserve ordinary
@@ -241,6 +242,47 @@ identifiers:
 
 In C mode, names such as `version` and `debug` remain ordinary
 identifiers so that existing C code continues to compile unchanged.
+
+## Type tuples
+
+A parenthesised, comma-separated list of types is a tuple type:
+
+```c
+typedef (int, char) Pair;     /* 2-tuple                          */
+typedef (int,) One;           /* 1-tuple, trailing comma needed */
+typedef ((int, char), double) Nested;
+
+Pair p = {1, 'a'};
+Pair f(Pair v) { return v; }  /* tuple parameter and return type  */
+
+p[0]                          /* positional access, constant index */
+sizeof(Pair)                  /* 8: int then char, struct layout   */
+_Alignof((int, char))
+typeof(p)
+_Generic(p, Pair: 1, default: 0)
+__builtin_types_compatible_p(Pair, (int, char))   /* 1 */
+```
+
+- Tuples work in declarations, typedefs, `alias`, struct fields,
+  parameters and return types, and in both `-lang=c` and `-lang=d`.
+- Layout, alignment, initialisation, assignment and the calling
+  convention are exactly those of the equivalent unnamed struct, so
+  a tuple can cross a translation unit that declares the same
+  values as a struct.
+- Tuple types are structural: `(int, char)` is compatible with
+  itself and with a typedef of itself, but not with a plain struct
+  of the same layout.
+- `t[i]` needs a constant index; it is an lvalue like a `.member`
+  access.  `()` is not a valid tuple type.
+- A cast to a tuple type is rejected; use an initializer or a
+  compound literal such as `(Pair){1, 'a'}` instead.
+- `(a, b)` where `a` and `b` are values remains a comma expression
+  everywhere; a group is only a tuple type when every element parses
+  as a type, which no valid expression does.
+- Tuples carry no debug information (M1).
+
+Compile-time and run-time *value* tuples (`$(...)` and `(...)`) are
+planned but not implemented yet; see `tasks/support_tuples.md`.
 
 ## D-style language extensions
 

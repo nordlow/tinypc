@@ -1,0 +1,16 @@
+init 2
+stmt 2
+one 102
+two 42
+add 7
+cond 7
+typeof 4
+nested 103
+for 9 3 6
+tuple 4 d
+dollar 14 12 13
+slice 3 11 13
+range 3 13
+index 12 12
+vla 21 0
+switch 2

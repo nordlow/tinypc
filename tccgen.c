@@ -172,10 +172,9 @@ static void gv_dup(void);
 static int get_temp_local_var(int size,int align,int *r2);
 static void cast_error(CType *st, CType *dt);
 static int is_tuple_type(CType *type);
-static int tuple_arity(CType *type);
 static Sym *tuple_field(CType *type, int idx, int *pofs);
-static Sym *make_tuple_type(CType *elems, int n);
-static int parse_tuple_type_opt(CType *type);
+static Sym *parse_tuple_type_opt(CType *type, AttributeDef *ad);
+static void parse_tuple_type_rest(CType *type, AttributeDef *ad);
 static int is_slice_type(CType *type);
 static Sym *make_slice_type(CType *elem);
 static int convert_array_to_slice(CType *dt);
@@ -724,6 +723,13 @@ static inline Sym *sym_malloc(void)
 #endif
 }
 
+static inline Sym *sym_calloc(void)
+{
+    Sym *sym = sym_malloc();
+    memset(sym, 0, sizeof *sym);
+    return sym;
+}
+
 ST_INLN void sym_free(Sym *sym)
 {
 #ifndef SYM_DEBUG
@@ -739,8 +745,7 @@ ST_FUNC Sym *sym_push2(Sym **ps, int v, int t, int c)
 {
     Sym *s;
 
-    s = sym_malloc();
-    memset(s, 0, sizeof *s);
+    s = sym_calloc();
     s->v = v;
     s->type.t = t;
     s->c = c;
@@ -5119,8 +5124,7 @@ do_decl:
 		    tcc_error("enumerator '%s' out of range of its type",
 			get_tok_str(v, NULL));
                 if (tcc_state->lang_d) {
-                    ss = sym_malloc();
-                    memset(ss, 0, sizeof *ss);
+                    ss = sym_calloc();
                     ss->v = v;
                     ss->type = t;
                     ss->enum_val = ll;
@@ -5341,8 +5345,16 @@ static int parse_btype(CType *type, AttributeDef *ad, int ignore_label)
     bt = st = -1;
     type->ref = NULL;
     while(1) {
-        if (tcc_state->lang_d && tok == '(' && !pp_expr && !is_expanding_macro() && file && file->filename[0] != '<') {
-            return parse_tuple_type_opt(type);
+        /* `Type` tuple `(T1, ..., Tn)`.  `parse_tuple_type_opt()` leaves
+           the token stream unchanged and returns `NULL` if the group is
+           not a tuple type.  */
+        if (tok == '(' && !typespec_found) {
+            Sym *ts = parse_tuple_type_opt(type, ad);
+            if (ts) {
+                type->t = VT_STRUCT | (t & (VT_STORAGE | VT_QUAL));
+                type->ref = ts;
+                return 1;
+            }
         }
         switch(tok) {
         case TOK_EXTENSION:
@@ -5745,183 +5757,303 @@ static int asm_label_instr(void)
     return v;
 }
 
+/* return true if 'type' is a tuple type */
 static int is_tuple_type(CType *type)
 {
     return (type->t & VT_BTYPE) == VT_STRUCT
         && type->ref && type->ref->a.is_tuple;
 }
 
-static int tuple_arity(CType *type)
-{
-    Sym *s = type->ref;
-    Sym *f;
-    int n = 0;
-    if (!s || !s->a.is_tuple)
-        return 0;
-    for (f = s->next; f; f = f->next)
-        n++;
-    return n;
-}
-
+/* `Return` element 'idx' of tuple type 'type', or `NULL` if out of range.
+   `If` 'pofs' is not `NULL`, store the element's offset in it.  */
 static Sym *tuple_field(CType *type, int idx, int *pofs)
 {
-    Sym *s = type->ref;
-    Sym *f;
-    int i = 0;
-    if (!s || !s->a.is_tuple)
+    Sym *f = type->ref->next;
+
+    if (idx < 0)
         return NULL;
-    for (f = s->next; f; f = f->next, i++) {
-        if (i == idx) {
-            if (pofs)
-                *pofs = f->c;
-            return f;
-        }
-    }
-    return NULL;
+    for (; f && idx > 0; f = f->next)
+        --idx;
+    if (!f)
+        return NULL;
+    if (pofs)
+        *pofs = f->c;
+    return f;
 }
 
-static Sym *make_tuple_type(CType *elems, int n)
+/* `Replace` the tuple value on top of the value stack with its element
+   'idx': the same operation as a `.` field access with a constant field
+   index.  `An` `int` element access is an lvalue, an array element is
+   not, exactly as for a struct member.  */
+static void gen_tuple_field(CType *type, int idx)
+{
+    int ofs = 0;
+    Sym *f = tuple_field(type, idx, &ofs);
+
+    if (!f) {
+        char buf[256];
+        type_to_str(buf, sizeof buf, type, NULL);
+        tcc_error("tuple index %d out of range for type '%s'", idx, buf);
+    }
+    gaddrof();
+    vtop->type = char_pointer_type;
+    vpushi(ofs);
+    gen_op('+');
+    vtop->type = f->type;
+    if (!(vtop->type.t & VT_ARRAY)) {
+        vtop->r |= VT_LVAL;
+#ifdef CONFIG_TCC_BCHECK
+        if (tcc_state->do_bounds_check)
+            vtop->r |= VT_MUSTBOUND;
+#endif
+    }
+}
+
+/* `Reject` invalid tuple element type 'el'.  'struct_layout()' alone does
+   not catch these: it lays out a `void` element as a 1-byte field and an
+   incomplete struct as a 0-byte field.  */
+static void check_tuple_element(CType *el)
+{
+    int bt = el->t & VT_BTYPE;
+    int align;
+
+    if (el->t & VT_STORAGE)
+        tcc_error("storage class specifier in tuple type");
+    if (bt == VT_VOID)
+        tcc_error("tuple element has type 'void'");
+    if (bt == VT_FUNC)
+        tcc_error("tuple element has a function type");
+    if (el->t & VT_VLA)
+        tcc_error("tuple element has a variable length array type");
+    if (type_size(el, &align) <= 0)
+        tcc_error("tuple element has an incomplete type");
+}
+
+/* `Create` a new anonymous struct that represents a tuple type.  `The`
+   element fields are appended with 'tuple_add_field()' and the type is
+   finished by 'tuple_layout()'.  `Tuple` type symbols are allocated on
+   the global stack: a tuple type created inside a function can escape
+   through the type of a declaration.  */
+static Sym *tuple_begin(void)
 {
     CType st;
-    Sym *s, **ps;
-    AttributeDef ad;
-    int i;
+    Sym *s;
+
     st.t = VT_STRUCT;
     st.ref = NULL;
     s = sym_push2(&global_stack, SYM_STRUCT | (anon_sym++), st.t, 0);
     s->r = 0;
     s->type.ref = s;
-    ps = &s->next;
-    for (i = 0; i < n; ++i) {
-        Sym *f = sym_push2(&global_stack, anon_sym++ | SYM_FIELD,
-                           elems[i].t, 0);
-        f->type.ref = elems[i].ref;
-        *ps = f, ps = &f->next;
-    }
+    return s;
+}
+
+/* `Return` the identifier token used as the name of tuple element 'idx'.
+   `Elements` are only accessible by index, but a struct field needs a
+   distinct non-anonymous name, so use '$0', '$1', ...  */
+static int tuple_field_name(int idx)
+{
+    char buf[32];
+
+    snprintf(buf, sizeof buf, "$%d", idx);
+    return tok_alloc_const(buf);
+}
+
+static void tuple_add_field(Sym ***pplast, CType *elem, int idx)
+{
+    Sym *f = sym_push2(&global_stack, tuple_field_name(idx) | SYM_FIELD,
+                       elem->t, 0);
+
+    f->type.ref = elem->ref;
+    f->next = NULL;
+    **pplast = f;
+    *pplast = &f->next;
+}
+
+static Sym *tuple_layout(Sym *s)
+{
+    AttributeDef ad;
+
     memset(&ad, 0, sizeof ad);
     check_fields(&s->type, 1);
     check_fields(&s->type, 0);
     struct_layout(&s->type, &ad);
     s->a.is_tuple = 1;
+    /* `Tuples` are anonymous: positional field names would only show up
+       as '<anonymous>' in debug info.  */
     s->a.nodebug = 1;
     return s;
 }
 
-static int parse_tuple_type_opt(CType *type)
+/* `Scan` the balanced token group that starts at the current '(' into two
+   identical `TokenString`s and return the first one; '*`pdup`' receives
+   the second one.  `On` return 'tok' is on the closing ')' (or on
+   `TOK_EOF` if the group is not terminated), so no token outside the
+   group has been consumed.  '*`phas_comma`' is set if the group has a
+   ',' outside of any nested (), [] or {}.  'nested' tells that the
+   caller has also consumed a second '(' just inside the group, so that
+   the scan starts one level deeper.  */
+static TokenString *scan_paren_group(TokenString **pdup, int *phas_comma,
+                                     int nested)
 {
-    TokenString *inner_str;
-    int depth = 1, t, has_comma = 0;
-    int first_token_inside = 0;
-    int saved_tok = tok;
-    CValue saved_tokc = tokc;
-    const uint8_t *saved_buf_ptr = file ? file->buf_ptr : NULL;
-    int saved_line_num = file ? file->line_num : 0;
+    TokenString *ts = tok_str_alloc();
+    int depth = nested;
 
-    if (is_expanding_macro() || pp_expr)
-        return 0;
-
-    inner_str = tok_str_alloc();
-    next(); /* consume '(' */
-    do {
-        t = tok;
-        if (t == TOK_EOF) {
-            tok_str_free(inner_str);
-            tok = saved_tok;
-            tokc = saved_tokc;
-            if (file) {
-                file->buf_ptr = (uint8_t *)saved_buf_ptr;
-                file->line_num = saved_line_num;
-            }
-            return 0;
-        }
-        if (depth == 1 && t == ')') {
-            next();
-            --depth;
+    *phas_comma = 0;
+    *pdup = NULL;
+    /* the '(' that the caller has already consumed */
+    tok_str_add(ts, '(');
+    if (nested)
+        tok_str_add(ts, '(');
+    for (;;) {
+        int t = tok;
+        if (t == TOK_EOF)
             break;
-        }
-        if (depth == 1 && t != TOK_LINENUM && !first_token_inside && t != '(') {
-            first_token_inside = t;
-        }
-        tok_str_add2(inner_str, t, &tokc);
-        if (depth == 1 && t == ',') {
-            has_comma = 1;
-        }
-        next();
-        if (t == '(') {
+        tok_str_add2(ts, t, &tokc);
+        if (t == ')' && depth == 0)
+            break;
+        if (t == '(' || t == '[' || t == '{')
             ++depth;
-        } else if (t == ')') {
+        else if (t == ')' || t == ']' || t == '}')
             --depth;
-            if (depth == 0) {
-                break;
-            }
-        }
-    } while (depth > 0);
-    tok_str_add(inner_str, TOK_EOF);
-
-    if (!has_comma || !is_type_start(first_token_inside)) {
-        tok_str_free(inner_str);
-        tok = saved_tok;
-        tokc = saved_tokc;
-        if (file) {
-            file->buf_ptr = (uint8_t *)saved_buf_ptr;
-            file->line_num = saved_line_num;
-        }
-        return 0;
-    }
-
-    begin_macro(inner_str, 1);
-    next();
-    {
-        CType elems[64];
-        int n = 0;
-        int success = 1;
-        while (tok != TOK_EOF) {
-            CType el;
-            AttributeDef ad1;
-            if (tok == ')')
-                break;
-            memset(&ad1, 0, sizeof(AttributeDef));
-            if (!parse_btype(&el, &ad1, 0)) {
-                success = 0;
-                break;
-            }
-            int dummy; type_decl(&el, &ad1, &dummy, TYPE_ABSTRACT);
-            if ((el.t & VT_BTYPE) == VT_VOID || (el.t & VT_BTYPE) == VT_FUNC || (el.t & VT_STORAGE)) {
-                success = 0;
-                break;
-            }
-            if (n < 64)
-                elems[n++] = el;
-            else {
-                success = 0;
-                break;
-            }
-            if (tok == ',') {
-                next();
-            } else if (tok == ')' || tok == TOK_EOF) {
-                break;
-            } else {
-                success = 0;
-                break;
-            }
-        }
-        end_macro();
+        else if (t == ',' && depth == 0)
+            *phas_comma = 1;
         next();
-        if (!success || n == 0) {
-            tok_str_free(inner_str);
-            tok = saved_tok;
-            tokc = saved_tokc;
-            if (file) {
-                file->buf_ptr = (uint8_t *)saved_buf_ptr;
-                file->line_num = saved_line_num;
-            }
-            return 0;
-        }
-        tok_str_free(inner_str);
-        type->t = VT_STRUCT;
-        type->ref = make_tuple_type(elems, n);
-        return 1;
     }
+    tok_str_add(ts, 0);
+    if (*phas_comma) {
+        /* only a group with a top-level comma can be a tuple: copy it
+           for the probe instead of building two streams token by token */
+        TokenString *dup = tok_str_alloc();
+        int i;
+        for (i = 0; i < ts->len; ++i)
+            tok_str_add(dup, ts->str[i]);
+        *pdup = dup;
+    }
+    return ts;
+}
+
+/* `Parse` a type tuple from the replay 'ts', which starts at the '(' of
+   the group and ends at its ')'.  `Return` `NULL`, with all state but the
+   tokens inside the group restored, if the group is not a comma
+   separated list of types.  `Otherwise` return the tuple type with 'tok'
+   on the token that follows the group.  `Always` consumes 'ts'.  */
+static Sym *parse_tuple_group(TokenString *ts)
+{
+    TokenString *saved_macro = macro_stack_top();
+    AttributeDef ad;
+    CType el;
+    Sym *s = tuple_begin();
+    Sym **plast = &s->next;
+    int dummy, nfields = 0;
+
+    begin_macro(ts, 1);
+    next();                     /* the '(' of the group */
+    skip('(');
+    for (;;) {
+        if (!parse_btype(&el, &ad, 0))
+            goto not_a_tuple;
+        type_decl(&el, &ad, &dummy, TYPE_ABSTRACT);
+        check_tuple_element(&el);
+        tuple_add_field(&plast, &el, nfields++);
+        if (tok != ',')
+            break;
+        next();
+        if (tok == ')')         /* (T,) is a 1-tuple */
+            break;
+    }
+    if (tok != ')')
+        goto not_a_tuple;
+    next();                     /* move past the ')' of the group */
+    return tuple_layout(s);
+
+not_a_tuple:
+    while (macro_stack_top() != saved_macro)
+        end_macro();
+    return NULL;
+}
+
+/* `Parse` the type tuple `(T1, ..., Tn)` that starts at the current '('.
+   `Return` `NULL` and leave the token stream as found if the group is not
+   a type tuple: `(T)` is a parenthesised type and `(e1, e2)` is a comma
+   expression.  `The` decision is a probe: a group whose elements all
+   parse as types can never be a valid expression, so committing then
+   never changes the meaning of a valid program.  */
+/* `Whether` 't' can start a tuple element.  `Only` a type can, either
+   directly (possibly preceded by an attribute) or as a nested tuple,
+   which is the only type that starts with '('.  */
+static int can_start_tuple_element(int t)
+{
+    return is_type_start(t) || t == '('
+        || t == TOK_ATTRIBUTE1 || t == TOK_ATTRIBUTE2;
+}
+
+static Sym *parse_tuple_type_opt(CType *type, AttributeDef *ad)
+{
+    TokenString *ts, *dup;
+    Sym *s = NULL;
+    int has_comma, nested = 0;
+
+    if (tok != '(')
+        return NULL;
+    next();                     /* first token inside the group */
+    if (tok == ')')
+        tcc_error("empty tuple type");
+    if (!can_start_tuple_element(tok)) {
+        /* `Not` a type: put the token back without scanning the group */
+        unget_tok('(');
+        return NULL;
+    }
+    if (tok == '(') {
+        /* `A` group that starts with '(' is a comma expression, a cast or a
+           parenthesised expression unless it starts a nested tuple, so look
+           one token ahead before scanning the rest of the group.  */
+        next();
+        if (!can_start_tuple_element(tok)) {
+            unget_tok('(');
+            unget_tok('(');
+            return NULL;
+        }
+        nested = 1;
+    }
+    ts = scan_paren_group(&dup, &has_comma, nested);
+    if (dup && tok != TOK_EOF) {
+        s = parse_tuple_group(dup); /* always consumes 'dup' */
+    }
+    if (s) {
+        tok_str_free(ts);
+        return s;
+    }
+    begin_macro(ts, 1);
+    next();
+    return NULL;
+}
+
+/* `Parse` the remaining elements of a type tuple whose first element base
+   type has already been parsed into 'type'; 'tok' is on the ',' that
+   follows it.  `On` return 'type' is the tuple type and 'tok' is on the
+   closing ')'.  */
+static void parse_tuple_type_rest(CType *type, AttributeDef *ad)
+{
+    Sym *s = tuple_begin();
+    Sym **plast = &s->next;
+    int dummy, nfields = 0;
+
+    for (;;) {
+        type_decl(type, ad, &dummy, TYPE_ABSTRACT);
+        check_tuple_element(type);
+        tuple_add_field(&plast, type, nfields++);
+        if (tok != ',')
+            break;
+        next();
+        if (tok == ')')         /* (T,) is a 1-tuple */
+            break;
+        if (!parse_btype(type, ad, 0))
+            expect("type");
+    }
+    if (tok != ')')
+        expect("',' or ')'");
+    type->t = VT_STRUCT;
+    type->ref = tuple_layout(s);
 }
 
 /* `Create` the anonymous struct type used to represent a T[..] slice.  */
@@ -6168,7 +6300,7 @@ static int post_type(CType *type, AttributeDef *ad, int storage, int td)
     TokenString *vla_array_tok = NULL;
     int *vla_array_str = NULL;
 
-    if (tok == '(' && !is_tuple_type(type)) {
+    if (tok == '(') {
         /* function type, or recursive declarator (return if so) */
         next();
 	if (TYPE_DIRECT == (td & (TYPE_DIRECT|TYPE_ABSTRACT)))
@@ -6572,7 +6704,7 @@ static CType *type_decl(CType *type, AttributeDef *ad, int *v, int td)
 	    ret = pointed_type(type);
     }
 
-    if (tok == '(' && !is_tuple_type(type)) {
+    if (tok == '(') {
 	/* `This` is possibly a parameter type list for abstract declarators
 	   ('int ()'), use `post_type` for testing this.  */
 	if (!post_type(type, ad, 0, td)) {
@@ -7072,7 +7204,12 @@ ST_FUNC void unary(void)
             }
         }
         if (parse_btype(&type, &ad, 0)) {
-            type_decl(&type, &ad, &n, TYPE_ABSTRACT);
+            /* a type tuple `(T1, T2, ...)` whose first element was parsed
+               by `parse_btype()` above */
+            if (tok == ',')
+                parse_tuple_type_rest(&type, &ad);
+            else
+                type_decl(&type, &ad, &n, TYPE_ABSTRACT);
             skip(')');
             /* check `ISOC99` compound literal */
             if (tok == '{') {
@@ -7100,6 +7237,8 @@ ST_FUNC void unary(void)
                     tcc_error("expected 'sizeof' after type");
                 }
             } else {
+                if (is_tuple_type(&type))
+                    tcc_error("cannot cast to tuple type");
                 unary();
                 gen_cast(&type);
             }
@@ -7831,21 +7970,11 @@ special_math_val:
             base_type = vtop->type;
             base_sv = vtop;
             if (is_tuple_type(&base_type)) {
+                /* tuple element access: the same operation as a `.` field
+                   access, with the field selected by constant index */
                 int idx = expr_const();
-                int cumofs = 0;
-                Sym *f = tuple_field(&base_type, idx, &cumofs);
-                if (!f)
-                    tcc_error("tuple index %d out of range", idx);
                 skip(']');
-                gaddrof();
-                vtop->c.i += cumofs;
-                vtop->type = f->type;
-                if (!(f->type.t & VT_ARRAY))
-                    vtop->r |= VT_LVAL;
-#ifdef CONFIG_TCC_BCHECK
-                if (tcc_state->do_bounds_check)
-                    vtop->r |= VT_MUSTBOUND;
-#endif
+                gen_tuple_field(&base_type, idx);
                 continue;
             }
             base_is_slice = is_slice_type(&base_type);
