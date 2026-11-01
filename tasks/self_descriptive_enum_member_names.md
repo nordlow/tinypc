@@ -93,11 +93,11 @@ Type modifiers, storage qualifiers, and bitfield attributes:
 #define VT_VLA             0x0800  /**< VLA type modifier */
 #define VT_LONG            0x1000  /**< Long type modifier */
 
-#define VT_EXTERN          0x00002000  /**< Extern storage specifier */
-#define VT_STATIC          0x00004000  /**< Static storage specifier */
-#define VT_TYPEDEF         0x00008000  /**< Typedef storage specifier */
-#define VT_INLINE          0x00010000  /**< Inline storage specifier */
-#define VT_TLS             0x00020000  /**< Thread-local storage specifier */
+#define VT_STORAGE_EXTERN          0x00002000  /**< Extern storage specifier */
+#define VT_STORAGE_STATIC          0x00004000  /**< Static storage specifier */
+#define VT_STORAGE_TYPEDEF         0x00008000  /**< Typedef storage specifier */
+#define VT_STORAGE_INLINE          0x00010000  /**< Inline storage specifier */
+#define VT_STORAGE_TLS             0x00020000  /**< Thread-local storage specifier */
 ```
 
 Proposed renamings:
@@ -127,7 +127,7 @@ Masks used for bitwise isolation of subfields:
 #define VT_BTYPE           0x000f  /**< Mask for basic type */
 #define VT_STRUCT_MASK     (((1U << (6+6)) - 1) << VT_STRUCT_SHIFT | VT_BITFIELD) /**< Mask for structure/union/enum representation */
 #define VT_QUAL            (VT_QUAL_CONSTANT | VT_QUAL_VOLATILE | VT_QUAL_RESTRICT | VT_QUAL_IMMUTABLE) /**< Mask for all qualifiers */
-#define VT_STORAGE         (VT_EXTERN | VT_STATIC | VT_TYPEDEF | VT_INLINE | VT_TLS) /**< Mask for storage specifiers */
+#define VT_STORAGE         (VT_STORAGE_EXTERN | VT_STORAGE_STATIC | VT_STORAGE_TYPEDEF | VT_STORAGE_INLINE | VT_STORAGE_TLS) /**< Mask for storage specifiers */
 #define VT_TYPE            (~(VT_STORAGE|VT_STRUCT_MASK)) /**< Mask covering base types excluding storage and bitfield */
 ```
 

@@ -548,7 +548,7 @@ static void load_value(SValue *sv, int r)
     o(sv->c.i);
 #else
     if(sv->r & VT_SYM) {
-	if (sv->sym->type.t & VT_STATIC) {
+	if (sv->sym->type.t & VT_STORAGE_STATIC) {
             greloc(cur_text_section, sv->sym, ind, R_ARM_REL32);
             o(sv->c.i - 12);
             o(0xe080000f | (intr(r)<<12) | (intr(r)<<16));  // add rx,rx,pc
@@ -589,7 +589,7 @@ void load(int r, SValue *sv)
   v = fr & VT_VALMASK;
   if (fr & VT_LVAL) {
 
-    if ((fr & VT_SYM) && sv->sym->type.t & VT_TLS) {
+    if ((fr & VT_SYM) && sv->sym->type.t & VT_STORAGE_TLS) {
         /* XXX: this does not work */
         uint32_t op;
         o(0xee1d0fe0); /* mrc p15, 0, lr, c13, c0, 3 */
@@ -730,7 +730,7 @@ void store(int r, SValue *sv)
   v = fr & VT_VALMASK;
   if (fr & VT_LVAL || fr == VT_LOCAL) {
 
-    if ((fr & VT_SYM) && sv->sym->type.t & VT_TLS) {
+    if ((fr & VT_SYM) && sv->sym->type.t & VT_STORAGE_TLS) {
         /* XXX: this does not work */
         uint32_t op;
         o(0xee1d0fe0); /* mrc p15, 0, lr, c13, c0, 3 */

@@ -89,7 +89,7 @@ static Sym *asm_label_find(int v)
     int addeddot;
     v = asm2cname(v, &addeddot);
     sym = sym_find(v);
-    while (sym && sym->sym_scope && !(sym->type.t & VT_STATIC))
+    while (sym && sym->sym_scope && !(sym->type.t & VT_STORAGE_STATIC))
         sym = sym->prev_tok;
     return sym;
 }
@@ -97,10 +97,10 @@ static Sym *asm_label_find(int v)
 static Sym *asm_label_push(int v)
 {
     int addeddot, v2 = asm2cname(v, &addeddot);
-    /* We always add VT_EXTERN, for sym definition that's tentative
+    /* We always add VT_STORAGE_EXTERN, for sym definition that's tentative
        (for .set, removed for real defs), for mere references it's correct
        as is.  */
-    Sym *sym = global_identifier_push(v2, VT_ASM | VT_EXTERN | VT_STATIC, 0);
+    Sym *sym = global_identifier_push(v2, VT_ASM | VT_STORAGE_EXTERN | VT_STORAGE_STATIC, 0);
     if (addeddot)
         sym->asm_label = v;
     return sym;
@@ -428,15 +428,15 @@ static Sym* asm_new_label1(TCCState *s1, int label, int is_local,
     sym = asm_label_find(label);
     if (sym) {
 	esym = elfsym(sym);
-	/* A VT_EXTERN symbol, even if it has a section is considered
+	/* A VT_STORAGE_EXTERN symbol, even if it has a section is considered
 	   overridable.  This is how we "define" .set targets.  Real
-	   definitions won't have VT_EXTERN set.  */
+	   definitions won't have VT_STORAGE_EXTERN set.  */
         if (esym && esym->st_shndx != SHN_UNDEF) {
             /* the label is already defined */
             if (IS_ASM_SYM(sym)
-                && (is_local == 1 || (sym->type.t & VT_EXTERN)))
+                && (is_local == 1 || (sym->type.t & VT_STORAGE_EXTERN)))
                 goto new_label;
-            if (!(sym->type.t & VT_EXTERN))
+            if (!(sym->type.t & VT_STORAGE_EXTERN))
                 tcc_error("assembler label '%s' already defined",
                           get_tok_str(label, NULL));
         }
@@ -450,7 +450,7 @@ static Sym* asm_new_label1(TCCState *s1, int label, int is_local,
     esym->st_shndx = sh_num;
     esym->st_value = value;
     if (is_local != 2)
-        sym->type.t &= ~VT_EXTERN;
+        sym->type.t &= ~VT_STORAGE_EXTERN;
     return sym;
 }
 
@@ -741,7 +741,7 @@ static void asm_parse_directive(TCCState *s1, int global)
 		expect("identifier");
             sym = get_asm_sym(tok, NULL);
 	    if (tok1 != TOK_ASMDIR_hidden)
-                sym->type.t &= ~VT_STATIC;
+                sym->type.t &= ~VT_STORAGE_STATIC;
             if (tok1 == TOK_ASMDIR_weak)
                 sym->a.weak = 1;
 	    else if (tok1 == TOK_ASMDIR_hidden)

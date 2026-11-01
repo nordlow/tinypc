@@ -1045,7 +1045,7 @@ static TCC_TLS int nb_tuple_consts;
   and let a fresh symbol reuse its address.  `tuple_const_sym()`
   therefore does the `get_sym_ref()` work explicitly with
   `sym_push2(&global_stack, anon_sym++, ...)`, `put_extern_sym()` and
-  `VT_STATIC`.
+  `VT_STORAGE_STATIC`.
 - Reset the table per translation unit at the start of
   `tccgen_compile()` next to the `anon_sym` reset (`tccgen.c:450`);
   free the previous table's storage there before clearing it.

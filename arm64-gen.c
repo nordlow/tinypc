@@ -468,7 +468,7 @@ static void arm64_reloca(Sym *sym, int reloc_type, uint64_t addend)
 
 static void arm64_sym(int r, Sym *sym, addr_t addend)
 {
-    if (sym->type.t & VT_TLS) {
+    if (sym->type.t & VT_STORAGE_TLS) {
 #ifdef TCC_TARGET_PE
         Sym *s2 = external_global_sym(TOK___tls_index, &int_type);
         int r2 = get_reg(RC_R(16));
@@ -485,7 +485,7 @@ static void arm64_sym(int r, Sym *sym, addr_t addend)
         arm64_reloca(sym, R_AARCH64_TLSLE_ADD_TPREL_LO12, addend);
         o(ARM64_ADD_IMM | ARM64_SF(1) | ARM64_RN(r) | ARM64_RD(r)); /* add xr, xr, #0 */
 #ifndef TCC_TARGET_PE /* no elf-style GOT on Windows */
-    } else if (!(sym->type.t & VT_STATIC)) {
+    } else if (!(sym->type.t & VT_STORAGE_STATIC)) {
         arm64_reloca(sym, R_AARCH64_ADR_GOT_PAGE, 0);
         o(ARM64_ADRP | r); /* adrp xr, #sym */
         arm64_reloca(sym, R_AARCH64_LD64_GOT_LO12_NC, 0);

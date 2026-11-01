@@ -1686,11 +1686,11 @@ During parsing, the storage of an object is also stored in the type
 integer:
 
 @example
-#define VT_EXTERN  0x00001000  /* extern definition */
-#define VT_STATIC  0x00002000  /* static variable */
-#define VT_TYPEDEF 0x00004000  /* typedef definition */
-#define VT_INLINE  0x00008000  /* inline definition */
-#define VT_TLS     0x00010000  /* thread-local storage */
+#define VT_STORAGE_EXTERN  0x00001000  /* extern definition */
+#define VT_STORAGE_STATIC  0x00002000  /* static variable */
+#define VT_STORAGE_TYPEDEF 0x00004000  /* typedef definition */
+#define VT_STORAGE_INLINE  0x00008000  /* inline definition */
+#define VT_STORAGE_TLS     0x00010000  /* thread-local storage */
 @end example
 
 The declaration properties which do not fit in the type integer

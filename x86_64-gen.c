@@ -304,7 +304,7 @@ static void gen_modrm_impl(int opcode, int ll, int op_reg_0, int r, Sym *sym, in
 {
     int op_reg = REG_VALUE(op_reg_0) << 3;
 
-    if ((r & VT_SYM) && (sym->type.t & VT_TLS)) {
+    if ((r & VT_SYM) && (sym->type.t & VT_STORAGE_TLS)) {
 #ifdef TCC_TARGET_PE
         Sym *s2 = external_global_sym(TOK___tls_index, &int_type);
         r = get_reg(RC_INT);
@@ -386,7 +386,7 @@ void load(int r, SValue *sv)
 #ifndef TCC_TARGET_PE
     /* we use indirect access via got */
     if ((fr & (VT_VALMASK|VT_SYM|VT_LVAL)) == (VT_CONST|VT_SYM|VT_LVAL)
-        && !(sv->sym->type.t & (VT_STATIC|VT_TLS))) {
+        && !(sv->sym->type.t & (VT_STORAGE_STATIC|VT_STORAGE_TLS))) {
         /* use the result register as a temporal register */
         int tr = r | TREG_MEM;
         if (is_float(ft)) {
@@ -480,13 +480,13 @@ void load(int r, SValue *sv)
 #ifdef TCC_TARGET_PE
                 gen_modrm64(0x8d, r, fr, sv->sym, fc);
 #else
-                if (sv->sym->type.t & VT_TLS) {
+                if (sv->sym->type.t & VT_STORAGE_TLS) {
                     /* mov fs:0, r */
                     o(0x64), gen_modrm64(0x8b, r, VT_CONST, NULL, 0);
                     /* add $tpoff,r */
                     orex(1,0,r,0x81), oad(0xC0 | REG_VALUE(r), 0);
                     greloca(cur_text_section, sv->sym, ind - 4, R_X86_64_TPOFF32, fc);
-                } else if (sv->sym->type.t & VT_STATIC) {
+                } else if (sv->sym->type.t & VT_STORAGE_STATIC) {
                     orex(1,0,r,0x8d);
                     o(0x05 + REG_VALUE(r) * 8); /* lea xx(%rip), r */
                     gen_addrpc32(fr, sv->sym, fc);
@@ -589,7 +589,7 @@ void store(int r, SValue *v)
 #ifndef TCC_TARGET_PE
     /* we need to access the variable via got */
     if ((fr & (VT_VALMASK|VT_SYM)) == (VT_CONST|VT_SYM)
-        && !(v->sym->type.t & (VT_STATIC|VT_TLS))) {
+        && !(v->sym->type.t & (VT_STORAGE_STATIC|VT_STORAGE_TLS))) {
         /* mov xx(%rip), %r11 */
         o(0x1d8b4c);
         gen_gotpcrel(TREG_R11, v->sym, v->c.i);

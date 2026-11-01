@@ -542,7 +542,7 @@ ST_FUNC void update_storage(Sym *sym)
         esym->st_other = (esym->st_other & ~ELFW(ST_VISIBILITY)(-1))
             | sym->a.visibility;
 
-    if (sym->type.t & (VT_STATIC | VT_INLINE))
+    if (sym->type.t & (VT_STORAGE_STATIC | VT_STORAGE_INLINE))
         sym_bind = STB_LOCAL;
     else if (sym->a.weak)
         sym_bind = STB_WEAK;
@@ -593,12 +593,12 @@ ST_FUNC void put_extern_sym2(Sym *sym, int sh_num,
             sym_type = STT_NOTYPE;
             if (IS_ASM_FUNC(t))
                 sym_type = STT_FUNC;
-        } else if (t & VT_TLS) {
+        } else if (t & VT_STORAGE_TLS) {
             sym_type = STT_TLS;
         } else {
             sym_type = STT_OBJECT;
         }
-        if (t & (VT_STATIC | VT_INLINE))
+        if (t & (VT_STORAGE_STATIC | VT_STORAGE_INLINE))
             sym_bind = STB_LOCAL;
         else
             sym_bind = STB_GLOBAL;
@@ -665,7 +665,7 @@ ST_FUNC void greloca(Section *s, Sym *sym, unsigned long offset, int type,
         if (0 == sym->c) {
             put_extern_sym(sym, NULL, 0, 0);
             if (sym->sym_scope
-                && (sym->type.t & (VT_STATIC|VT_EXTERN)) == (VT_STATIC|VT_EXTERN)) {
+                && (sym->type.t & (VT_STORAGE_STATIC|VT_STORAGE_EXTERN)) == (VT_STORAGE_STATIC|VT_STORAGE_EXTERN)) {
                 /* when a local function declaraion redeclares a global static one
                    then tccelf would not resolve them to the same symbol. */
                 Sym *s = sym;
@@ -871,11 +871,11 @@ ST_FUNC void sym_pop(Sym **ptop, Sym *b, int keep)
             if (s->sym_scope > 0 && s->v < SYM_FIRST_ANOM
                 && (s->type.t & VT_BTYPE) != VT_FUNC
                 && !IS_ENUM_VAL(s->type.t)
-                && !(s->type.t & (VT_STATIC | VT_EXTERN))
+                && !(s->type.t & (VT_STORAGE_STATIC | VT_STORAGE_EXTERN))
                 && !s->a.used) {
                 const char *name = get_tok_str(s->v, NULL);
                 if (name[0] != '_') {
-                    if (s->type.t & VT_TYPEDEF) {
+                    if (s->type.t & VT_STORAGE_TYPEDEF) {
                         tcc_warning_c(warn_unused_alias)("alias '%s' declared but not used", name);
                     } else if (s->a.is_param) {
                         tcc_warning_c(warn_unused_parameter)("parameter '%s' declared but not used (can be avoided by prefixing with '_')", name);
@@ -904,7 +904,7 @@ ST_FUNC Sym *label_find(int v)
 ST_FUNC Sym *label_push(Sym **ptop, int v, int flags)
 {
     Sym *s, **ps;
-    s = sym_push2(ptop, v, VT_STATIC, 0);
+    s = sym_push2(ptop, v, VT_STORAGE_STATIC, 0);
     s->r = flags;
     ps = &table_ident[v - TOK_IDENT]->sym_label;
     if (ptop == &global_label_stack) {
@@ -1267,8 +1267,8 @@ ST_FUNC void vpushsym(CType *type, Sym *sym)
     if (sym)
         sym->a.used = 1;
     if (sym && sym->v < SYM_FIRST_ANOM
-        && (sym->sym_scope == 0 || (sym->type.t & (VT_STATIC | VT_EXTERN | VT_TLS)))
-        && (sym->type.t & VT_BTYPE) != VT_FUNC && !IS_ENUM_VAL(sym->type.t) && !(sym->type.t & VT_TYPEDEF)) {
+        && (sym->sym_scope == 0 || (sym->type.t & (VT_STORAGE_STATIC | VT_STORAGE_EXTERN | VT_STORAGE_TLS)))
+        && (sym->type.t & VT_BTYPE) != VT_FUNC && !IS_ENUM_VAL(sym->type.t) && !(sym->type.t & VT_STORAGE_TYPEDEF)) {
         if (IS_PURE(cur_scope->fn.pure)) {
             tcc_error("global variable '%s' not allowed in @pure scope", get_tok_str(sym->v, NULL));
         } else if (cur_scope->fn.pure == FUNC_PURITY_UNKNOWN) {
@@ -1287,7 +1287,7 @@ ST_FUNC Sym *get_sym_ref(CType *type, Section *sec, unsigned long offset, unsign
 
     v = anon_sym++;
     sym = sym_push(v, type, VT_CONST | VT_SYM, 0);
-    sym->type.t |= VT_STATIC;
+    sym->type.t |= VT_STORAGE_STATIC;
     put_extern_sym(sym, sec, offset, size);
     return sym;
 }
@@ -1306,10 +1306,10 @@ ST_FUNC Sym *external_global_sym(int v, CType *type)
     s = sym_find(v);
     if (!s) {
         /* push forward reference */
-        s = global_identifier_push(v, type->t | VT_EXTERN, 0);
+        s = global_identifier_push(v, type->t | VT_STORAGE_EXTERN, 0);
         s->type.ref = type->ref;
     } else if (IS_ASM_SYM(s)) {
-        s->type.t = type->t | (s->type.t & VT_EXTERN);
+        s->type.t = type->t | (s->type.t & VT_STORAGE_EXTERN);
         s->type.ref = type->ref;
         update_storage(s);
     }
@@ -1390,15 +1390,15 @@ static void merge_attr(AttrDef *ad, AttrDef *ad1)
 /* `Merge` some type attributes.  */
 static void patch_type(Sym *sym, CType *type)
 {
-    if (!(type->t & VT_EXTERN) || IS_ENUM_VAL(sym->type.t)) {
-        if (!(sym->type.t & VT_EXTERN))
+    if (!(type->t & VT_STORAGE_EXTERN) || IS_ENUM_VAL(sym->type.t)) {
+        if (!(sym->type.t & VT_STORAGE_EXTERN))
             tcc_error("redefinition of '%s'", get_tok_str(sym->v, NULL));
-        sym->type.t &= ~VT_EXTERN;
+        sym->type.t &= ~VT_STORAGE_EXTERN;
     }
 
     if (IS_ASM_SYM(sym)) {
         /* stay static if both are static */
-        sym->type.t = type->t & (sym->type.t | ~VT_STATIC);
+        sym->type.t = type->t & (sym->type.t | ~VT_STORAGE_STATIC);
         sym->type.ref = type->ref;
         if ((type->t & VT_BTYPE) != VT_FUNC && !(type->t & VT_ARRAY))
             sym->r |= VT_LVAL;
@@ -1409,36 +1409,36 @@ static void patch_type(Sym *sym, CType *type)
                   get_tok_str(sym->v, NULL));
 
     } else if ((sym->type.t & VT_BTYPE) == VT_FUNC) {
-        int static_proto = sym->type.t & VT_STATIC;
+        int static_proto = sym->type.t & VT_STORAGE_STATIC;
         int ft1 = sym->type.ref->f.func_type;
         int ft2 = type->ref->f.func_type;
 
         /* warn if static follows non-static function declaration */
-        if ((type->t & VT_STATIC) && !static_proto
+        if ((type->t & VT_STORAGE_STATIC) && !static_proto
             /* `XXX` this test for inline shouldn't be here.  `Until` we
                implement gnu-inline mode again it silences a warning for
                mingw caused by our workarounds.  */
-            && !((type->t | sym->type.t) & VT_INLINE))
+            && !((type->t | sym->type.t) & VT_STORAGE_INLINE))
             tcc_warning("static storage ignored for redefinition of '%s'",
                 get_tok_str(sym->v, NULL));
 
         /* set 'inline' if both agree or if one has static */
-        if ((type->t | sym->type.t) & VT_INLINE) {
-            if (!((type->t ^ sym->type.t) & VT_INLINE)
-             || ((type->t | sym->type.t) & VT_STATIC))
-                static_proto |= VT_INLINE;
+        if ((type->t | sym->type.t) & VT_STORAGE_INLINE) {
+            if (!((type->t ^ sym->type.t) & VT_STORAGE_INLINE)
+             || ((type->t | sym->type.t) & VT_STORAGE_STATIC))
+                static_proto |= VT_STORAGE_INLINE;
         }
 
-        if (0 == (type->t & VT_EXTERN)) {
+        if (0 == (type->t & VT_STORAGE_EXTERN)) {
             struct FuncAttr f = sym->type.ref->f;
             /* put complete type, use static from prototype */
-            sym->type.t = (type->t & ~(VT_STATIC|VT_INLINE)) | static_proto;
+            sym->type.t = (type->t & ~(VT_STORAGE_STATIC|VT_STORAGE_INLINE)) | static_proto;
             if (ft1 != FUNC_OLD)
                 type->ref->f.func_type = ft1;
             sym->type.ref = type->ref;
             merge_funcattr(&sym->type.ref->f, &f);
         } else {
-            sym->type.t &= ~VT_INLINE | static_proto;
+            sym->type.t &= ~VT_STORAGE_INLINE | static_proto;
             if (ft1 == FUNC_OLD && ft2 != FUNC_OLD)
                 sym->type.ref = type->ref;
         }
@@ -1448,7 +1448,7 @@ static void patch_type(Sym *sym, CType *type)
             /* set array size if it was omitted in extern declaration */
             sym->type.ref->c = type->ref->c;
         }
-        if ((type->t ^ sym->type.t) & VT_STATIC)
+        if ((type->t ^ sym->type.t) & VT_STORAGE_STATIC)
             tcc_warning("storage mismatch for redefinition of '%s'",
                 get_tok_str(sym->v, NULL));
     }
@@ -2829,13 +2829,13 @@ static void type_to_str(char *buf, int buf_size,
     bt = t & VT_BTYPE;
     buf[0] = '\0';
 
-    if (t & VT_EXTERN)
+    if (t & VT_STORAGE_EXTERN)
         pstrcat(buf, buf_size, "extern ");
-    if (t & VT_STATIC)
+    if (t & VT_STORAGE_STATIC)
         pstrcat(buf, buf_size, "static ");
-    if (t & VT_TYPEDEF)
+    if (t & VT_STORAGE_TYPEDEF)
         pstrcat(buf, buf_size, "typedef ");
-    if (t & VT_INLINE)
+    if (t & VT_STORAGE_INLINE)
         pstrcat(buf, buf_size, "inline ");
     if (bt != VT_PTR) {
         if (t & VT_QUAL_RESTRICT)
@@ -3802,7 +3802,7 @@ error:
     }
 done:
     vtop->type = *type;
-    vtop->type.t &= ~ ( VT_QUAL | VT_ARRAY | VT_TLS );
+    vtop->type.t &= ~ ( VT_QUAL | VT_ARRAY | VT_STORAGE_TLS );
 }
 
 /* return type size as known at compile time. `Put` alignment at 'a' */
@@ -3938,7 +3938,7 @@ static int is_type_start(int t)
         return tcc_state->lang_d;
     }
     s = sym_find(t);
-    return s && (s->type.t & VT_TYPEDEF);
+    return s && (s->type.t & VT_STORAGE_TYPEDEF);
 }
 
 static void check_restrict_type(CType *type)
@@ -4147,7 +4147,7 @@ static void check_stack_address_escape(Sym *dest_sym, Sym *src_sym, int is_retur
     int is_warn = tcc_state->warn_stack_address_escape;
     if (is_return) {
         if (vtop >= vstack && (fn_vt->t & VT_BTYPE) == VT_PTR &&
-            src_sym && src_sym->sym_scope > 0 && !(src_sym->type.t & VT_STATIC) &&
+            src_sym && src_sym->sym_scope > 0 && !(src_sym->type.t & VT_STORAGE_STATIC) &&
             ((src_sym->type.t & VT_ARRAY) || ((src_sym->type.t & VT_BTYPE) != VT_PTR))) {
             if (is_error)
                 tcc_error("returning address of local variable '%s'", get_tok_str(src_sym->v & ~SYM_FIELD, NULL));
@@ -4163,7 +4163,7 @@ static void check_stack_address_escape(Sym *dest_sym, Sym *src_sym, int is_retur
     } else {
         if (vtop >= vstack + 1 &&
             (dest_sym && dest_sym->sym_scope == 0) &&
-            (src_sym && src_sym->sym_scope > 0 && !(src_sym->type.t & VT_STATIC) &&
+            (src_sym && src_sym->sym_scope > 0 && !(src_sym->type.t & VT_STORAGE_STATIC) &&
              ((src_sym->type.t & VT_ARRAY) || ((src_sym->type.t & VT_BTYPE) != VT_PTR)))) {
             if (is_error)
                 tcc_error("assignment of address of stack variable '%s' to global/static storage", get_tok_str(src_sym->v & ~SYM_FIELD, NULL));
@@ -5109,9 +5109,9 @@ do_decl:
             t.ref = s;
             s->sym_scope = local_scope; /* anonymous symbol won't have set */
             /* enum symbols have static storage */
-            t.t = VT_INT|VT_STATIC|VT_ENUM_VAL;
+            t.t = VT_INT|VT_STORAGE_STATIC|VT_ENUM_VAL;
             if (bt)
-                t.t = bt|VT_STATIC|VT_ENUM_VAL;
+                t.t = bt|VT_STORAGE_STATIC|VT_ENUM_VAL;
             for(;;) {
                 v = tok;
                 if (v < TOK_UIDENT)
@@ -5464,7 +5464,7 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
             if (tok == '(') {
                 parse_expr_type(&type1);
                 /* remove all storage modifiers except typedef */
-                type1.t &= ~(VT_STORAGE&~VT_TYPEDEF);
+                type1.t &= ~(VT_STORAGE&~VT_STORAGE_TYPEDEF);
                 if (type1.ref)
                     sym_to_attr(ad, type1.ref);
                 goto basic_type2;
@@ -5489,7 +5489,7 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
             next();
             if (tok == '(') {
                 parse_expr_type(&type1);
-                type1.t &= ~(VT_STORAGE&~VT_TYPEDEF);
+                type1.t &= ~(VT_STORAGE&~VT_STORAGE_TYPEDEF);
                 if (type1.ref)
                     sym_to_attr(ad, type1.ref);
                 type1.t |= type->t & (VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE);
@@ -5537,16 +5537,16 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
 
             /* storage */
         case TOK_EXTERN:
-            g = VT_EXTERN;
+            g = VT_STORAGE_EXTERN;
             goto storage;
         case TOK_STATIC:
-            g = VT_STATIC;
+            g = VT_STORAGE_STATIC;
             goto storage;
         case TOK_TYPEDEF:
-            g = VT_TYPEDEF;
+            g = VT_STORAGE_TYPEDEF;
             goto storage;
        storage:
-            if (t & (VT_EXTERN|VT_STATIC|VT_TYPEDEF) & ~g)
+            if (t & (VT_STORAGE_EXTERN|VT_STORAGE_STATIC|VT_STORAGE_TYPEDEF) & ~g)
                 tcc_error("multiple storage classes");
             t |= g;
             next();
@@ -5554,7 +5554,7 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
         case TOK_INLINE1:
         case TOK_INLINE2:
         case TOK_INLINE3:
-            t |= VT_INLINE;
+            t |= VT_STORAGE_INLINE;
             next();
             break;
         case TOK_NORETURN3:
@@ -5572,7 +5572,7 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
                     next();
                     if (tok == '(') {
                         parse_expr_type(&type1);
-                        type1.t &= ~(VT_STORAGE&~VT_TYPEDEF);
+                        type1.t &= ~(VT_STORAGE&~VT_STORAGE_TYPEDEF);
                         if (type1.ref)
                             sym_to_attr(ad, type1.ref);
                         type1.t |= type->t & (VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE);
@@ -5588,7 +5588,7 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
                     next();
                     if (tok == '(') {
                         parse_expr_type(&type1);
-                        type1.t &= ~(VT_STORAGE&~VT_TYPEDEF);
+                        type1.t &= ~(VT_STORAGE&~VT_STORAGE_TYPEDEF);
                         if (type1.ref)
                             sym_to_attr(ad, type1.ref);
                         type1.t |= type->t & VT_QUAL_CONSTANT;
@@ -5655,7 +5655,7 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
             next();
             parse_expr_type(&type1);
             /* remove all storage modifiers except typedef */
-            type1.t &= ~(VT_STORAGE&~VT_TYPEDEF);
+            type1.t &= ~(VT_STORAGE&~VT_STORAGE_TYPEDEF);
             if (type1.ref) {
                 sym_to_attr(ad, type1.ref);
                 if (type1.t & VT_ARRAY)
@@ -5664,16 +5664,16 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
             goto basic_type2;
         case TOK_THREAD_LOCAL:
         case TOK___thread:
-            if (t & VT_TLS)
+            if (t & VT_STORAGE_TLS)
                 tcc_error("multiple thread-local storage specifiers");
-            t |= VT_TLS;
+            t |= VT_STORAGE_TLS;
             next();
             break;
         default:
             if (typespec_found)
                 goto the_end;
             s = sym_find(tok);
-            if (!s || !(s->type.t & VT_TYPEDEF))
+            if (!s || !(s->type.t & VT_STORAGE_TYPEDEF))
                 goto the_end;
             s->a.used = 1;
             n = tok, next();
@@ -5685,7 +5685,7 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
 
             t &= ~(VT_BTYPE|VT_LONG);
             u = t & ~VT_QUAL, t ^= u;
-            type->t = (s->type.t & ~VT_TYPEDEF) | u;
+            type->t = (s->type.t & ~VT_STORAGE_TYPEDEF) | u;
             type->ref = s->type.ref;
             if (t)
                 parse_btype_qualify(type, t);
@@ -6345,7 +6345,7 @@ static int post_type(CType *type, AttrDef *ad, int storage, int td)
                         n |= SYM_FIELD;
                 } else {
                     n = tok;
-                    pt.t = VT_INT | VT_EXTERN; /* default type */
+                    pt.t = VT_INT | VT_STORAGE_EXTERN; /* default type */
                     pt.ref = NULL;
                     next();
                 }
@@ -6459,10 +6459,10 @@ static int post_type(CType *type, AttrDef *ad, int storage, int td)
             break;
 
 	} else if (tok != ']') {
-            if (!local_stack || (storage & VT_STATIC))
+            if (!local_stack || (storage & VT_STORAGE_STATIC))
                 vpushi(expr_const());
             else {
-		/* `VLAs` (which can only happen with `local_stack` && !`VT_STATIC`)
+		/* `VLAs` (which can only happen with `local_stack` && !`VT_STORAGE_STATIC`)
 		   length must always be evaluated, even under `nocode_wanted`,
 		   so that its size slot is initialized (e.g. under sizeof
 		   or typeof).  */
@@ -6556,10 +6556,10 @@ static void d_array_suffix(CType *type, int storage)
     n = -1;
     t1 = 0;
     if (tok != ']') {
-        if (!local_stack || (storage & VT_STATIC))
+        if (!local_stack || (storage & VT_STORAGE_STATIC))
             vpushi(expr_const());
         else {
-            /* `VLAs` (which can only happen with `local_stack` && !`VT_STATIC`)
+            /* `VLAs` (which can only happen with `local_stack` && !`VT_STORAGE_STATIC`)
                length must always be evaluated, even under `nocode_wanted`,
                so that its size slot is initialized (e.g. under sizeof
                or typeof).  */
@@ -7121,7 +7121,7 @@ static Sym *tuple_const_sym(CType *type, Section *sec, unsigned long offset,
     Sym *sym = sym_push2(&global_stack, anon_sym++, type->t, 0);
 
     sym->type.ref = type->ref;
-    sym->type.t |= VT_STATIC;
+    sym->type.t |= VT_STORAGE_STATIC;
     sym->r = VT_CONST | VT_SYM;
     put_extern_sym(sym, sec, offset, size);
     return sym;
@@ -7795,7 +7795,7 @@ ST_FUNC void unary(void)
         if ((s->type.t & VT_BTYPE) != VT_PTR) {
             s->type.t = VT_VOID;
             mk_pointer(&s->type);
-            s->type.t |= VT_STATIC;
+            s->type.t |= VT_STORAGE_STATIC;
         }
         vpushsym(&s->type, s);
         next();
@@ -7920,8 +7920,8 @@ special_math_val:
             s = external_global_sym(t, &func_old_type);
         }
         if (s && s->v < SYM_FIRST_ANOM
-            && (s->sym_scope == 0 || (s->type.t & (VT_STATIC | VT_EXTERN | VT_TLS)))
-            && (s->type.t & VT_BTYPE) != VT_FUNC && !IS_ENUM_VAL(s->type.t) && !(s->type.t & VT_TYPEDEF)) {
+            && (s->sym_scope == 0 || (s->type.t & (VT_STORAGE_STATIC | VT_STORAGE_EXTERN | VT_STORAGE_TLS)))
+            && (s->type.t & VT_BTYPE) != VT_FUNC && !IS_ENUM_VAL(s->type.t) && !(s->type.t & VT_STORAGE_TYPEDEF)) {
             if (IS_PURE(cur_scope->fn.pure)) {
                 tcc_error("global variable '%s' not allowed in @pure scope", get_tok_str(s->v, NULL));
             } else if (cur_scope->fn.pure == FUNC_PURITY_UNKNOWN) {
@@ -10979,7 +10979,7 @@ static void decl_initializer_alloc(CType *type, AttrDef *ad, int r,
         /* allocate symbol in corresponding section */
         sec = ad->section;
         if (!sec) {
-            if (type->t & VT_TLS) {
+            if (type->t & VT_STORAGE_TLS) {
                 sec = find_section(tcc_state, has_init ? ".tdata" : ".tbss");
                 sec->sh_flags = SHF_ALLOC | SHF_WRITE | SHF_TLS;
                 sec->sh_type = has_init ? SHT_PROGBITS : SHT_NOBITS;
@@ -11284,7 +11284,7 @@ static void gen_inline_functions(TCCState *s)
         for (i = 0; i < s->nb_inline_fns; ++i) {
             fn = s->inline_fns[i];
             sym = fn->sym;
-            if (sym && (sym->c || !(sym->type.t & VT_INLINE))) {
+            if (sym && (sym->c || !(sym->type.t & VT_STORAGE_INLINE))) {
                 /* the function was used or forced (and then not internal):
                    generate its code and convert it to a normal function */
                 fn->sym = NULL;
@@ -11340,7 +11340,7 @@ static int check_d_manifest_constant(int l)
             next(); /* consume '=' */
             expr_const1();
             val = vtop->c.i;
-            type.t = VT_INT | VT_STATIC | VT_ENUM_VAL;
+            type.t = VT_INT | VT_STORAGE_STATIC | VT_ENUM_VAL;
             type.ref = NULL;
             ss = sym_push(id, &type, VT_CONST, 0);
             ss->enum_val = val;
@@ -11360,7 +11360,7 @@ static int check_d_manifest_constant(int l)
                     next(); /* consume '=' */
                     expr_const1();
                     val = vtop->c.i;
-                    btype.t = (btype.t & ~VT_STORAGE) | VT_STATIC | VT_ENUM_VAL;
+                    btype.t = (btype.t & ~VT_STORAGE) | VT_STORAGE_STATIC | VT_ENUM_VAL;
                     ss = sym_push(id2, &btype, VT_CONST, 0);
                     ss->enum_val = val;
                     vpop();
@@ -11688,9 +11688,9 @@ static void pe_check_linkage(CType *type, AttrDef *ad)
 {
     if (!ad->a.dllimport && !ad->a.dllexport)
         return;
-    if (type->t & VT_STATIC)
+    if (type->t & VT_STORAGE_STATIC)
         tcc_error("cannot have dll linkage with static");
-    if (type->t & VT_TYPEDEF) {
+    if (type->t & VT_STORAGE_TYPEDEF) {
         const char *m = ad->a.dllimport ? "im" : "ex";
         tcc_warning("'dll%sport' attribute ignored for typedef", m);
         ad->a.dllimport = 0;
@@ -11699,7 +11699,7 @@ static void pe_check_linkage(CType *type, AttrDef *ad)
         if ((type->t & VT_BTYPE) == VT_FUNC)
             ad->a.dllimport = 0;
         else
-            type->t |= VT_EXTERN;
+            type->t |= VT_STORAGE_EXTERN;
     }
 }
 #endif
@@ -11715,7 +11715,7 @@ static void declare_typedef(int v, CType *type, AttrDef *ad)
     sym = sym_find(v);
     if (sym && sym->sym_scope == local_scope) {
         if (!is_compatible_types(&sym->type, type)
-            || !(sym->type.t & VT_TYPEDEF))
+            || !(sym->type.t & VT_STORAGE_TYPEDEF))
             tcc_error("incompatible redefinition of '%s'",
                 get_tok_str(v, NULL));
         sym->type = *type;
@@ -11747,7 +11747,7 @@ static void do_d_alias(void)
     while (tok == '[')
         d_array_suffix(&type, 0);
     type_decl(&type, &ad, &dummy, TYPE_ABSTRACT);
-    type.t |= VT_TYPEDEF;
+    type.t |= VT_STORAGE_TYPEDEF;
     declare_typedef(v, &type, &ad);
     skip(';');
 }
@@ -11776,7 +11776,7 @@ static void do_unittest(void)
     sr->f.func_args = 0;
     sr->f.func_ctor = 1;
     sr->next = NULL;
-    type.t = VT_FUNC | VT_STATIC;
+    type.t = VT_FUNC | VT_STORAGE_STATIC;
     type.ref = sr;
 
     sym = external_sym(tok_alloc(name, strlen(name))->tok, &type, 0, &ad);
@@ -12363,7 +12363,7 @@ static int decl(int l)
                 end_macro();
             }
             if ((type.t & VT_BTYPE) == VT_FUNC) {
-                if ((type.t & VT_STATIC) && (l != VT_CONST))
+                if ((type.t & VT_STORAGE_STATIC) && (l != VT_CONST))
                     tcc_error("function without file scope cannot be static");
                 /* if old style function prototype, we accept a
                    declaration list */
@@ -12376,15 +12376,15 @@ static int decl(int l)
 		    --local_scope;
                     kr_params = saved_kr_params;
                 }
-                if ((type.t & (VT_EXTERN|VT_INLINE)) == (VT_EXTERN|VT_INLINE)) {
+                if ((type.t & (VT_STORAGE_EXTERN|VT_STORAGE_INLINE)) == (VT_STORAGE_EXTERN|VT_STORAGE_INLINE)) {
                     /* `always_inline` functions must be handled as if they
                        don't generate multiple global defs, even if extern
                        inline, i.e. `GNU` inline semantics for those.  `Rewrite`
                        them into static inline.  */
                     if (tcc_state->gnu89_inline || sym->f.func_alwinl)
-                        type.t = (type.t & ~VT_EXTERN) | VT_STATIC;
+                        type.t = (type.t & ~VT_STORAGE_EXTERN) | VT_STORAGE_STATIC;
                     else
-                        type.t &= ~VT_INLINE; /* always compile otherwise */
+                        type.t &= ~VT_STORAGE_INLINE; /* always compile otherwise */
                 }
 
             } else if (oldint) {
@@ -12415,7 +12415,7 @@ static int decl(int l)
                 /* apply post-declaraton attributes */
                 merge_funcattr(&type.ref->f, &ad.f);
                 /* put function symbol */
-                type.t &= ~VT_EXTERN;
+                type.t &= ~VT_STORAGE_EXTERN;
                 sym = external_sym(v, &type, 0, &ad);
 
                 /* reject abstract declarators in function definition
@@ -12432,7 +12432,7 @@ static int decl(int l)
                 /* static inline functions are just recorded as a kind
                    of macro. `Their` code will be emitted at the end of
                    the compilation unit only if they are used */
-                if (sym->type.t & VT_INLINE) {
+                if (sym->type.t & VT_STORAGE_INLINE) {
                     struct InlineFunc *fn;
                     fn = tcc_malloc(sizeof *fn + strlen(file->filename));
                     strcpy(fn->filename, file->filename);
@@ -12464,15 +12464,15 @@ static int decl(int l)
 		    if (type.t & VT_STORAGE) /* 'register' is okay */
 		        tcc_error("storage class specified for '%s'",
 				  get_tok_str(v, NULL));
-		    if (!(sym->type.t & VT_EXTERN))
+		    if (!(sym->type.t & VT_STORAGE_EXTERN))
 		        tcc_error("redefinition of parameter '%s'",
 				  get_tok_str(v, NULL));
 		    convert_parameter_type(&type);
 		    sym->type = type;
-		} else if (type.t & VT_TYPEDEF) {
+		} else if (type.t & VT_STORAGE_TYPEDEF) {
                     declare_typedef(v, &type, &ad);
 		} else if ((type.t & VT_BTYPE) == VT_VOID
-			   && !(type.t & VT_EXTERN)) {
+			   && !(type.t & VT_STORAGE_EXTERN)) {
 		    tcc_error("declaration of void object");
                 } else {
                     r = 0;
@@ -12501,7 +12501,7 @@ static int decl(int l)
                         has_init = 0;
                     }
 
-                    if (((type.t & VT_EXTERN) && (!has_init || l != VT_CONST))
+                    if (((type.t & VT_STORAGE_EXTERN) && (!has_init || l != VT_CONST))
 		        || (type.t & VT_BTYPE) == VT_FUNC
                         /* as with `GCC`, uninitialized global arrays with no size
                            are considered extern: */
@@ -12509,14 +12509,14 @@ static int decl(int l)
                             && l == VT_CONST && type.ref->c < 0)
                         ) {
                         /* external variable or function */
-                        type.t |= VT_EXTERN;
+                        type.t |= VT_STORAGE_EXTERN;
                         external_sym(v, &type, r, &ad);
                     } else {
-                        if (l == VT_CONST || (type.t & VT_STATIC))
+                        if (l == VT_CONST || (type.t & VT_STORAGE_STATIC))
                             r |= VT_CONST;
                         else
                             r |= VT_LOCAL;
-                        type.t &= ~VT_EXTERN;
+                        type.t &= ~VT_STORAGE_EXTERN;
                         if (init_str) {
                             begin_macro(init_str, 1);
                             next();
@@ -12524,7 +12524,7 @@ static int decl(int l)
                             next();
                         else if (l == VT_CONST)
                             /* uninitialized global variables may be overridden */
-                            type.t |= VT_EXTERN;
+                            type.t |= VT_STORAGE_EXTERN;
                         decl_initializer_alloc(&type, &ad, r, has_init || (init_str != NULL), v, l);
                         if (init_str) {
                             end_macro();

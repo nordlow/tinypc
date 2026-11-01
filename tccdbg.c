@@ -2382,7 +2382,7 @@ ST_FUNC void tcc_debug_funcstart(TCCState *s1, Sym *sym)
     else
     {
         cstr_new (&debug_str);
-        cstr_printf(&debug_str, "%s:%c", funcname, sym->type.t & VT_STATIC ? 'f' : 'F');
+        cstr_printf(&debug_str, "%s:%c", funcname, sym->type.t & VT_STORAGE_STATIC ? 'f' : 'F');
         tcc_get_debug_info(s1, sym->type.ref, &debug_str);
         put_stabs_r(s1, debug_str.data, N_FUN, 0, f->line_num, 0, cur_text_section, sym->c);
         cstr_free (&debug_str);
@@ -2430,9 +2430,9 @@ ST_FUNC void tcc_debug_funcend(TCCState *s1, int size)
 	int n_debug_info = tcc_get_dwarf_info(s1, sym->type.ref);
 
         dwarf_data1(dwarf_info_section,
-	    sym->type.t & VT_STATIC ? DWARF_ABBREV_SUBPROGRAM_STATIC
+	    sym->type.t & VT_STORAGE_STATIC ? DWARF_ABBREV_SUBPROGRAM_STATIC
 				    : DWARF_ABBREV_SUBPROGRAM_EXTERNAL);
-        if ((sym->type.t & VT_STATIC) == 0)
+        if ((sym->type.t & VT_STORAGE_STATIC) == 0)
             dwarf_data1(dwarf_info_section, 1);
         dwarf_strp(dwarf_info_section, funcname);
         dwarf_uleb128(dwarf_info_section, dwarf_line.cur_file);
@@ -2530,7 +2530,7 @@ ST_FUNC void tcc_debug_extern_sym(TCCState *s1, Sym *sym, int sh_num, int sym_bi
             tcc_debug_stabs(s1, str.data, N_GSYM, 0, NULL, 0, 0);
         else
             tcc_debug_stabs(s1, str.data,
-                (sym->type.t & VT_STATIC) && data_section == s
+                (sym->type.t & VT_STORAGE_STATIC) && data_section == s
                 ? N_STSYM : N_LCSYM, 0, s, sym->c, 0);
         cstr_free (&str);
     }
@@ -2634,7 +2634,7 @@ ST_FUNC void tcc_tcov_block_begin(TCCState *s1)
         tcov_data.offset = last_offset;
     else {
         Sym label = {0};
-        label.type.t = VT_LLONG | VT_STATIC;
+        label.type.t = VT_LLONG | VT_STORAGE_STATIC;
 
         ptr = section_ptr_add(tcov_section, 16);
         tcov_data.line = file->line_num;

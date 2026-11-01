@@ -179,7 +179,7 @@ static int load_symofs(int r, SValue *sv, int forstore, int *new_fc)
     if (sv->r & VT_SYM) {
         Sym label = {0};
         assert(v == VT_CONST);
-        if (sv->sym->type.t & VT_TLS) {
+        if (sv->sym->type.t & VT_STORAGE_TLS) {
             /* TLS Local Exec model: lui + addi + add tp */
             rr = is_ireg(r) ? ireg(r) : 5;
             greloca(cur_text_section, sv->sym, ind,
@@ -192,7 +192,7 @@ static int load_symofs(int r, SValue *sv, int forstore, int *new_fc)
             *new_fc = 0;
             return rr;
         }
-        if (sv->sym->type.t & VT_STATIC) { // XXX do this per linker relax
+        if (sv->sym->type.t & VT_STORAGE_STATIC) { // XXX do this per linker relax
             greloca(cur_text_section, sv->sym, ind,
                     R_RISCV_PCREL_HI20, sv->c.i);
             *new_fc = 0;
@@ -204,7 +204,7 @@ static int load_symofs(int r, SValue *sv, int forstore, int *new_fc)
                     R_RISCV_GOT_HI20, 0);
             doload = 1;
         }
-        label.type.t = VT_VOID | VT_STATIC;
+        label.type.t = VT_VOID | VT_STORAGE_STATIC;
 	if (!nocode_wanted)
             put_extern_sym(&label, cur_text_section, ind, 0);
         rr = is_ireg(r) ? ireg(r) : 5;
@@ -510,7 +510,7 @@ static void gen_bounds_epilog(void)
     sym_data = get_sym_ref(&char_pointer_type, lbounds_section,
                            func_bound_offset, PTR_SIZE);
 
-    label.type.t = VT_VOID | VT_STATIC;
+    label.type.t = VT_VOID | VT_STORAGE_STATIC;
     /* generate bound local allocation */
     if (offset_modified) {
         saved_ind = ind;
@@ -1405,7 +1405,7 @@ ST_FUNC void gen_increment_tcov (SValue *sv)
 {
     int r1, r2;
     Sym label = {0};
-    label.type.t = VT_VOID | VT_STATIC;
+    label.type.t = VT_VOID | VT_STORAGE_STATIC;
 
     vpushv(sv);
     vtop->r = r1 = get_reg(RC_INT);

@@ -208,7 +208,7 @@ static void parse_operand(TCCState *s1, Operand *op)
     if (!op->e.sym) {
         if ((int) op->e.v >= -0x1000 && (int) op->e.v < 0x1000)
             op->type = OP_IM12S;
-    } else if (op->e.sym->type.t & (VT_EXTERN | VT_STATIC)) {
+    } else if (op->e.sym->type.t & (VT_STORAGE_EXTERN | VT_STORAGE_STATIC)) {
         /* see also: "RISC-V ABIs Specification" V1.0
 
            section 5.2 recommends using a GOT for
@@ -219,10 +219,10 @@ static void parse_operand(TCCState *s1, Operand *op)
            non-local: outside of a pc-relative +- 2 GiB range
         */
 
-        label.type.t = VT_VOID | VT_STATIC;
+        label.type.t = VT_VOID | VT_STORAGE_STATIC;
 
         /* use the medium PIC model: GOT, auipc, lw */
-        if (op->e.sym->type.t & VT_STATIC)
+        if (op->e.sym->type.t & VT_STORAGE_STATIC)
             greloca(cur_text_section, op->e.sym, ind, R_RISCV_PCREL_HI20, 0);
         else
             greloca(cur_text_section, op->e.sym, ind, R_RISCV_GOT_HI20, 0);
@@ -246,7 +246,7 @@ static void parse_branch_offset_operand(TCCState *s1, Operand *op){
     if (!op->e.sym) {
         if ((int) op->e.v >= -0x1000 && (int) op->e.v < 0x1000)
             op->type = OP_IM12S;
-    } else if (op->e.sym->type.t & (VT_EXTERN | VT_STATIC)) {
+    } else if (op->e.sym->type.t & (VT_STORAGE_EXTERN | VT_STORAGE_STATIC)) {
         /* For extern/static symbols, always use far-branch expansion
            since linker relaxation (R_RISCV_RELAX) is not implemented. */
         op->type = OP_IM32;
@@ -266,7 +266,7 @@ static void parse_jump_offset_operand(TCCState *s1, Operand *op){
     if (!op->e.sym) {
         if ((int) op->e.v >= -0x1000 && (int) op->e.v < 0x1000)
             op->type = OP_IM12S;
-    } else if (op->e.sym->type.t & (VT_EXTERN | VT_STATIC)) {
+    } else if (op->e.sym->type.t & (VT_STORAGE_EXTERN | VT_STORAGE_STATIC)) {
         greloca(cur_text_section, op->e.sym, ind, R_RISCV_JAL, 0);
         op->type = OP_IM12S;
         op->e.v = 0;
@@ -938,7 +938,7 @@ static void asm_mem_access_opcode(TCCState *s1, int token)
      *   inst reg, 0(reg)
      * And with the proper relocation to label
      */
-    if (ops[1].type == OP_IM32 && ops[1].e.sym && ops[1].e.sym->type.t & VT_STATIC){
+    if (ops[1].type == OP_IM32 && ops[1].e.sym && ops[1].e.sym->type.t & VT_STORAGE_STATIC){
         ops[1] = ops[0];
         /* set the offset to zero */
         ops[2].type = OP_IM12S;

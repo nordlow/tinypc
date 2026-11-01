@@ -192,7 +192,7 @@ static void get_pc_thunk(int r, int add)
     gen_static_call(tok_alloc_const(pc_thunk_name[r]));
     if (add) {
         Sym label = {0};
-        label.type.t = VT_VOID|VT_STATIC;
+        label.type.t = VT_VOID|VT_STORAGE_STATIC;
         put_extern_sym(&label, cur_text_section, ind, 0);
         r = REG_VALUE(r);
 	if (r == 0)
@@ -241,7 +241,7 @@ static void gen_modrm(int opc, int op_r2, int r, Sym *sym, int c)
 {
     int op_reg = REG_VALUE(op_r2) << 3;
 
-    if ((r & VT_SYM) && (sym->type.t & VT_TLS)) {
+    if ((r & VT_SYM) && (sym->type.t & VT_STORAGE_TLS)) {
 #ifdef TCC_TARGET_PE
         Sym *s2 = external_global_sym(TOK___tls_index, &int_type);
         r = get_reg(RC_INT);
@@ -258,7 +258,7 @@ static void gen_modrm(int opc, int op_r2, int r, Sym *sym, int c)
 #endif
 #if defined CONFIG_TCC_PIC
     } else if ((r & (VT_VALMASK|VT_SYM)) == (VT_CONST|VT_SYM)) {
-        int is_got = (op_r2 & TREG_MEM) && !(sym->type.t & VT_STATIC);
+        int is_got = (op_r2 & TREG_MEM) && !(sym->type.t & VT_STORAGE_STATIC);
         int here = ind;
         get_pc_thunk(TREG_EBX, is_got);
         o(opc);
@@ -313,7 +313,7 @@ ST_FUNC void load(int r, SValue *sv)
 #if defined CONFIG_TCC_PIC
     /* we use indirect access via got */
     if ((fr & (VT_VALMASK|VT_SYM|VT_LVAL)) == (VT_CONST|VT_SYM|VT_LVAL)
-        && !(sv->sym->type.t & (VT_STATIC|VT_TLS))) {
+        && !(sv->sym->type.t & (VT_STORAGE_STATIC|VT_STORAGE_TLS))) {
         /* use the result register as a temporal register */
         int tr = r | TREG_MEM;
         if (is_float(ft)) {
@@ -360,7 +360,7 @@ ST_FUNC void load(int r, SValue *sv)
         }
         gen_modrm(opc, r, fr, sv->sym, fc);
     } else {
-        if ((fr & VT_SYM) && (sv->sym->type.t & VT_TLS)) {
+        if ((fr & VT_SYM) && (sv->sym->type.t & VT_STORAGE_TLS)) {
 #ifdef TCC_TARGET_PE
             gen_modrm(0x8d, r, fr, sv->sym, fc);
 #else
@@ -370,7 +370,7 @@ ST_FUNC void load(int r, SValue *sv)
 #endif
 #if defined CONFIG_TCC_PIC
         } else if ((fr & (VT_VALMASK|VT_SYM)) == (VT_CONST|VT_SYM)) {
-            if (sv->sym->type.t & VT_STATIC) {
+            if (sv->sym->type.t & VT_STORAGE_STATIC) {
                 get_pc_thunk(r, 0);
                 o(0x808d | REG_VALUE(r) * 0x900); /* lea $xx(r), r */
                 gen_addrpc32(fr, sv->sym, fc + 6);
@@ -441,7 +441,7 @@ ST_FUNC void store(int r, SValue *v)
 #if defined CONFIG_TCC_PIC
     /* we need to access the variable via got */
     if ((v->r & (VT_VALMASK|VT_SYM)) == (VT_CONST|VT_SYM)
-        && !(v->sym->type.t & (VT_STATIC|VT_TLS))) {
+        && !(v->sym->type.t & (VT_STORAGE_STATIC|VT_STORAGE_TLS))) {
 	get_pc_thunk(TREG_EBX, 1);
 	o(0x9b8b); /* mov xx(%ebx),%ebx */
 	gen_gotpcrel(TREG_EBX, v->sym, v->c.i);
@@ -486,7 +486,7 @@ static void gcall_or_jmp(int is_jmp)
     if ((vtop->r & (VT_VALMASK|VT_LVAL|VT_SYM)) == (VT_CONST|VT_SYM)) {
         /* constant and relocation case */
 #if defined CONFIG_TCC_PIC
-	if (!(vtop->sym->type.t & VT_STATIC)) {
+	if (!(vtop->sym->type.t & VT_STORAGE_STATIC)) {
 	    get_pc_thunk(TREG_EBX, 1);
             oad(0xe8 + is_jmp, vtop->c.i - 4); /* call/jmp im */
             greloc(cur_text_section, vtop->sym, ind - 4, R_386_PLT32);

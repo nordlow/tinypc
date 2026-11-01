@@ -1228,11 +1228,11 @@ struct filespec {
 #define VT_LONG        0x1000  /**< long type (also has `VT_INT` rsp. `VT_LLONG`) */
 
 /* storage */
-#define VT_EXTERN  0x00002000  /**< extern definition */
-#define VT_STATIC  0x00004000  /**< static variable */
-#define VT_TYPEDEF 0x00008000  /**< typedef definition */
-#define VT_INLINE  0x00010000  /**< inline definition */
-#define VT_TLS     0x00020000  /**< thread-local storage */
+#define VT_STORAGE_EXTERN  0x00002000  /**< extern definition */
+#define VT_STORAGE_STATIC  0x00004000  /**< static variable */
+#define VT_STORAGE_TYPEDEF 0x00008000  /**< typedef definition */
+#define VT_STORAGE_INLINE  0x00010000  /**< inline definition */
+#define VT_STORAGE_TLS     0x00020000  /**< thread-local storage */
 /* currently unused: 0x00080000 */
 
 #define VT_STRUCT_SHIFT 20     /**< shift for bitfield shift values (32 - 2*6) */
@@ -1251,7 +1251,7 @@ struct filespec {
 #define VT_ATOMIC   VT_QUAL_VOLATILE /**< `Atomic` type modifier alias */
 
 /* type mask (except storage) */
-#define VT_STORAGE (VT_EXTERN | VT_STATIC | VT_TYPEDEF | VT_INLINE | VT_TLS) /**< `Mask` covering all storage class specifiers */
+#define VT_STORAGE (VT_STORAGE_EXTERN | VT_STORAGE_STATIC | VT_STORAGE_TYPEDEF | VT_STORAGE_INLINE | VT_STORAGE_TLS) /**< `Mask` covering all storage class specifiers */
 #define VT_TYPE (~(VT_STORAGE|VT_STRUCT_MASK)) /**< `Mask` covering base types excluding storage and bitfield */
 
 /* symbol was created by tccasm.c first */
