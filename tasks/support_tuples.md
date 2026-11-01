@@ -916,15 +916,29 @@ Two entry points, one per spelling.
   - Type-check the elements against the expected tuple type and
     convert each with `gen_assign_cast()`; then build a struct
     temporary exactly as an equivalent `{...}` initializer would.
-- `$if`/`$foreach` (M2/M4): in `block()` (`tccgen.c:8869`) right
-  after `t = tok` (8879), if `t` is the identifier `$if` or
-  `$foreach` and `tok == '('`, rewrite `t` to `TOK_IF`/`TOK_FOREACH`
-  and fall into the existing statement paths (8889, 9058).  `$if`
-  evaluates its condition with `expr_const()` and emits only the
-  selected branch; `$foreach` iterates a constant tuple and replays
-  its body once per element.  Both are shared with the reflection
-  task; the token-replay machinery they need is the same one
-  `tasks/compile_time_function_execution.md` specifies for `$run`.
+- `$if`/`$foreach` (M2/M4): handled like the D `version`/`debug`
+  conditional rather than by rewriting to `TOK_IF`, because the
+  branch that is not taken must never be parsed: a `$if` exists to
+  keep code that is invalid for the current target out of the
+  compiler.
+  - `check_d_dollar_if()` is called from `decl()` and from
+    `block()` right next to `check_d_conditional()`.  It consumes
+    `$if`, requires `(`, evaluates the condition with
+    `expr_const()` (so a non-constant condition is "constant
+    expression expected"), rejects a `:` declaration form, and
+    calls `d_conditional_body()`.
+  - `d_conditional_body()` is the branch scan/replay that was
+    factored out of `check_d_conditional()`: it saves both branches
+    as `TokenString`s with `d_scan_body()`, frees the one not
+    selected, and replays the selected one through
+    `begin_macro()`/`decl()`/`block()`.
+  - `d_scan_body()` must recognise `$if` next to `TOK_IF` so a
+    skipped branch that contains a nested `$if` still balances.
+  - `$foreach` iterates a constant tuple and replays its body once
+    per element (M4).  Both are shared with the reflection task; the
+    token-replay machinery they need is the same one
+    `tasks/compile_time_function_execution.md` specifies for
+    `$run`.
 - `tccpp.c` needs no change: `$` is already an identifier character
   (`tccpp.c:2696`, `3710`), and `$(` tokenises as the identifier `$`
   followed by `(`.
@@ -989,7 +1003,7 @@ compile-time element values.  Keep a per-translation-unit table:
 
 ```c
 struct TupleConst {
-    Sym *sym;        /* blob symbol from get_sym_ref() */
+    Sym *sym;        /* blob symbol, the lookup key */
     int n;           /* arity */
     CType *types;    /* element types */
     CValue *vals;    /* scalar element values, for constant indexing */
@@ -1000,10 +1014,14 @@ static TCC_TLS struct TupleConst *tuple_consts;
 static TCC_TLS int nb_tuple_consts;
 ```
 
-- Key the table by the `Sym *` returned by `get_sym_ref()`
-  (`tccgen.c:1193`) or `vpush_ref()` (`tccgen.c:1206`).  Allocate
-  those symbols on `global_stack` so a later `sym_pop()` cannot free
-  the key and let a fresh symbol reuse its address.
+- Key the table by the `Sym *` that owns the blob.  Do not use
+  `get_sym_ref()` (`tccgen.c:1282`) as is: it calls `sym_push()`,
+  which pushes onto `local_stack` inside a function, so a later
+  `sym_pop()` at the end of the enclosing block would free the key
+  and let a fresh symbol reuse its address.  `tuple_const_sym()`
+  therefore does the `get_sym_ref()` work explicitly with
+  `sym_push2(&global_stack, anon_sym++, ...)`, `put_extern_sym()` and
+  `VT_STATIC`.
 - Reset the table per translation unit at the start of
   `tccgen_compile()` next to the `anon_sym` reset (`tccgen.c:450`);
   free the previous table's storage there before clearing it.
@@ -1023,7 +1041,11 @@ static TCC_TLS int nb_tuple_consts;
   indexing can descend into it.
 - Do not replay the element tokens on each index.  Replaying would
   re-evaluate side effects and cost O(n) per index; the table makes
-  indexing O(1).
+  indexing independent of the arity.  Lookup is a linear scan over
+  `tuple_consts`, which is fine because the table only holds the
+  `$(...)` literals of one translation unit; M5 can intern the types
+  or index the table by symbol if a real program shows up in a
+  profile.
 
 ### 7. Destructuring (M4, `tccgen.c`)
 
@@ -1149,6 +1171,51 @@ empty `$()` rejected; `$if (c) ...` over a compile-time condition.
 Exit criteria: `428`-`429` pass; a compile-time `$(...)` produces no
 code beyond the rodata blob; `-lang=c` still parses `$(x)` as a call
 to `$`.
+Status: implemented.  Notes:
+
+- `$(e)` pushes the element's `SValue` unchanged, so it costs
+  nothing at run time and works anywhere a constant does, including
+  the operand of `$if`.  Any top-level comma -- including the
+  trailing one of `$(e,)` -- makes a tuple.
+- `$(e1, ..., en)` allocates the struct layout of the equivalent
+  tuple type, reserves `size` bytes in `rodata_section` with
+  `section_add()`, and fills them with `init_putv()` at each field
+  offset, so byte order, relocations and `long double` are correct
+  for a cross target.  The blob is emitted even when only a
+  constant index is used; see open question 16.
+- `t[i]` on a value that is a blob reference looks the element up in
+  the side table and pushes it directly, so `$(1, 2)[0]` is usable
+  in `enum`, array bounds, `static assert` and `$assert` with no
+  code and no load.  A nested tuple is stored as a nested
+  `TupleConst`, so `$($(1, 2)[0], 3)` folds through both levels.
+- The side table is reset in `tccgen_compile()` next to the
+  `anon_sym` reset, because a `tcc_compile()` call starts a fresh
+  translation unit.
+- "No code beyond the rodata blob" was checked with `objdump`:
+  `int f(void) { return $(30, 31)[1]; }` compiles to
+  `mov $0x1f,%eax` and never reads the blob, and
+  `sizeof($(1, 2))` emits neither code nor a blob, because
+  `NODATA_WANTED` (set inside `sizeof`) turns the reserve into a
+  zero-sized one.  A `$if (0)` branch is only scanned, so a `$(...)`
+  inside it emits nothing either.  There is no `.expect` way to
+  observe this in `tests/tests2/`, so it stays a manual check.
+- Diagnostics: `'$': element %d is not a compile-time constant`
+  (reported for the first offending element in any context, so
+  `$(x, 1)` and `$(1, x)` both report the right index),
+  `empty '$()' tuple`, and
+  `tuple index %d out of range for type '(int, int)'` for both
+  positive and negative constant indices.
+- D mode only: a function named `$` can no longer be called in
+  `-lang=d`, because `$(` is the constructor; `-lang=c` is
+  unchanged and is covered by `427`.  `$` as the subscript length
+  still works in D mode because the check in `unary()` comes before
+  the `nb_dollar_ctx` branch.
+- A constant tuple has the tuple type of its elements, by structural
+  identity, so `(int, int) p = $(1, 2);` works while
+  `(long, long) q = $(1, 2);` is diagnosed exactly like the
+  equivalent struct mismatch.  Element-wise conversion on assignment
+  and casts is M3; `(T)` casts to a tuple type stay rejected by the
+  M1 rule.
 
 **M3 -- run-time value tuples (P3).**  `(...)` as a tuple literal in
 the six tuple-expected contexts, in both modes; the tuple-context
@@ -1200,8 +1267,8 @@ and pulled in with `FLAGS += $(subst 425,425+,$1)`.
 | `424_d_tuple_comma_compat.c` (`-lang=d`) | M1 | the same comma expressions in D mode, plus `a[$]`, `a[$-1]`, `s[0..$]` and `$assert` |
 | `425_tuple_abi.c` | M1 | pass/return tuples of 8, 16 and >16 bytes, mixed int/float, nested tuples; compare against the equivalent struct |
 | `426_tuple_abi_bcheck.c` (`-b`) | M1 | tuple field access under bounds checking |
-| `428_d_tuple_value.c` (`-lang=d`) | M2 | `$(...)` constants in `enum`, array bounds, `static assert`, `$assert`; `$(e)` as a value and `$(e,)` as a 1-tuple; nested `$(...)`; `$if` over a constant condition; mixed element types |
-| `429_d_tuple_value_error.c` (`-dt -lang=d`) | M2 | non-constant element (in any context), struct-valued element, empty `$()`, `$(e)` where a tuple is required, out-of-range index, `$` without `(`, function named `$`, non-constant `$if` condition |
+| `428_d_tuple_value.c` (`-lang=d`) | M2 | `$(...)` constants in `enum`, array bounds, `static assert`, `$assert`; `$(e)` as a value and `$(e,)` as a 1-tuple; nested `$(...)`; constant folding of `t[i]` (also next to `a[$-1]`); static and local constant tuple initializers; mixed element types; `$if` with dead, else and nested branches |
+| `429_d_tuple_value_error.c` (`-dt -lang=d`) | M2 | non-constant element (plain, inside a tuple, nested, `void`, struct, string, function address), empty `$()`, leading comma, out-of-range and negative index, non-constant index, `$(e)` used as a tuple, `$if` without parens, with an empty condition, with a non-constant condition, and with a `:` declaration |
 | `430_tuple_runtime.c` | M3 | `(x, y)` in initializer, assignment, argument, return, cast and destructuring contexts; copy/assign; element-wise conversion |
 | `431_tuple_runtime_error.c` (`-dt`) | M3 | arity/type mismatch in a tuple literal, tuple arithmetic, indexing a non-tuple, non-tuple parameter with `(...)` |
 | `432_tuple_paren_compat.c` | M3 | `(a, b)` remains a comma expression everywhere else; `auto t = (a, b)` is an int; `x + (a, b)` is an int |
@@ -1373,6 +1440,22 @@ Additional coverage:
       that produces the types instead of walking the members a
       second time.  Then arity and order cannot drift apart, and a
       later change to member flattening is automatically shared.
+16. Is the `$(...)` rodata blob emitted lazily?  Today it is emitted
+    as soon as the constructor is parsed, even if the value is only
+    used for a constant index (`$(1, 2)[0]` in an `enum`) or never
+    used at all.  This is harmless -- the bytes are a few bytes of
+    read-only data per literal -- and it keeps `parse_dollar_tuple()`
+    simple, because the blob symbol is also the side-table key.
+    Recommendation: keep it in M2; make the blob lazy in M5 only if
+    a real program shows measurable `rodata` growth, since laziness
+    means decoupling the side-table key from the emitted symbol.
+17. Does `$(...)` need a length/element-count property?
+    `$(1, 2, 3).length` would let `$foreach` and generic code stop
+    at a compile-time bound instead of hard-coding the arity.  The
+    arity is already known to the compiler (`TupleConst.n`), so this
+    is a small addition on the `.length` path of the existing
+    aggregate property syntax.  Recommendation: M4, together with
+    `$foreach`, which is the first construct that needs the count.
 
 ## Alternatives considered
 

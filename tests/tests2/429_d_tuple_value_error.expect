@@ -1,0 +1,53 @@
+[test_non_constant_element]
+429_d_tuple_value_error.c:4: error: '$': element 1 is not a compile-time constant
+
+[test_non_constant_tuple_element]
+429_d_tuple_value_error.c:7: error: '$': element 2 is not a compile-time constant
+
+[test_void_element]
+429_d_tuple_value_error.c:10: error: '$': element 1 is not a compile-time constant
+
+[test_struct_element]
+429_d_tuple_value_error.c:16: error: '$': element 1 is not a compile-time constant
+
+[test_string_element]
+429_d_tuple_value_error.c:20: error: '$': element 1 is not a compile-time constant
+
+[test_string_tuple_element]
+429_d_tuple_value_error.c:23: error: '$': element 2 is not a compile-time constant
+
+[test_function_element]
+429_d_tuple_value_error.c:27: error: '$': element 1 is not a compile-time constant
+
+[test_nested_non_constant_element]
+429_d_tuple_value_error.c:30: error: '$': element 2 is not a compile-time constant
+
+[test_empty_tuple]
+429_d_tuple_value_error.c:33: error: empty '$()' tuple
+
+[test_leading_comma]
+429_d_tuple_value_error.c:36: error: expression expected before ','
+
+[test_index_out_of_range]
+429_d_tuple_value_error.c:39: error: tuple index 2 out of range for type '(int, int)'
+
+[test_negative_index]
+429_d_tuple_value_error.c:42: error: tuple index -1 out of range for type '(int, int)'
+
+[test_index_not_constant]
+429_d_tuple_value_error.c:45: error: constant expression expected
+
+[test_scalar_subscript]
+429_d_tuple_value_error.c:48: error: pointer expected
+
+[test_non_constant_if]
+429_d_tuple_value_error.c:51: error: constant expression expected
+
+[test_if_without_parens]
+429_d_tuple_value_error.c:54: error: '(' expected (got '1')
+
+[test_if_empty_condition]
+429_d_tuple_value_error.c:57: error: expression expected before ')'
+
+[test_if_colon_declaration]
+429_d_tuple_value_error.c:60: error: '$if' colon declarations are not supported

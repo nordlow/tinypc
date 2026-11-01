@@ -254,6 +254,10 @@ endif
 426_tuple_abi_bcheck.test : FLAGS += -b
 426_tuple_abi_bcheck.test : GEN = $(GEN-TCC)
 427_tuple_c_dollar.test : GEN = $(GEN-TCC)
+428_d_tuple_value.test : FLAGS += -lang=d
+428_d_tuple_value.test : GEN = $(GEN-TCC)
+429_d_tuple_value_error.test : FLAGS += -dt -lang=d
+429_d_tuple_value_error.test : GEN = $(GEN-TCC)
 417_d_foreach_qualifiers.test : FLAGS += -lang=d
 417_d_foreach_qualifiers.test : GEN = $(GEN-TCC)
 104_inline.test : FLAGS += $(subst 104,104+,$1)

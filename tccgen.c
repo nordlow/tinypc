@@ -173,6 +173,7 @@ static int get_temp_local_var(int size,int align,int *r2);
 static void cast_error(CType *st, CType *dt);
 static int is_tuple_type(CType *type);
 static Sym *tuple_field(CType *type, int idx, int *pofs);
+static void free_tuple_consts(void);
 static Sym *parse_tuple_type_opt(CType *type, AttributeDef *ad);
 static void parse_tuple_type_rest(CType *type, AttributeDef *ad);
 static int is_slice_type(CType *type);
@@ -186,6 +187,7 @@ static void do_Static_assert(void);
 static void do_d_assert(void);
 static int check_d_manifest_constant(int l);
 static int check_d_conditional(int l, int flags);
+static int check_d_dollar_if(int l, int flags);
 static void gen_slice_assign(int assign_tok);
 static void expr_cond(void);
 static TCC_TLS int slice_range_target;
@@ -462,6 +464,7 @@ ST_FUNC int tccgen_compile(TCCState *s1)
     funcname = "";
     func_ind = -1;
     anon_sym = SYM_FIRST_ANOM;
+    free_tuple_consts();
     nocode_wanted = DATA_ONLY_WANTED; /* no code outside of functions */
     debug_modes = (s1->do_debug ? 1 : 0) | s1->test_coverage << 1;
     global_expr = 0;
@@ -7056,6 +7059,171 @@ static void gen_dollar(void)
     }
 }
 
+/* ------------------------------------------------------------------------- */
+/* Compile-time value tuples `$(...)`.  The value is a rodata blob laid out
+   like the equivalent struct; `tuple_consts` remembers the element values so
+   that a constant index folds without code generation.  */
+
+typedef struct TupleConst {
+    Sym *sym;                   /* blob symbol, also the lookup key */
+    int n;                      /* number of elements */
+    CType *types;               /* element types */
+    CValue *vals;               /* scalar element values */
+    struct TupleConst **nested; /* tuple-valued elements, or NULL */
+} TupleConst;
+
+static TCC_TLS TupleConst **tuple_consts;
+static TCC_TLS int nb_tuple_consts;
+
+static void free_tuple_consts(void)
+{
+    int i;
+
+    for (i = 0; i < nb_tuple_consts; ++i) {
+        TupleConst *tc = tuple_consts[i];
+        tcc_free(tc->types);
+        tcc_free(tc->vals);
+        tcc_free(tc->nested);
+        tcc_free(tc);
+    }
+    tcc_free(tuple_consts);
+    tuple_consts = NULL;
+    nb_tuple_consts = 0;
+}
+
+/* `Return` the constant tuple the value 'sv' refers to, or `NULL` if it is
+   not one.  */
+static TupleConst *tuple_const_of(SValue *sv)
+{
+    int i;
+
+    if ((sv->r & (VT_VALMASK | VT_LVAL | VT_SYM)) != (VT_CONST | VT_SYM))
+        return NULL;
+    for (i = 0; i < nb_tuple_consts; ++i)
+        if (tuple_consts[i]->sym == sv->sym)
+            return tuple_consts[i];
+    return NULL;
+}
+
+/* `Push` the compile-time element 'idx' of the constant tuple 'tc'.  */
+static void tuple_const_push(TupleConst *tc, int idx)
+{
+    if (tc->nested && tc->nested[idx])
+        vpushsym(&tc->types[idx], tc->nested[idx]->sym);
+    else
+        vsetc(&tc->types[idx], VT_CONST, &tc->vals[idx]);
+}
+
+/* `Add` an anonymous symbol of tuple type 'type' for the 'size' bytes at
+   'offset' in 'sec'.  `The` symbol lives on the global stack, because the
+   side table uses it as a key and a sym_pop() must not free it.  */
+static Sym *tuple_const_sym(CType *type, Section *sec, unsigned long offset,
+                            unsigned long size)
+{
+    Sym *sym = sym_push2(&global_stack, anon_sym++, type->t, 0);
+
+    sym->type.ref = type->ref;
+    sym->type.t |= VT_STATIC;
+    sym->r = VT_CONST | VT_SYM;
+    put_extern_sym(sym, sec, offset, size);
+    return sym;
+}
+
+/* `Parse` the compile-time constructor `$(e1, ..., en)`, with 'tok' on the
+   '(' of the `$(`.  `Push` the value of the single element, or a reference
+   to a constant tuple, on the value stack.  */
+static void parse_dollar_tuple(void)
+{
+    CType *types = NULL;
+    CValue *vals = NULL;
+    TupleConst **nested = NULL;
+    int n = 0, is_tuple = 0, i;
+    CType ttype;
+
+    next();                     /* the '(' of the `$(` */
+    if (tok == ')')
+        tcc_error("empty '$()' tuple");
+    for (;;) {
+        CType el;
+        CValue ev;
+        TupleConst *sub;
+        int bt;
+
+        expr_eq();
+        el = vtop->type;
+        if ((vtop->r & (VT_VALMASK | VT_LVAL)) != VT_CONST)
+            goto not_constant;
+        sub = tuple_const_of(vtop);
+        bt = el.t & VT_BTYPE;
+        if (!sub && ((vtop->r & VT_SYM) || bt == VT_VOID || bt == VT_FUNC
+                     || bt == VT_STRUCT || (el.t & VT_ARRAY)))
+            goto not_constant;
+        ev = vtop->c;
+        vpop();
+        types = tcc_realloc(types, (n + 1) * sizeof *types);
+        vals = tcc_realloc(vals, (n + 1) * sizeof *vals);
+        nested = tcc_realloc(nested, (n + 1) * sizeof *nested);
+        types[n] = el;
+        vals[n] = ev;
+        nested[n] = sub;
+        ++n;
+        if (tok != ',')
+            break;
+        is_tuple = 1;
+        next();
+        if (tok == ')')         /* $(e,) is a 1-tuple */
+            break;
+    }
+    skip(')');
+    if (!is_tuple) {
+        /* a single element without a trailing comma is a plain value */
+        if (nested[0])
+            vpushsym(&types[0], nested[0]->sym);
+        else
+            vsetc(&types[0], VT_CONST, &vals[0]);
+    } else {
+        Sym *s = tuple_begin();
+        Sym **plast = &s->next;
+        TupleConst *tc;
+        init_params p = { rodata_section };
+        unsigned long offset;
+        int size, align;
+
+        for (i = 0; i < n; ++i)
+            tuple_add_field(&plast, &types[i], i);
+        ttype.t = VT_STRUCT;
+        ttype.ref = tuple_layout(s);
+        size = type_size(&ttype, &align);
+        if (NODATA_WANTED)
+            size = 0, align = 1;
+        offset = section_add(p.sec, size, align);
+        tc = tcc_mallocz(sizeof *tc);
+        tc->sym = tuple_const_sym(&ttype, p.sec, offset, size);
+        tc->n = n;
+        tc->types = types;
+        tc->vals = vals;
+        tc->nested = nested;
+        for (i = 0; i < n; ++i) {
+            int ofs = 0;
+            tuple_field(&ttype, i, &ofs);
+            tuple_const_push(tc, i);
+            init_putv(&p, &types[i], offset + ofs);
+        }
+        tuple_consts = tcc_realloc(tuple_consts,
+                                   (nb_tuple_consts + 1) * sizeof *tuple_consts);
+        tuple_consts[nb_tuple_consts++] = tc;
+        vpushsym(&ttype, tc->sym);
+        /* the arrays now belong to 'tc' */
+        types = NULL, vals = NULL, nested = NULL;
+    }
+    tcc_free(types);
+    tcc_free(vals);
+    tcc_free(nested);
+    return;
+not_constant:
+    tcc_error("'$': element %d is not a compile-time constant", n + 1);
+}
+
 ST_FUNC void unary(void)
 {
     int n, t, align, size, r, str_lit = 0;
@@ -7654,6 +7822,13 @@ special_math_val:
             tcc_error("expression expected before '%s'", get_tok_str(tok, &tokc));
         t = tok;
         next();
+        /* `$(...)` is the compile-time constructor in D mode; it must be
+           checked before '$' is taken as the subscript length */
+        if (tcc_state->lang_d && tok == '('
+            && !strcmp(get_tok_str(t, NULL), "$")) {
+            parse_dollar_tuple();
+            break;
+        }
         s = sym_find(t);
         if (!s || IS_ASM_SYM(s)) {
             const char *name = get_tok_str(t, NULL);
@@ -7972,9 +8147,23 @@ special_math_val:
             if (is_tuple_type(&base_type)) {
                 /* tuple element access: the same operation as a `.` field
                    access, with the field selected by constant index */
+                TupleConst *tc = tuple_const_of(base_sv);
                 int idx = expr_const();
                 skip(']');
-                gen_tuple_field(&base_type, idx);
+                if (tc) {
+                    /* a constant tuple folds to the element's value */
+                    if (idx < 0 || idx >= tc->n) {
+                        char buf[256];
+                        type_to_str(buf, sizeof buf, &base_type, NULL);
+                        tcc_error("tuple index %d out of range for type '%s'",
+                                  idx, buf);
+                    }
+                    tuple_const_push(tc, idx);
+                    vswap();
+                    vpop();
+                } else {
+                    gen_tuple_field(&base_type, idx);
+                }
                 continue;
             }
             base_is_slice = is_slice_type(&base_type);
@@ -9441,6 +9630,8 @@ static void block(int flags)
 again:
     memset(&ad, 0, sizeof ad);
     if (check_d_conditional(VT_LOCAL, flags))
+        return;
+    if (check_d_dollar_if(VT_LOCAL, flags))
         return;
     t = tok;
     /* `If` the token carries a value, next() might destroy it. `Only` with
@@ -11845,7 +12036,7 @@ static void d_scan_body(TokenString *str, int file_scope)
         }
         return;
     }
-    if (t == TOK_IF) {
+    if (t == TOK_IF || d_ident_is(t, "$if")) {
         if (str)
             tok_str_add_tok(str);
         next();
@@ -11911,12 +12102,57 @@ static void d_scan_body(TokenString *str, int file_scope)
     d_scan_decl_or_expr(str);
 }
 
+/* `Scan` both branches of a D conditional and replay the selected one.
+   `On` entry 'tok' is the token that follows the condition.  */
+static void d_conditional_body(int l, int flags, int take)
+{
+    TokenString *body, *else_body, *sel;
+
+    body = tok_str_alloc();
+    d_scan_body(body, l == VT_CONST);
+    tok_str_add(body, TOK_EOF);
+    else_body = NULL;
+    if (tok == TOK_ELSE) {
+        next();
+        else_body = tok_str_alloc();
+        d_scan_body(else_body, l == VT_CONST);
+        tok_str_add(else_body, TOK_EOF);
+    }
+
+    sel = take ? body : else_body;
+    if (sel != body)
+        tok_str_free(body);
+    if (else_body && sel != else_body)
+        tok_str_free(else_body);
+    if (sel) {
+        if (sel->len > 1) {
+            /* `Keep` the token following the conditional in a macro
+               stream so that it is restored after the replay.  */
+            unget_tok(0);
+            begin_macro(sel, 1);
+            next();
+            if (l == VT_CONST) {
+                decl(VT_CONST);
+            } else {
+                decl(VT_LOCAL);
+                if (tok != TOK_EOF)
+                    block(flags);
+            }
+            while (tok != TOK_EOF)
+                next();
+            end_macro();
+            next();
+        } else {
+            tok_str_free(sel);
+        }
+    }
+}
+
 /* `Parse` and act on a D 'version' or 'debug' specification or block.
    `Returns` nonzero when the current token started such a construct.  */
 static int check_d_conditional(int l, int flags)
 {
     int is_debug, take;
-    TokenString *body, *else_body, *sel;
 
     if (!tcc_state->lang_d || (l != VT_CONST && l != VT_LOCAL))
         return 0;
@@ -11974,45 +12210,28 @@ static int check_d_conditional(int l, int flags)
     }
     if (tok == ':')
         tcc_error("version/debug colon declarations are not supported");
+    d_conditional_body(l, flags, take);
+    return 1;
+}
 
-    body = tok_str_alloc();
-    d_scan_body(body, l == VT_CONST);
-    tok_str_add(body, TOK_EOF);
-    else_body = NULL;
-    if (tok == TOK_ELSE) {
-        next();
-        else_body = tok_str_alloc();
-        d_scan_body(else_body, l == VT_CONST);
-        tok_str_add(else_body, TOK_EOF);
-    }
+/* `Parse` and act on `$if (c) ... [else ...]`.  `The` condition must be a
+   compile-time constant and only the selected branch is parsed, so the
+   other one may contain code that is invalid for this target.  */
+static int check_d_dollar_if(int l, int flags)
+{
+    int take;
 
-    sel = take ? body : else_body;
-    if (sel != body)
-        tok_str_free(body);
-    if (else_body && sel != else_body)
-        tok_str_free(else_body);
-    if (sel) {
-        if (sel->len > 1) {
-            /* `Keep` the token following the conditional in a macro
-               stream so that it is restored after the replay.  */
-            unget_tok(0);
-            begin_macro(sel, 1);
-            next();
-            if (l == VT_CONST) {
-                decl(VT_CONST);
-            } else {
-                decl(VT_LOCAL);
-                if (tok != TOK_EOF)
-                    block(flags);
-            }
-            while (tok != TOK_EOF)
-                next();
-            end_macro();
-            next();
-        } else {
-            tok_str_free(sel);
-        }
-    }
+    if (!tcc_state->lang_d || (l != VT_CONST && l != VT_LOCAL))
+        return 0;
+    if (!d_ident_is(tok, "$if"))
+        return 0;
+    next();
+    skip('(');
+    take = expr_const() != 0;
+    skip(')');
+    if (tok == ':')
+        tcc_error("'$if' colon declarations are not supported");
+    d_conditional_body(l, flags, take);
     return 1;
 }
 
@@ -12047,6 +12266,8 @@ static int decl(int l)
         memset(&adbase, 0, sizeof(adbase));
         oldint = 0;
         if (check_d_conditional(l, 0))
+            continue;
+        if (check_d_dollar_if(l, 0))
             continue;
         if (check_d_static_assert())
             continue;

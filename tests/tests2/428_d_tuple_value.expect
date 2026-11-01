@@ -1,0 +1,13 @@
+enums 1 8
+arrays 32 32
+scalars 5 7 2.5
+static 1 2 2.5
+local 9 10 20 22
+fold 31 2 7 2
+subscript 42
+length 4 3
+sizeof 8 16
+if-taken
+else-taken
+nested-taken
+scope 5 8
