@@ -4,8 +4,9 @@
 
 Add native support for multi-dimensional array indexing and slicing in
 TinyPC (TPC), supporting comma-separated multi-index access
-(`A[i, j, k]`) returning elements and comma-separated range slicing
-(`A[iS..iE, jS..jE]` half-open or `A[iS..=iE, jS..=jE]` inclusive) returning sub-spans or multi-dimensional slices.
+(`A[i, j, k]`) returning elements, comma-separated range slicing
+(`A[iS..iE, jS..jE]` half-open or `A[iS..=iE, jS..=jE]` inclusive), Julia-style full-axis
+colons (`A[i, j, :]`), and Unicode subscript indexing (`Aᵢⱼ₉`).
 Take inspiration from Mojo and Julia syntax and ergonomics.
 
 ## Syntax & Semantics
@@ -18,12 +19,14 @@ Take inspiration from Mojo and Julia syntax and ergonomics.
    - Works on static multi-dimensional arrays (`T[N1][N2][N3]`) and
      dynamic/slice multi-dimensional views.
 
-2. **Multi-Dimensional Slicing:**
-   - Syntax: `arr[iS..iE, jS..jE, ...]` (half-open) and `arr[iS..=iE, jS..=jE, ...]` (inclusive upper limit).
-   - Semantics: Returns a multi-dimensional slice (or strided view)
-   - consisting of bounds `[iS..iE)` or `[iS..=iE]` along axis 0, etc.
-   - Integrates with TPC's existing slice system (`T[..]`) and bounds
-     checking (`-bt`).
+- **Multi-Dimensional Slicing:**
+  - Syntax: `arr[iS..iE, jS..jE, ...]` (half-open), `arr[iS..=iE, jS..=jE, ...]` (inclusive), and full-axis colons (`arr[i, :, k]`).
+  - Semantics: Returns a multi-dimensional slice or strided view spanning bounds `[iS..iE)` or entire axes for `:`.
+  - Integrates with TPC's existing slice system (`T[..]`) and bounds
+  - checking (`-bt`).
+3. **Subscript / Unicode Indexing (`Aᵢⱼ₉`):**
+  - Syntax: Identifiers and indexing expressions incorporating Unicode subscript characters (e.g., `₀₋₉`, `ₐ`, `ᵢ`, `ⱼ`, `ₖ`).
+  - Semantics: Lexical and identifier normalization mapping subscript characters to standard indices or variable components for mathematical conciseness inspired by Julia/APL.
 
 ## Design & Implementation Plan
 
