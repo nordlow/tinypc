@@ -190,7 +190,10 @@ static int check_d_conditional(int l, int flags);
 static int check_d_dollar_if(int l, int flags);
 static void gen_slice_assign(int assign_tok);
 static void expr_cond(void);
+static void gen_tuple_literal(CType *type);
+static void call_arg_expr(Sym *sa);
 static TCC_TLS int slice_range_target;
+static TCC_TLS CType *tuple_expect;
 /* `Automagical` code suppression */
 
 /* `Clear` '`nocode_wanted`' at forward label if it was used */
@@ -7229,6 +7232,54 @@ not_constant:
     tcc_error("'$': element %d is not a compile-time constant", n + 1);
 }
 
+static void gen_tuple_literal(CType *type)
+{
+    int size, align, l, n = 0, arity = 0;
+    Sym *f;
+
+    for (f = type->ref->next; f; f = f->next)
+        arity++;
+    size = type_size(type, &align);
+    loc = (loc - size) & -align;
+    l = loc;
+
+    f = type->ref->next;
+    for (;;) {
+        expr_eq();
+        gen_cast(&f->type);
+        gv(RC_TYPE(f->type.t));
+        vset(&f->type, VT_LOCAL | VT_LVAL, l + f->c);
+        vswap();
+        vstore();
+        vpop();
+        ++n;
+        f = f->next;
+        if (tok != ',')
+            break;
+        next();
+        if (tok == ')')
+            break;
+    }
+    if (n != arity)
+        tcc_error("tuple literal has %d element(s), expected %d",
+                  n, arity);
+    skip(')');
+    {
+        CType tmp = *type;
+        tmp.t &= ~(VT_CONSTANT | VT_IMMUTABLE);
+        vset(&tmp, VT_LOCAL | VT_LVAL, l);
+    }
+}
+
+static void call_arg_expr(Sym *sa)
+{
+    CType *saved_expect = tuple_expect;
+    if (sa && is_tuple_type(&sa->type))
+        tuple_expect = &sa->type;
+    expr_eq();
+    tuple_expect = saved_expect;
+}
+
 ST_FUNC void unary(void)
 {
     int n, t, align, size, r, str_lit = 0;
@@ -7410,9 +7461,16 @@ ST_FUNC void unary(void)
                     tcc_error("expected 'sizeof' after type");
                 }
             } else {
-                if (is_tuple_type(&type))
-                    tcc_error("cannot cast to tuple type");
-                unary();
+                if (is_tuple_type(&type)) {
+                    CType *saved_expect = tuple_expect;
+                    tuple_expect = &type;
+                    unary();
+                    tuple_expect = saved_expect;
+                    if (!is_tuple_type(&vtop->type))
+                        tcc_error("cannot cast to tuple type");
+                } else {
+                    unary();
+                }
                 gen_cast(&type);
             }
         } else if (tok == '{') {
@@ -7439,8 +7497,14 @@ ST_FUNC void unary(void)
               nocode_wanted = saved_nocode_wanted;
             skip(')');
         } else {
-            gexpr();
-            skip(')');
+            if (tuple_expect) {
+                CType *expect = tuple_expect;
+                tuple_expect = NULL;
+                gen_tuple_literal(expect);
+            } else {
+                gexpr();
+                skip(')');
+            }
         }
         break;
     case '*':
@@ -8069,7 +8133,7 @@ special_math_val:
                                     skip_or_save_block(&p2);
                                     p2->prev = p, p = p2;
                                 } else {
-                                    expr_eq();
+                                    call_arg_expr(sa);
                                     gfunc_param_typed(s, sa);
                                 }
                                 nb_args++;
@@ -8093,7 +8157,7 @@ special_math_val:
                                 } while (p2 && sa);
                                 p2 = p->prev;
                                 begin_macro(p, 1), next();
-                                expr_eq();
+                                call_arg_expr(sa);
                                 gfunc_param_typed(s, sa);
                                 end_macro();
                             }
@@ -8333,7 +8397,7 @@ special_math_val:
                         skip_or_save_block(&p2);
                         p2->prev = p, p = p2;
                     } else {
-                        expr_eq();
+                        call_arg_expr(sa);
                         gfunc_param_typed(s, sa);
                     }
                     nb_args++;
@@ -8355,7 +8419,7 @@ special_math_val:
                     } while (p2 && sa);
                     p2 = p->prev;
                     begin_macro(p, 1), next();
-                    expr_eq();
+                    call_arg_expr(sa);
                     gfunc_param_typed(s, sa);
                     end_macro();
                 }
@@ -8806,12 +8870,18 @@ static void expr_eq(void)
             return;
         }
         next();
-        if (t == '=') {
-            expr_eq();
-        } else {
-            vdup();
-            expr_eq();
-            gen_op(TOK_ASSIGN_OP(t));
+        {
+            CType *saved_expect = tuple_expect;
+            if (is_tuple_type(&vtop->type))
+                tuple_expect = &vtop->type;
+            if (t == '=') {
+                expr_eq();
+            } else {
+                vdup();
+                expr_eq();
+                gen_op(TOK_ASSIGN_OP(t));
+            }
+            tuple_expect = saved_expect;
         }
         vstore();
     }
@@ -9753,7 +9823,11 @@ again:
     } else if (t == TOK_RETURN) {
         b = (func_vt.t & VT_BTYPE) != VT_VOID;
         if (tok != ';') {
+            CType *saved_expect = tuple_expect;
+            if (is_tuple_type(&func_vt))
+                tuple_expect = &func_vt;
             gexpr();
+            tuple_expect = saved_expect;
             if (b) {
                 if (vtop >= vstack &&
                     (vtop->r & VT_SYM || (vtop->r & VT_VALMASK) == VT_LOCAL || (vtop->r & VT_VALMASK) == VT_LLOCAL || (vtop->r & VT_LVAL))) {
@@ -10599,9 +10673,12 @@ static void decl_initializer(init_params *p, CType *type, unsigned long c, int f
         int ncw_prev = nocode_wanted;
         if ((flags & DIF_SIZE_ONLY) && !p->sec)
             ++nocode_wanted;
+        if (is_tuple_type(type))
+            tuple_expect = type;
 	parse_init_elem(!p->sec ? EXPR_ANY : EXPR_CONST);
         nocode_wanted = ncw_prev;
         flags |= DIF_HAVE_ELEM;
+        tuple_expect = NULL;
     }
 
     if (is_slice_type(type) && !(flags & DIF_HAVE_ELEM)
@@ -11215,6 +11292,8 @@ static void gen_function(Sym *sym)
     int saved_nocode_wanted = nocode_wanted;
 
     nocode_wanted = 0;
+
+    tuple_expect = NULL;
 
     ind = cur_text_section->data_offset;
     if (sym->a.aligned) {
