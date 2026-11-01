@@ -56,7 +56,7 @@ https://aistudio.google.com/prompts/191Hd2mWffHJ8B9OYybf6h2vFp9DH2LrK
 ## D-style `immutable` qualifier
 
 `immutable` is accepted on instances and is represented by a distinct
-`VT_IMMUTABLE` bit (see `TOK_IMMUTABLE` in `parse_btype()` and
+`VT_QUAL_IMMUTABLE` bit (see `TOK_IMMUTABLE` in `parse_btype()` and
 `type_decl()`), while also implying `const`.  Immutability is
 transitive:
 

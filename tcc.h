@@ -1219,11 +1219,11 @@ struct filespec {
 #define VT_DEFSIGN     0x0020  /**< explicitly signed or unsigned */
 #define VT_ARRAY       0x0040  /**< array type (also has `VT_PTR`) */
 #define VT_BITFIELD    0x0080  /**< bitfield modifier */
-#define VT_CONSTANT    0x0100  /**< const modifier */
-#define VT_VOLATILE    0x0200  /**< volatile modifier */
-#define VT_RESTRICT    0x0400  /**< restrict modifier */
-#define VT_IMMUTABLE   0x00040000 /**< D-style immutable modifier */
-#define VT_QUAL        (VT_CONSTANT | VT_VOLATILE | VT_RESTRICT | VT_IMMUTABLE) /**< `Type` descriptor modifier or basic type flag */
+#define VT_QUAL_CONSTANT    0x0100  /**< const modifier */
+#define VT_QUAL_VOLATILE    0x0200  /**< volatile modifier */
+#define VT_QUAL_RESTRICT    0x0400  /**< restrict modifier */
+#define VT_QUAL_IMMUTABLE   0x00040000 /**< D-style immutable modifier */
+#define VT_QUAL        (VT_QUAL_CONSTANT | VT_QUAL_VOLATILE | VT_QUAL_RESTRICT | VT_QUAL_IMMUTABLE) /**< `Type` descriptor modifier or basic type flag */
 #define VT_VLA         0x0800  /**< `VLA` type (also has `VT_PTR` and `VT_ARRAY`) */
 #define VT_LONG        0x1000  /**< long type (also has `VT_INT` rsp. `VT_LLONG`) */
 
@@ -1248,7 +1248,7 @@ struct filespec {
 #define IS_ENUM_VAL(t) ((t & VT_STRUCT_MASK) == VT_ENUM_VAL) /**< `Check` if type descriptor represents an enum constant */
 #define IS_UNION(t) ((t & (VT_STRUCT_MASK|VT_BTYPE)) == VT_UNION) /**< `Check` if type descriptor represents a union */
 
-#define VT_ATOMIC   VT_VOLATILE /**< `Atomic` type modifier alias */
+#define VT_ATOMIC   VT_QUAL_VOLATILE /**< `Atomic` type modifier alias */
 
 /* type mask (except storage) */
 #define VT_STORAGE (VT_EXTERN | VT_STATIC | VT_TYPEDEF | VT_INLINE | VT_TLS) /**< `Mask` covering all storage class specifiers */
