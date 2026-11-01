@@ -3,8 +3,9 @@
 ## Goal
 
 Make logic dealing with raw integral bitmask flags in TinyPC (`int t`,
-`unsigned short r`, etc.) more robust and type-safe via opt-in anonymous
-unions combining raw integers with structured bitfields.
+`unsigned short r`, etc.) more robust and type-safe by relying on
+anonymous C11 unions that combine raw integers with structured bitfields,
+vastly simplifying access syntax.
 
 ## Target Fields & Bitfield Layouts
 
@@ -12,70 +13,61 @@ unions combining raw integers with structured bitfields.
    - Currently packs basic types, qualifiers (`const`, `volatile`,
      `immutable`, `restrict`), storage classes, and signedness flags into a
      raw integer using bitmasks (e.g., `VT_BTYPE`, `VT_VAL_*`).
-   - **Proposed Union Representation:**
+   - **Proposed Anonymous Union Representation:**
      ```c
-     typedef union {
-         int raw;
-         struct {
-             unsigned int btype      : 4;  /**< Basic type (VT_VOID, VT_INT, etc.) */
-             unsigned int qualifiers : 6;  /**< Type qualifiers (const, volatile, etc.) */
-             unsigned int storage    : 5;  /**< Storage class (extern, static, etc.) */
-             unsigned int sign       : 2;  /**< Signed/unsigned flags */
-             unsigned int modifier   : 15; /**< Additional modifiers / attributes */
+     typedef struct CType {
+         union {
+             int t;
+             struct {
+                 unsigned int btype      : 4;  /**< Basic type (VT_VOID, VT_INT, etc.) */
+                 unsigned int qualifiers : 6;  /**< Type qualifiers (const, volatile, etc.) */
+                 unsigned int storage    : 5;  /**< Storage class (extern, static, etc.) */
+                 unsigned int sign       : 2;  /**< Signed/unsigned flags */
+                 unsigned int modifier   : 15; /**< Additional modifiers / attributes */
+             };
          };
-     } CTypeBits;
+         struct Sym *ref;
+     } CType;
      ```
 
 2. **`SValue.r` & `SValue.r2` (`unsigned short r`, `unsigned short r2`):**
-   - Packs register allocation indices and `VT_*` storage flags (e.g.,
-     `VT_CONST`, `VT_LOCAL`, `VT_CMP`).
-   - **Proposed Union Representation:**
+   - Packs register allocation indices and `VT_*` storage flags.
+   - **Proposed Anonymous Union Representation:**
      ```c
-     typedef union {
-         unsigned short raw;
-         struct {
-             unsigned int reg_index  : 8;  /**< Physical/virtual register index */
-             unsigned int storage    : 8;  /**< VT_* storage / value location flags */
+     typedef struct SValue {
+         CType type;
+         union {
+             unsigned short r;
+             struct {
+                 unsigned int reg_index  : 8;  /**< Physical/virtual register index */
+                 unsigned int storage    : 8;  /**< VT_* storage / value location flags */
+             };
          };
-     } SValueRegBits;
+         union {
+             unsigned short r2;
+             struct {
+                 unsigned int reg_index2 : 8;
+                 unsigned int storage2   : 8;
+             };
+         };
+         // ...
+     } SValue;
      ```
 
-3. **`Sym.r` (`unsigned short r`):**
-   - Symbol storage and register association flags.
+## Benefits of Anonymous C11 Unions
 
-## Design Pattern
-
-Using anonymous unions in C11/GNU C:
-```c
-typedef struct CType {
-    union {
-        int t;
-        struct {
-            unsigned int btype      : 4;
-            unsigned int qualifiers : 6;
-            unsigned int storage    : 5;
-            unsigned int sign       : 2;
-            unsigned int modifier   : 15;
-        };
-    };
-    struct Sym *ref;
-} CType;
-```
-
-## Benefits
-
-- **Readability & Safety:** Replaces error-prone manual bitwise shifts and
-  masks (`(t & VT_BTYPE)`) with named bitfield accesses (`type.btype`).
-- **Zero Overhead:** Compiles down to direct bitwise instructions without any
-  runtime performance penalty.
-- **Interoperability:** Preserves raw integer access (`type.t` or `type.raw`)
-  for existing low-level checks and assignments.
+- **Direct Syntax:** Anonymous unions allow accessing bitfields directly as
+  `type.btype` or `vtop->r` without needing intermediate member names or
+  `.raw` wrappers.
+- **Zero Overhead & Full Compatibility:** Compiles to zero-cost bitmask/shift
+  instructions while keeping the underlying integer fully accessible for raw
+  bitwise operations where necessary.
 
 ## Acceptance Criteria
 
-- **P1:** Define union bitfield wrappers for `CType.t`, `SValue.r`, and
-  `SValue.r2`.
+- **P1:** Define anonymous C11 union bitfield layouts for `CType.t`,
+  `SValue.r`, and `SValue.r2` in `tcc.h`.
 - **P2:** Update key parsing and code-generation logic in `tccgen.c` to use
-  named bitfield accessors where appropriate.
+  named bitfield accessors directly.
 - **Verification:** `./configure && make -j$(nproc) -B && make -j$(nproc) test`
   passes with zero regressions.
