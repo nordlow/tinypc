@@ -206,7 +206,22 @@ compile-time constructor.
   comma expression.  A group whose elements all parse as types can
   never be a valid expression, so the probe never changes the meaning
   of a valid program.  On failure the group is replayed unchanged and
-  the macro stack is unwound to its saved top.  Elements are stored
+  the macro stack is unwound to its saved top.
+
+  Two lookaheads keep the probe off the `(`-heavy code that is not a
+  declaration at all (casts, comma expressions, parenthesised
+  operands).  The scan is skipped, with one `unget_tok()` per consumed
+  token, unless the first token inside the group can start a tuple
+  element: a type, an attribute, or `(`, which is the one way a tuple
+  element can start without a type of its own (`((int, char), int)`).
+  For a `((`-led group the token past the inner `(` is peeked first,
+  because only a nested tuple is a tuple there while casts and
+  parenthesised expressions dominate.  `*` is deliberately not in the
+  set: `parse_btype()` cannot start a type with `*`, and no element
+  can start with `(` followed by `*` either, since an abstract
+  declarator needs a base type before it.
+
+  Elements are stored
   as named struct fields `$0`, `$1`, ... (`tok_alloc_const()`) rather
   than anonymous ones, because anonymous fields break
   `decl_designator()`'s bitfield padding skip and `check_fields()`'s
@@ -1105,7 +1120,25 @@ index, and `__builtin_types_compatible_p`.  Structural identity.
 Tuple ABI = struct ABI.  Debug info suppressed.  Type tuples enabled
 in C and D modes.  Exit criteria: `421`-`427` pass, including the
 comma-expression compatibility tests and a cross-mode build.
-Status: implemented (see D8).
+Status: implemented (see D8).  Cost of the probe, measured on tcc
+compiling itself:
+
+- without PGO, +1.35% instructions (247.7M -> 251.1M) against
+  `c80978ea`, the last commit without any tuple support, and +1.25%
+  against `8bde9b76`, the reverted first attempt (248.0M).  The
+  difference is the price of probing instead of guessing;
+- in the `make pgo PGO_CC=clang` build, 258.2M -> 264.2M Valgrind
+  `I refs` (+2.32%) against `c80978ea`, and 260.4M -> 264.2M
+  (+1.44%) against `8bde9b76`;
+- throughput 4.34 -> 4.17 Mlines/s, which is within the 1 ms
+  resolution of the timer (see the notes at the end of the
+  repository's `AGENTS.md`), so `I refs` is the number to trust.
+
+The probe only runs where a type could start: `unget_tok()` per
+consumed token keeps casts and comma expressions cheap, but a real
+`(...)` group is still scanned and, if it fails the probe, replayed
+token by token.  Making that cheaper is M5 work if profiling
+justifies it.
 
 **M2 -- compile-time value tuples (P2).**  `$(...)` in `-lang=d`,
 compile-time constants only; `$(e)` is a value and `$(e,)` a 1-tuple;
@@ -1335,6 +1368,11 @@ Additional coverage:
       entries project to `$tupleof`.
     - Anonymous aggregates are flattened in both, because their
       members are members of the enclosing struct.
+    - The invariant is easiest to keep if `$fields` is built on top
+      of `$tupleof`: derive the metadata from the same member walk
+      that produces the types instead of walking the members a
+      second time.  Then arity and order cannot drift apart, and a
+      later change to member flattening is automatically shared.
 
 ## Alternatives considered
 
