@@ -7221,6 +7221,11 @@ static void parse_dollar_tuple(void)
     tcc_free(nested);
     return;
 not_constant:
+    /* `Free` the elements collected so far: the leak checker in the
+       -fsanitize=address test build would otherwise flag them.  */
+    tcc_free(types);
+    tcc_free(vals);
+    tcc_free(nested);
     tcc_error("'$': element %d is not a compile-time constant", n + 1);
 }
 
