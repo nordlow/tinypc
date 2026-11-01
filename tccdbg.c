@@ -1823,7 +1823,7 @@ static int stabs_struct_find(TCCState *s1, Sym *t, int *p_id)
 
 static int remove_type_info(int type)
 {
-        type &= ~(VT_STORAGE | VT_QUAL | VT_VLA);
+        type &= ~(VT_STORAGE | VT_QUALIFIER | VT_VLA);
         if ((type & VT_BTYPE) != VT_BYTE)
             type &= ~VT_DEFSIGN;
         if (!(type & VT_BITFIELD) && (type & VT_STRUCT_MASK) > VT_ENUM)
@@ -2148,7 +2148,7 @@ static int tcc_get_dwarf_info(TCCState *s1, Sym *s)
 	        dwarf_data4(dwarf_info_section, sub_type - dwarf_info.start);
 	        dwarf_uleb128(dwarf_info_section, t->type.ref->c - 1);
 		s = t->type.ref;
-		type = s->type.t & ~(VT_STORAGE | VT_QUAL);
+		type = s->type.t & ~(VT_STORAGE | VT_QUALIFIER);
 		if (type != (VT_PTR | VT_ARRAY))
 		    break;
 		t = s;

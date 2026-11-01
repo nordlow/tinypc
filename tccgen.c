@@ -2838,13 +2838,13 @@ static void type_to_str(char *buf, int buf_size,
     if (t & VT_STORAGE_INLINE)
         pstrcat(buf, buf_size, "inline ");
     if (bt != VT_PTR) {
-        if (t & VT_QUAL_RESTRICT)
+        if (t & VT_QUALIFIER_RESTRICT)
             pstrcat(buf, buf_size, "restrict ");
-        if (t & VT_QUAL_VOLATILE)
+        if (t & VT_QUALIFIER_VOLATILE)
             pstrcat(buf, buf_size, "volatile ");
-        if (t & VT_QUAL_CONSTANT)
+        if (t & VT_QUALIFIER_CONSTANT)
             pstrcat(buf, buf_size, "const ");
-        if (t & VT_QUAL_IMMUTABLE)
+        if (t & VT_QUALIFIER_IMMUTABLE)
             pstrcat(buf, buf_size, "@immutable ");
     }
     if (((t & VT_DEFSIGN) && bt == VT_BYTE)
@@ -2964,13 +2964,13 @@ static void type_to_str(char *buf, int buf_size,
             goto no_var;
         }
         pstrcpy(buf1, sizeof(buf1), "*");
-        if (t & VT_QUAL_RESTRICT)
+        if (t & VT_QUALIFIER_RESTRICT)
             pstrcat(buf1, sizeof(buf1), "restrict ");
-        if (t & VT_QUAL_CONSTANT)
+        if (t & VT_QUALIFIER_CONSTANT)
             pstrcat(buf1, sizeof(buf1), "const ");
-        if (t & VT_QUAL_IMMUTABLE)
+        if (t & VT_QUALIFIER_IMMUTABLE)
             pstrcat(buf1, sizeof(buf1), "@immutable ");
-        if (t & VT_QUAL_VOLATILE)
+        if (t & VT_QUALIFIER_VOLATILE)
             pstrcat(buf1, sizeof(buf1), "volatile ");
         if (varstr)
             pstrcat(buf1, sizeof(buf1), varstr);
@@ -3015,7 +3015,7 @@ static inline int is_null_pointer(SValue *p)
         ((p->type.t & VT_BTYPE) == VT_PTR &&
          (PTR_SIZE == 4 ? (uint32_t)p->c.i == 0 : p->c.i == 0) &&
          ((pointed_type(&p->type)->t & VT_BTYPE) == VT_VOID) &&
-         0 == (pointed_type(&p->type)->t & VT_QUAL)
+         0 == (pointed_type(&p->type)->t & VT_QUALIFIER)
          );
 }
 
@@ -3064,8 +3064,8 @@ static int compare_types(CType *type1, CType *type2, int unqualified)
     t2 = type2->t & VT_TYPE;
     if (unqualified) {
         /* strip qualifiers before comparing */
-        t1 &= ~VT_QUAL;
-        t2 &= ~VT_QUAL;
+        t1 &= ~VT_QUALIFIER;
+        t2 &= ~VT_QUALIFIER;
     }
 
     /* `Default` `Vs` explicit signedness only matters for char */
@@ -3802,7 +3802,7 @@ error:
     }
 done:
     vtop->type = *type;
-    vtop->type.t &= ~ ( VT_QUAL | VT_ARRAY | VT_STORAGE_TLS );
+    vtop->type.t &= ~ ( VT_QUALIFIER | VT_ARRAY | VT_STORAGE_TLS );
 }
 
 /* return type size as known at compile time. `Put` alignment at 'a' */
@@ -3944,12 +3944,12 @@ static int is_type_start(int t)
 static void check_restrict_type(CType *type)
 {
     while ((type->t & VT_BTYPE) == VT_PTR) {
-        if ((type->t & VT_QUAL_RESTRICT)
+        if ((type->t & VT_QUALIFIER_RESTRICT)
             && (pointed_type(type)->t & VT_BTYPE) == VT_FUNC)
             tcc_error("restrict-qualified type must be a pointer to object or incomplete type");
         type = pointed_type(type);
     }
-    if (type->t & VT_QUAL_RESTRICT)
+    if (type->t & VT_QUALIFIER_RESTRICT)
         tcc_error("restrict-qualified type must be a pointer to object or incomplete type");
 }
 
@@ -3958,7 +3958,7 @@ static int type_qualifiers(CType *type)
 {
     while (type->t & VT_ARRAY)
         type = pointed_type(type);
-    return type->t & VT_QUAL;
+    return type->t & VT_QUALIFIER;
 }
 
 /* modify type so that its it is a pointer to type. */
@@ -4052,7 +4052,7 @@ static void verify_assign_cast(CType *dt)
         tcc_error("cannot copy @nocopy instance '%s'", get_tok_str(vtop->sym->v & ~SYM_FIELD, NULL));
     if (sbt == VT_STRUCT && st->ref && st->ref->a.nocopy)
         tcc_error("rhs struct '%s' is not copyable (or aliasable)", get_tok_str(st->ref->v & ~SYM_STRUCT, NULL));
-    if (dt->t & VT_QUAL_CONSTANT)
+    if (dt->t & VT_QUALIFIER_CONSTANT)
         tcc_warning("assignment of read-only location");
     switch(dbt) {
     case VT_VOID:
@@ -4079,11 +4079,11 @@ static void verify_assign_cast(CType *dt)
         if (is_compatible_types(type1, type2))
             break;
         for (qualwarn = lvl = 0;; ++lvl) {
-            int discards = (type2->t & ~type1->t) & VT_QUAL;
+            int discards = (type2->t & ~type1->t) & VT_QUALIFIER;
             /* dropping 'immutable' is only allowed for 'const' */
-            if ((discards & VT_QUAL_IMMUTABLE) && !(type1->t & VT_QUAL_CONSTANT))
+            if ((discards & VT_QUALIFIER_IMMUTABLE) && !(type1->t & VT_QUALIFIER_CONSTANT))
                 tcc_error("assignment discards 'immutable' qualifier");
-            if (discards & ~VT_QUAL_IMMUTABLE)
+            if (discards & ~VT_QUALIFIER_IMMUTABLE)
                 qualwarn = 1;
             dbt = type1->t & (VT_BTYPE|VT_LONG);
             sbt = type2->t & (VT_BTYPE|VT_LONG);
@@ -5325,7 +5325,7 @@ static void parse_btype_qualify(CType *type, int qualifiers)
         type->ref = sym_push(SYM_FIELD, &type->ref->type, 0, type->ref->c);
         type = &type->ref->type;
     }
-    if (qualifiers & VT_QUAL_RESTRICT)
+    if (qualifiers & VT_QUALIFIER_RESTRICT)
         check_restrict_type(type);
     type->t |= qualifiers;
 }
@@ -5352,7 +5352,7 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
         if (tok == '(' && !typespec_found) {
             Sym *ts = parse_tuple_type_opt(type, ad);
             if (ts) {
-                type->t = VT_STRUCT | (t & (VT_STORAGE | VT_QUAL));
+                type->t = VT_STRUCT | (t & (VT_STORAGE | VT_QUALIFIER));
                 type->ref = ts;
                 return 1;
             }
@@ -5474,7 +5474,7 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
         case TOK_CONST2:
         case TOK_CONST3:
             type->t = t;
-            parse_btype_qualify(type, VT_QUAL_CONSTANT);
+            parse_btype_qualify(type, VT_QUALIFIER_CONSTANT);
             t = type->t;
             next();
             break;
@@ -5484,7 +5484,7 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
                aggregate, and the objects referenced by an immutable
                pointer, are immutable as well.  */
             type->t = t;
-            parse_btype_qualify(type, VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE);
+            parse_btype_qualify(type, VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
             t = type->t;
             next();
             if (tok == '(') {
@@ -5492,7 +5492,7 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
                 type1.t &= ~(VT_STORAGE&~VT_STORAGE_TYPEDEF);
                 if (type1.ref)
                     sym_to_attr(ad, type1.ref);
-                type1.t |= type->t & (VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE);
+                type1.t |= type->t & (VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
                 type->t = type1.t;
                 type->ref = type1.ref;
                 goto basic_type2;
@@ -5502,7 +5502,7 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
         case TOK_VOLATILE2:
         case TOK_VOLATILE3:
             type->t = t;
-            parse_btype_qualify(type, VT_QUAL_VOLATILE);
+            parse_btype_qualify(type, VT_QUALIFIER_VOLATILE);
             t = type->t;
             next();
             break;
@@ -5518,7 +5518,7 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
         case TOK_RESTRICT1:
         case TOK_RESTRICT2:
         case TOK_RESTRICT3:
-            t |= VT_QUAL_RESTRICT;
+            t |= VT_QUALIFIER_RESTRICT;
             next();
             break;
         case TOK_REGISTER:
@@ -5567,7 +5567,7 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
                 next();
                 if (tok == TOK_IMMUTABLE || (tok >= TOK_IDENT && !strcmp(get_tok_str(tok, &tokc), "immutable"))) {
                     type->t = t;
-                    parse_btype_qualify(type, VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE);
+                    parse_btype_qualify(type, VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
                     t = type->t;
                     next();
                     if (tok == '(') {
@@ -5575,7 +5575,7 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
                         type1.t &= ~(VT_STORAGE&~VT_STORAGE_TYPEDEF);
                         if (type1.ref)
                             sym_to_attr(ad, type1.ref);
-                        type1.t |= type->t & (VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE);
+                        type1.t |= type->t & (VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
                         type->t = type1.t;
                         type->ref = type1.ref;
                         goto basic_type2;
@@ -5583,7 +5583,7 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
                     break;
                 } else if (tok == TOK_CONST1 || tok == TOK_CONST2 || tok == TOK_CONST3 || (tok >= TOK_IDENT && !strcmp(get_tok_str(tok, &tokc), "const"))) {
                     type->t = t;
-                    parse_btype_qualify(type, VT_QUAL_CONSTANT);
+                    parse_btype_qualify(type, VT_QUALIFIER_CONSTANT);
                     t = type->t;
                     next();
                     if (tok == '(') {
@@ -5591,7 +5591,7 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
                         type1.t &= ~(VT_STORAGE&~VT_STORAGE_TYPEDEF);
                         if (type1.ref)
                             sym_to_attr(ad, type1.ref);
-                        type1.t |= type->t & VT_QUAL_CONSTANT;
+                        type1.t |= type->t & VT_QUALIFIER_CONSTANT;
                         type->t = type1.t;
                         type->ref = type1.ref;
                         goto basic_type2;
@@ -5684,7 +5684,7 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
             }
 
             t &= ~(VT_BTYPE|VT_LONG);
-            u = t & ~VT_QUAL, t ^= u;
+            u = t & ~VT_QUALIFIER, t ^= u;
             type->t = (s->type.t & ~VT_STORAGE_TYPEDEF) | u;
             type->ref = s->type.ref;
             if (t)
@@ -5732,7 +5732,7 @@ static inline void convert_parameter_type(CType *pt)
 /* apply the conversions required for an expression value */
 static inline void convert_expression_type(CType *pt)
 {
-    pt->t &= ~VT_QUAL;
+    pt->t &= ~VT_QUALIFIER;
     convert_parameter_type(pt);
 }
 
@@ -6157,7 +6157,7 @@ static int copy_slice_to_temp(CType *type)
        of the source; otherwise copying a const/immutable slice value
        would warn "assignment of read-only location" */
     tmp_type = *type;
-    tmp_type.t &= ~(VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE);
+    tmp_type.t &= ~(VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
     vset(&tmp_type, VT_LOCAL | VT_LVAL, l);
     vswap();
     vstore();
@@ -6376,7 +6376,7 @@ static int post_type(CType *type, AttrDef *ad, int storage, int td)
         parse_d_attributes(ad);
         /* A function return value has the unqualified version of its
            declared type. */
-        type->t &= ~VT_QUAL;
+        type->t &= ~VT_QUALIFIER;
         /* some ancient pre-K&R C allows a function to return an array
            and the array brackets to be put after the arguments, such
            that "int c()[]" means something like "int[] c()" */
@@ -6424,15 +6424,15 @@ static int post_type(CType *type, AttrDef *ad, int storage, int td)
 	       in prototypes (not function defs).  */
 	    switch (tok) {
 	    case TOK_CONST1: case TOK_CONST2: case TOK_CONST3:
-		array_qualifiers |= VT_QUAL_CONSTANT;
+		array_qualifiers |= VT_QUALIFIER_CONSTANT;
 		next();
 		continue;
 	    case TOK_VOLATILE1: case TOK_VOLATILE2: case TOK_VOLATILE3:
-		array_qualifiers |= VT_QUAL_VOLATILE;
+		array_qualifiers |= VT_QUALIFIER_VOLATILE;
 		next();
 		continue;
 	    case TOK_RESTRICT1: case TOK_RESTRICT2: case TOK_RESTRICT3:
-		array_qualifiers |= VT_QUAL_RESTRICT;
+		array_qualifiers |= VT_QUALIFIER_RESTRICT;
 		next();
 		continue;
 	    case TOK_STATIC:
@@ -6631,9 +6631,9 @@ static int has_auto_type(CType *t)
 static void subst_auto_type(CType *t, CType *deduced)
 {
     if ((t->t & VT_BTYPE) == VT_AUTO) {
-        int quals = t->t & VT_QUAL;
+        int quals = t->t & VT_QUALIFIER;
         int storage = t->t & VT_STORAGE;
-        t->t = (deduced->t & ~VT_QUAL) | quals | storage;
+        t->t = (deduced->t & ~VT_QUALIFIER) | quals | storage;
         t->ref = deduced->ref;
     } else if ((t->t & VT_BTYPE) == VT_PTR || (t->t & VT_ARRAY)) {
         subst_auto_type(pointed_type(t), deduced);
@@ -6674,20 +6674,20 @@ static CType *type_decl(CType *type, AttrDef *ad, int *v, int td)
         case TOK_CONST1:
         case TOK_CONST2:
         case TOK_CONST3:
-            qualifiers |= VT_QUAL_CONSTANT;
+            qualifiers |= VT_QUALIFIER_CONSTANT;
             goto redo;
         case TOK_IMMUTABLE:
-            qualifiers |= VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE;
+            qualifiers |= VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE;
             goto redo;
         case TOK_VOLATILE1:
         case TOK_VOLATILE2:
         case TOK_VOLATILE3:
-            qualifiers |= VT_QUAL_VOLATILE;
+            qualifiers |= VT_QUALIFIER_VOLATILE;
             goto redo;
         case TOK_RESTRICT1:
         case TOK_RESTRICT2:
         case TOK_RESTRICT3:
-            qualifiers |= VT_QUAL_RESTRICT;
+            qualifiers |= VT_QUALIFIER_RESTRICT;
             goto redo;
 	/* `XXX`: clarify attribute handling */
 	case TOK_ATTRIBUTE1:
@@ -6752,10 +6752,10 @@ ST_FUNC void indir(void)
         gv(RC_INT);
     /* immutability is transitive: whatever an immutable pointer refers
        to is immutable as well */
-    qualifiers = vtop->type.t & VT_QUAL_IMMUTABLE;
+    qualifiers = vtop->type.t & VT_QUALIFIER_IMMUTABLE;
     vtop->type = *pointed_type(&vtop->type);
     if (qualifiers)
-        parse_btype_qualify(&vtop->type, VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE);
+        parse_btype_qualify(&vtop->type, VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
     /* `Arrays` and functions are never lvalues */
     if (!(vtop->type.t & (VT_ARRAY | VT_VLA))
         && (vtop->type.t & VT_BTYPE) != VT_FUNC) {
@@ -6796,7 +6796,7 @@ static void gfunc_param_typed(Sym *func, Sym *arg)
     } else {
         type = arg->type;
         /* need to do that to avoid false warning */
-        type.t &= ~(VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE);
+        type.t &= ~(VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
         gen_assign_cast(&type);
     }
 }
@@ -6862,13 +6862,13 @@ static void parse_builtin_params(int nc, const char *args)
 	    case 'e':
 		continue;
 	    case 'V':
-                type.t = VT_QUAL_CONSTANT;
+                type.t = VT_QUALIFIER_CONSTANT;
 	    case 'v':
                 type.t |= VT_VOID;
                 mk_pointer (&type);
                 break;
 	    case 'S':
-                type.t = VT_QUAL_CONSTANT;
+                type.t = VT_QUALIFIER_CONSTANT;
 	    case 's':
                 type.t |= char_type.t;
                 mk_pointer (&type);
@@ -7261,7 +7261,7 @@ static void gen_tuple_literal(CType *type)
     skip(')');
     {
         CType tmp = *type;
-        tmp.t &= ~(VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE);
+        tmp.t &= ~(VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
         vset(&tmp, VT_LOCAL | VT_LVAL, l);
     }
 }
@@ -7379,9 +7379,9 @@ ST_FUNC void unary(void)
         t = char_type.t;
     str_init:
         if (tcc_state->warn_write_strings & WARN_ON || tcc_state->lang_d)
-            t |= VT_QUAL_CONSTANT;
+            t |= VT_QUALIFIER_CONSTANT;
         if (tcc_state->lang_d)
-            t |= VT_QUAL_IMMUTABLE;
+            t |= VT_QUALIFIER_IMMUTABLE;
         type.t = t;
         if (nocode_wanted > 1) {
             Sym *s = sym_push(SYM_FIELD, &type, 0, tokc.str.size);
@@ -7972,7 +7972,7 @@ special_math_val:
             }
             if (is_arrow)
                 indir();
-            qualifiers = vtop->type.t & VT_QUAL;
+            qualifiers = vtop->type.t & VT_QUALIFIER;
             /* expect pointer on structure */
             next();
             if (tcc_state->lang_d && (vtop->type.t & VT_ENUM)) {
@@ -8019,14 +8019,14 @@ special_math_val:
                                   is_len ? "length" : "resize");
                     elem = vtop->type.ref->type;
                     if (is_idup)
-                        elem.t |= VT_QUAL_CONSTANT;
+                        elem.t |= VT_QUALIFIER_CONSTANT;
                     slice_type.t = VT_STRUCT;
                     slice_type.ref = make_slice_type(&elem);
                 } else {
                     elem = *pointed_type(&vtop->type.ref->next->next->type);
                     slice_type = vtop->type;
                     if (is_idup) {
-                        elem.t |= VT_QUAL_CONSTANT;
+                        elem.t |= VT_QUALIFIER_CONSTANT;
                         slice_type.ref = make_slice_type(&elem);
                     }
                 }
@@ -8255,7 +8255,7 @@ special_math_val:
                     CType slice_type, elem_type;
                     slice_type.t = VT_STRUCT;
                     elem_type = base_type.ref->type;
-                    elem_type.t |= base_type.t & (VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE);
+                    elem_type.t |= base_type.t & (VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
                     slice_type.ref = make_slice_type(&elem_type);
                     convert_array_to_slice(&slice_type);
                 } else {
@@ -8278,11 +8278,11 @@ special_math_val:
             if (base_is_slice) {
                 elem_type = *pointed_type(&base_type.ref->next->next->type);
                 /* pointees of a qualified slice are qualified as well */
-                elem_type.t |= base_type.t & (VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE);
+                elem_type.t |= base_type.t & (VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
                 slice_to_ptr();
             } else if (base_type.t & (VT_ARRAY | VT_VLA)) {
                 elem_type = base_type.ref->type;
-                elem_type.t |= base_type.t & (VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE);
+                elem_type.t |= base_type.t & (VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
             } else if ((base_type.t & VT_BTYPE) == VT_PTR) {
                 elem_type = *pointed_type(&base_type);
             } else {
@@ -9337,7 +9337,7 @@ static void do_foreach(int reverse)
         /* i = reverse ? end - 1 : start */
         {
             CType mut_vtype = vtypes[0];
-            mut_vtype.t &= ~(VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE);
+            mut_vtype.t &= ~(VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
             vset(&mut_vtype, VT_LOCAL | VT_LVAL, vaddr[0]);
             if (reverse) {
                 vset(&end_type, VT_LOCAL | VT_LVAL, end_addr);
@@ -9370,7 +9370,7 @@ static void do_foreach(int reverse)
         /* increment: ++i, or --i when iterating in reverse */
         {
             CType mut_vtype = vtypes[0];
-            mut_vtype.t &= ~(VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE);
+            mut_vtype.t &= ~(VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
             vset(&mut_vtype, VT_LOCAL | VT_LVAL, vaddr[0]);
             vset(&mut_vtype, VT_LOCAL | VT_LVAL, vaddr[0]);
             vpushi(1);
@@ -9396,7 +9396,7 @@ static void do_foreach(int reverse)
         slice_type = agg_type;
     } else if (agg_type.t & (VT_ARRAY | VT_VLA)) {
         CType elem_type_arr = agg_type.ref->type;
-        elem_type_arr.t |= agg_type.t & (VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE);
+        elem_type_arr.t |= agg_type.t & (VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
         slice_type.t = VT_STRUCT;
         slice_type.ref = make_slice_type(&elem_type_arr);
         convert_array_to_slice(&slice_type);
@@ -9488,7 +9488,7 @@ static void do_foreach(int reverse)
     /* index variable */
     if (nvars == 2) {
         CType mut_vtype0 = vtypes[0];
-        mut_vtype0.t &= ~(VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE);
+        mut_vtype0.t &= ~(VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
         vset(&len_type, VT_LOCAL | VT_LVAL, idx_addr);
         if (reverse) {
             vpushi(1);
@@ -9505,7 +9505,7 @@ static void do_foreach(int reverse)
     i = nvars - 1;
     {
         CType mut_vtypei = vtypes[i];
-        mut_vtypei.t &= ~(VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE);
+        mut_vtypei.t &= ~(VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
         vset(&ptr_type, VT_LOCAL | VT_LVAL, ptr_addr);
         vset(&len_type, VT_LOCAL | VT_LVAL, idx_addr);
         if (reverse) {
@@ -10356,7 +10356,7 @@ static void init_putv(init_params *p, CType *type, unsigned long c)
 
     dtype = *type;
     /* need to do that to avoid false warning */
-    dtype.t &= ~(VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE);
+    dtype.t &= ~(VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
 
     size = type_size(type, &align);
     if (type->t & VT_BITFIELD)
@@ -10746,7 +10746,7 @@ static void decl_initializer(init_params *p, CType *type, unsigned long c, int f
 
     } else if ((flags & DIF_HAVE_ELEM)
         /* `Use` `i_c_parameter_t`, to strip toplevel qualifiers.
-           `The` source type might have `VT_QUAL_CONSTANT` set, which is
+           `The` source type might have `VT_QUALIFIER_CONSTANT` set, which is
            of course assignable to non-const elements.  */
             && is_compatible_unqualified_types(type, &vtop->type)) {
         goto one_elem;
@@ -10974,7 +10974,7 @@ static void decl_initializer_alloc(CType *type, AttrDef *ad, int r,
 
         while ((tp->t & (VT_BTYPE|VT_ARRAY)) == (VT_PTR|VT_ARRAY))
             tp = &tp->ref->type;
-        is_const = tp->t & VT_QUAL_CONSTANT;
+        is_const = tp->t & VT_QUALIFIER_CONSTANT;
 
         /* allocate symbol in corresponding section */
         sec = ad->section;
@@ -11452,7 +11452,7 @@ static void push_sym_value(Sym *s)
 static void assert_operand_type(Sym *s, CType *type)
 {
     *type = s->type;
-    type->t &= ~(VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE | VT_BITFIELD);
+    type->t &= ~(VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE | VT_BITFIELD);
     if (!is_scalar_value_type(&s->type)) {
         type->t = VT_LLONG;
         type->ref = NULL;
@@ -12610,7 +12610,7 @@ static void gen_slice_op_assign(CType *slice_type, CType *elem, int dst,
     gen_op('+');
     indir();
     /* the read-only location, if any, was already diagnosed above */
-    vtop->type.t &= ~(VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE);
+    vtop->type.t &= ~(VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
     vdup();
     vset(elem, VT_LOCAL | VT_LVAL, rhs_addr);
     gen_op(op);
@@ -12643,13 +12643,13 @@ static void gen_slice_assign(int assign_tok)
     elem = *pointed_type(&dest_type.ref->next->next->type);
     esize = type_size(&elem, &ealign);
 
-    if ((dest_type.t | elem.t) & (VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE))
+    if ((dest_type.t | elem.t) & (VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE))
         tcc_warning("assignment of read-only location");
 
     /* `The` temporaries used below are writable; don't inherit the
        qualifiers of the destination elements and warn twice.  */
     elem_nc = elem;
-    elem_nc.t &= ~(VT_QUAL_CONSTANT | VT_QUAL_IMMUTABLE);
+    elem_nc.t &= ~(VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
 
     if (assign_tok == TOK_A_CAT)
         tcc_error("cannot append to a slice range");
@@ -12670,7 +12670,7 @@ static void gen_slice_assign(int assign_tok)
         if (!is_slice_type(&vtop->type)
             && (vtop->type.t & (VT_ARRAY | VT_VLA))) {
             if (!is_compatible_unqualified_types(&vtop->type.ref->type, &elem)
-                && !(vtop->type.ref->type.t & VT_QUAL_IMMUTABLE)) {
+                && !(vtop->type.ref->type.t & VT_QUALIFIER_IMMUTABLE)) {
                 cast_error(&vtop->type, &dest_type);
             }
             rhs_elem = vtop->type.ref->type;

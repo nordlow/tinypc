@@ -86,10 +86,10 @@ Type modifiers, storage qualifiers, and bitfield attributes:
 #define VT_DEFSIGN         0x0020  /**< Explicitly signed or unsigned */
 #define VT_ARRAY           0x0040  /**< Array type modifier */
 #define VT_BITFIELD        0x0080  /**< Bitfield modifier */
-#define VT_QUAL_CONSTANT        0x0100  /**< Const modifier */
-#define VT_QUAL_VOLATILE        0x0200  /**< Volatile modifier */
-#define VT_QUAL_RESTRICT        0x0400  /**< Restrict modifier */
-#define VT_QUAL_IMMUTABLE       0x00040000 /**< D-style immutable modifier */
+#define VT_QUALIFIER_CONSTANT        0x0100  /**< Const modifier */
+#define VT_QUALIFIER_VOLATILE        0x0200  /**< Volatile modifier */
+#define VT_QUALIFIER_RESTRICT        0x0400  /**< Restrict modifier */
+#define VT_QUALIFIER_IMMUTABLE       0x00040000 /**< D-style immutable modifier */
 #define VT_VLA             0x0800  /**< VLA type modifier */
 #define VT_LONG            0x1000  /**< Long type modifier */
 
@@ -126,7 +126,7 @@ Masks used for bitwise isolation of subfields:
 #define VT_VALMASK         0x003f  /**< Mask for value location */
 #define VT_BTYPE           0x000f  /**< Mask for basic type */
 #define VT_STRUCT_MASK     (((1U << (6+6)) - 1) << VT_STRUCT_SHIFT | VT_BITFIELD) /**< Mask for structure/union/enum representation */
-#define VT_QUAL            (VT_QUAL_CONSTANT | VT_QUAL_VOLATILE | VT_QUAL_RESTRICT | VT_QUAL_IMMUTABLE) /**< Mask for all qualifiers */
+#define VT_QUALIFIER            (VT_QUALIFIER_CONSTANT | VT_QUALIFIER_VOLATILE | VT_QUALIFIER_RESTRICT | VT_QUALIFIER_IMMUTABLE) /**< Mask for all qualifiers */
 #define VT_STORAGE         (VT_STORAGE_EXTERN | VT_STORAGE_STATIC | VT_STORAGE_TYPEDEF | VT_STORAGE_INLINE | VT_STORAGE_TLS) /**< Mask for storage specifiers */
 #define VT_TYPE            (~(VT_STORAGE|VT_STRUCT_MASK)) /**< Mask covering base types excluding storage and bitfield */
 ```

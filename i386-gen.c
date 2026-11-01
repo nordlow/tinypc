@@ -307,7 +307,7 @@ ST_FUNC void load(int r, SValue *sv)
     fr = sv->r;
     ft = sv->type.t & ~VT_DEFSIGN;
     fc = sv->c.i;
-    ft &= ~VT_QUAL;
+    ft &= ~VT_QUALIFIER;
     v = fr & VT_VALMASK;
 
 #if defined CONFIG_TCC_PIC

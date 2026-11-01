@@ -119,7 +119,7 @@ declared.  `expr_type()` (`tccgen.c:6204`) parses an expression with
 `nocode_wanted++`, keeps `vtop->type`, and pops it, which is how
 `auto` inference already works (`tccgen.c:11316`).  Run it over a
 replayed copy of the payload, then apply `convert_expression_type()`
-(`tccgen.c:5444`: drop `VT_QUAL`, array to pointer, function to
+(`tccgen.c:5444`: drop `VT_QUALIFIER`, array to pointer, function to
 pointer) so the wrapper's return type is a legal ABI type.
 
 Note that `auto v = "abc"` therefore deduces `char *`, i.e. a pointer

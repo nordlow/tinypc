@@ -26,7 +26,7 @@ specifications.
 2. **Type Construction (`str_init` in `tccgen.c`)**:
    - When immutable qualification is enabled, string literal element
      types (`TOK_STR`, `TOK_LSTR`, and `__FUNC__`) are qualified with
-     both `VT_QUAL_CONSTANT` and `VT_QUAL_IMMUTABLE`.
+     both `VT_QUALIFIER_CONSTANT` and `VT_QUALIFIER_IMMUTABLE`.
    - Resulting array type: `immutable char[N]` (or `immutable
      wchar_t[N]`).
    - Decay type in expressions: `@immutable char*` (or `@immutable
