@@ -780,7 +780,7 @@ typedef struct TokenString {
 /**
  * @brief Combined attribute definition container for declarations and symbols.
  */
-typedef struct AttributeDef {
+typedef struct AttrDef {
     struct SymAttr a;             /**< Symbol attributes (alignment, packing, visibility, weak linkage). */
     struct FuncAttr f;            /**< Function attributes (calling convention, purity, safety, noreturn). */
     struct Section *section;      /**< Target section pointer specified via section attribute. */
@@ -790,7 +790,7 @@ typedef struct AttributeDef {
     char attr_mode;               /**< Machine mode attribute value for type sizing (`__attribute__((__mode__(...)))`). */
     char new_section;             /**< Flag indicating whether a new section was created. */
     int noinit;                   /**< Non-zero if `@noinit` storage attribute is specified. */
-} AttributeDef;
+} AttrDef;
 
 /**
  * @brief Inline function definition record for deferred compilation of inline functions.

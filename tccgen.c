@@ -148,12 +148,12 @@ static void check_restrict_type(CType *type);
 static int type_qualifiers(CType *type);
 static void parse_btype_qualify(CType *type, int qualifiers);
 static int is_compatible_types(CType *type1, CType *type2);
-static int parse_btype(CType *type, AttributeDef *ad, int ignore_label);
-static CType *type_decl(CType *type, AttributeDef *ad, int *v, int td);
+static int parse_btype(CType *type, AttrDef *ad, int ignore_label);
+static CType *type_decl(CType *type, AttrDef *ad, int *v, int td);
 static void parse_expr_type(CType *type);
 static void init_putv(init_params *p, CType *type, unsigned long c);
 static void decl_initializer(init_params *p, CType *type, unsigned long c, int flags);
-static void decl_initializer_alloc(CType *type, AttributeDef *ad, int r, int has_init, int v, int scope);
+static void decl_initializer_alloc(CType *type, AttrDef *ad, int r, int has_init, int v, int scope);
 static int decl(int l);
 static void expr_eq(void);
 static void vpush_type_size(CType *type, int *a);
@@ -171,8 +171,8 @@ static void cast_error(CType *st, CType *dt);
 static int is_tuple_type(CType *type);
 static Sym *tuple_field(CType *type, int idx, int *pofs);
 static void free_tuple_consts(void);
-static Sym *parse_tuple_type_opt(CType *type, AttributeDef *ad);
-static void parse_tuple_type_rest(CType *type, AttributeDef *ad);
+static Sym *parse_tuple_type_opt(CType *type, AttrDef *ad);
+static void parse_tuple_type_rest(CType *type, AttrDef *ad);
 static int is_slice_type(CType *type);
 static Sym *make_slice_type(CType *elem);
 static int convert_array_to_slice(CType *dt);
@@ -1372,7 +1372,7 @@ static void merge_funcattr(struct FuncAttr *fa, struct FuncAttr *fa1)
 }
 
 /* `Merge` attributes.  */
-static void merge_attr(AttributeDef *ad, AttributeDef *ad1)
+static void merge_attr(AttrDef *ad, AttrDef *ad1)
 {
     merge_symattr(&ad->a, &ad1->a);
     merge_funcattr(&ad->f, &ad1->f);
@@ -1455,7 +1455,7 @@ static void patch_type(Sym *sym, CType *type)
 }
 
 /* `Merge` some storage attributes.  */
-static void patch_storage(Sym *sym, AttributeDef *ad, CType *type)
+static void patch_storage(Sym *sym, AttrDef *ad, CType *type)
 {
     if (type)
         patch_type(sym, type);
@@ -1522,7 +1522,7 @@ static void move_ref_to_global(Sym *s)
 }
 
 /* define a new external reference to a symbol 'v' */
-static Sym *external_sym(int v, CType *type, int r, AttributeDef *ad)
+static Sym *external_sym(int v, CType *type, int r, AttrDef *ad)
 {
     Sym *s;
 
@@ -4428,11 +4428,11 @@ ST_FUNC int exact_log2p1(int i)
 }
 
 /* `Parse` `__attribute__`((...)) `GNUC` extension. */
-static void parse_attribute(AttributeDef *ad)
+static void parse_attribute(AttrDef *ad)
 {
     int t, n;
     char *astr;
-    AttributeDef ad_tmp;
+    AttrDef ad_tmp;
 
 redo:
     if (tok != TOK_ATTRIBUTE1 && tok != TOK_ATTRIBUTE2)
@@ -4781,7 +4781,7 @@ static void check_fields (CType *type, int check)
     }
 }
 
-static void struct_layout(CType *type, AttributeDef *ad)
+static void struct_layout(CType *type, AttrDef *ad)
 {
     int size, align, maxalign, offset, c, bit_pos, bit_size;
     int packed, a, bt, prevbt, prev_bit_size;
@@ -5046,7 +5046,7 @@ static void struct_decl(CType *type, int u)
     int v, c, size, align, flexible;
     int bit_size, bsize, bt, ut;
     Sym *s, *ss, **ps;
-    AttributeDef ad, ad1;
+    AttrDef ad, ad1;
     CType type1, btype;
 
     memset(&ad, 0, sizeof ad);
@@ -5311,7 +5311,7 @@ do_decl:
     }
 }
 
-static void sym_to_attr(AttributeDef *ad, Sym *s)
+static void sym_to_attr(AttrDef *ad, Sym *s)
 {
     merge_symattr(&ad->a, &s->a);
     merge_funcattr(&ad->f, &s->f);
@@ -5333,13 +5333,13 @@ static void parse_btype_qualify(CType *type, int qualifiers)
 /* return 0 if no type declaration. otherwise, return the basic type
    and skip it.
  */
-static int parse_btype(CType *type, AttributeDef *ad, int ignore_label)
+static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
 {
     int t, u, bt, st, type_found, typespec_found, g, n;
     Sym *s;
     CType type1;
 
-    memset(ad, 0, sizeof(AttributeDef));
+    memset(ad, 0, sizeof(AttrDef));
     type_found = 0;
     typespec_found = 0;
     t = VT_INT;
@@ -5395,10 +5395,10 @@ static int parse_btype(CType *type, AttributeDef *ad, int ignore_label)
             goto basic_type;
         case TOK_ALIGNAS:
             { int n;
-              AttributeDef ad1;
+              AttrDef ad1;
               next();
               skip('(');
-              memset(&ad1, 0, sizeof(AttributeDef));
+              memset(&ad1, 0, sizeof(AttrDef));
               if (parse_btype(&type1, &ad1, 0)) {
                   type_decl(&type1, &ad1, &n, TYPE_ABSTRACT);
                   if (ad1.a.aligned)
@@ -5872,7 +5872,7 @@ static void tuple_add_field(Sym ***pplast, CType *elem, int idx)
 
 static Sym *tuple_layout(Sym *s)
 {
-    AttributeDef ad;
+    AttrDef ad;
 
     memset(&ad, 0, sizeof ad);
     check_fields(&s->type, 1);
@@ -5941,7 +5941,7 @@ static TokenString *scan_paren_group(TokenString **pdup, int *phas_comma,
 static Sym *parse_tuple_group(TokenString *ts)
 {
     TokenString *saved_macro = macro_stack_top();
-    AttributeDef ad;
+    AttrDef ad;
     CType el;
     Sym *s = tuple_begin();
     Sym **plast = &s->next;
@@ -5988,7 +5988,7 @@ static int can_start_tuple_element(int t)
         || t == TOK_ATTRIBUTE1 || t == TOK_ATTRIBUTE2;
 }
 
-static Sym *parse_tuple_type_opt(CType *type, AttributeDef *ad)
+static Sym *parse_tuple_type_opt(CType *type, AttrDef *ad)
 {
     TokenString *ts, *dup;
     Sym *s = NULL;
@@ -6033,7 +6033,7 @@ static Sym *parse_tuple_type_opt(CType *type, AttributeDef *ad)
    type has already been parsed into 'type'; 'tok' is on the ',' that
    follows it.  `On` return 'type' is the tuple type and 'tok' is on the
    closing ')'.  */
-static void parse_tuple_type_rest(CType *type, AttributeDef *ad)
+static void parse_tuple_type_rest(CType *type, AttrDef *ad)
 {
     Sym *s = tuple_begin();
     Sym **plast = &s->next;
@@ -6062,7 +6062,7 @@ static Sym *make_slice_type(CType *elem)
 {
     Sym *s, *f1, *f2;
     CType ptr_type, len_type, struct_type;
-    AttributeDef ad1;
+    AttrDef ad1;
 
     ptr_type = *elem;
     mk_pointer(&ptr_type);
@@ -6244,7 +6244,7 @@ static void gen_slice_concat(void)
     vtop->r2 = r2;
 }
 
-static void parse_d_attributes(AttributeDef *ad)
+static void parse_d_attributes(AttrDef *ad)
 {
     for (;;) {
         if (tok == '@') {
@@ -6292,11 +6292,11 @@ static void parse_d_attributes(AttributeDef *ad)
     }
 }
 
-static int post_type(CType *type, AttributeDef *ad, int storage, int td)
+static int post_type(CType *type, AttrDef *ad, int storage, int td)
 {
     int n, l, t1, arg_size, align;
     Sym **plast, *s, *first, **ps, *sr;
-    AttributeDef ad1;
+    AttrDef ad1;
     CType pt;
     TokenString *vla_array_tok = NULL;
     int *vla_array_str = NULL;
@@ -6640,7 +6640,7 @@ static void subst_auto_type(CType *t, CType *deduced)
     }
 }
 
-static CType *type_decl(CType *type, AttributeDef *ad, int *v, int td)
+static CType *type_decl(CType *type, AttrDef *ad, int *v, int td)
 {
     CType *post, *ret;
     int qualifiers, storage;
@@ -6816,7 +6816,7 @@ static void expr_type(CType *type, void (*expr_fn)(void))
 static void parse_expr_type(CType *type)
 {
     int n;
-    AttributeDef ad;
+    AttrDef ad;
 
     skip('(');
     if (parse_btype(type, &ad, 0)) {
@@ -6829,7 +6829,7 @@ static void parse_expr_type(CType *type)
 
 static void parse_type(CType *type)
 {
-    AttributeDef ad;
+    AttrDef ad;
     int n;
 
     if (!parse_btype(type, &ad, 0)) {
@@ -7280,7 +7280,7 @@ ST_FUNC void unary(void)
     int n, t, align, size, r, str_lit = 0;
     CType type;
     Sym *s;
-    AttributeDef ad;
+    AttrDef ad;
 
     /* generate line number info */
     if (debug_modes)
@@ -7394,7 +7394,7 @@ ST_FUNC void unary(void)
         }
         mk_pointer(&type);
         type.t |= VT_ARRAY;
-        memset(&ad, 0, sizeof(AttributeDef));
+        memset(&ad, 0, sizeof(AttrDef));
         ad.section = rodata_section;
         decl_initializer_alloc(&type, &ad, VT_CONST, 2, 0, 0);
         /* an array holding a string literal is stored with its
@@ -7440,7 +7440,7 @@ ST_FUNC void unary(void)
                 /* all except arrays are lvalues */
                 if (!(type.t & VT_ARRAY))
                     r |= VT_LVAL;
-                memset(&ad, 0, sizeof(AttributeDef));
+                memset(&ad, 0, sizeof(AttrDef));
                 decl_initializer_alloc(&type, &ad, r, 1, 0, 0);
             } else if (t == TOK_SOTYPE) { /* from sizeof/alignof (...) */
                 vpush(&type);
@@ -9253,7 +9253,7 @@ static void lblock(int *bsym, int *csym)
 static void do_foreach(int reverse)
 {
     Scope *o;
-    AttributeDef ad, adbase, adbases[2];
+    AttrDef ad, adbase, adbases[2];
     CType btype, type, agg_type, slice_type, elem_type, len_type, ptr_type;
     CType vtypes[2];
     int names[2], vaddr[2], nvars, explicit[2], i;
@@ -9283,7 +9283,7 @@ static void do_foreach(int reverse)
                 expect("identifier");
             names[nvars] = tok;
             explicit[nvars] = 0;
-            memset(&adbases[nvars], 0, sizeof(AttributeDef));
+            memset(&adbases[nvars], 0, sizeof(AttrDef));
             next();
         }
         ++nvars;
@@ -9584,7 +9584,7 @@ static void block(int flags)
 {
     int a, b, c, d, e, t;
     Scope o, *p;
-    AttributeDef ad;
+    AttrDef ad;
     Sym *s;
 again:
     memset(&ad, 0, sizeof ad);
@@ -10810,7 +10810,7 @@ static void decl_initializer(init_params *p, CType *type, unsigned long c, int f
    are parsed. `If` 'v' is zero, then a reference to the new object
    is put in the value stack. `If` '`has_init`' is 2, a special parsing
    is done to handle string constants. */
-static void decl_initializer_alloc(CType *type, AttributeDef *ad, int r,
+static void decl_initializer_alloc(CType *type, AttrDef *ad, int r,
                                    int has_init, int v, int scope)
 {
     int size, align, addr;
@@ -11322,7 +11322,7 @@ static int check_d_manifest_constant(int l)
     CType type;
     Sym *ss;
     CType btype;
-    AttributeDef adbase;
+    AttrDef adbase;
 
     if (tok != TOK_ENUM)
         return 0;
@@ -11684,7 +11684,7 @@ static void do_d_assert(void)
 }
 
 #ifdef TCC_TARGET_PE
-static void pe_check_linkage(CType *type, AttributeDef *ad)
+static void pe_check_linkage(CType *type, AttrDef *ad)
 {
     if (!ad->a.dllimport && !ad->a.dllexport)
         return;
@@ -11706,7 +11706,7 @@ static void pe_check_linkage(CType *type, AttributeDef *ad)
 
 /* `Register` 'type' as a typedef named 'v'.  `Both` C 'typedef' and D-style
    'alias' declarations use this representation.  */
-static void declare_typedef(int v, CType *type, AttributeDef *ad)
+static void declare_typedef(int v, CType *type, AttrDef *ad)
 {
     Sym *sym;
 
@@ -11734,7 +11734,7 @@ static void do_d_alias(void)
 {
     int v, dummy;
     CType type;
-    AttributeDef ad;
+    AttrDef ad;
 
     next();
     if (tok < TOK_UIDENT)
@@ -11761,7 +11761,7 @@ static void do_unittest(void)
 {
     CType type;
     Sym *sym, *sr;
-    AttributeDef ad;
+    AttrDef ad;
     char name[64];
 
     memset(&ad, 0, sizeof ad);
@@ -12212,7 +12212,7 @@ static int decl(int l)
     TokenString *init_str;
     CType type, btype;
     Sym *sym, *sa;
-    AttributeDef ad, adbase;
+    AttrDef ad, adbase;
     ElfSym *esym;
 
     while (1) {
