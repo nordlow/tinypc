@@ -387,26 +387,25 @@ Ordered by (productivity gain) / (risk x effort):
   a table of `{ name, flags, handler }` shared by
   `__attribute__((...))` and the pending `@name(...)` syntax.  This
   makes `immutable`, `inout`, `nocopy` and future attributes cheap.
-- **Extract the type system into `tcctype.c`** (about 2-3 days,
-  mechanical).  Move `type_size`, `compare_types`, `is_compatible_*`,
-  `verify_assign_cast`, `type_qualifiers`, `parse_btype_qualify` and
-  `make_slice_type` out of the 10k-line `tccgen.c`, and add a small
-  unit-test binary that links only that object.  Qualifier and
-  type-inference work then becomes testable without compiling a whole
-  program.
+- **Extract the type system into `tcctype.c`**.  Move `type_size`,
+  `compare_types`, `is_compatible_*`, `verify_assign_cast`,
+  `type_qualifiers`, `parse_btype_qualify` and `make_slice_type` out
+  of the 10k-line `tccgen.c`, and add a small unit-test binary that
+  links only that object.  Qualifier and type-inference work then
+  becomes testable without compiling a whole program.
 - **Delete the dead parser** (about half a day).  `#define
   precedence_parser` in `tccgen.c` compiles out the old
   recursive-descent expression parser; it is still there as a trap for
   anyone editing the wrong `expr_*` function.
-- **Error recovery** (about 2-3 days).  `tcc_error()` longjmps and
+- **Error recovery**.  `tcc_error()` longjmps and
   aborts on the first error.  Resynchronize at `;`/`}` and report
   several diagnostics per run.
 - **Split `tccgen.c` into modules** (about one week, higher risk):
   `decl` / `expr` / `stmt` / `func` / `attrs`.  Do this after the
   attribute table and the type-system extraction.
-- **Differential fuzzing** (about 1-2 days).  Compare TPC against GCC
-  on generated snippets; the `tests/tests2` suite is already good but
-  only covers hand-written cases.
+- **Differential fuzzing**.  Compare TPC against GCC on generated
+  snippets; the `tests/tests2` suite is already good but only covers
+  hand-written cases.
 - **Split the overloaded `Sym`** (large).  It doubles as struct field,
   variable, type, enum value, slice header and temp-local bookkeeping.
   Splitting it by kind is right long-term but is a multi-week,
