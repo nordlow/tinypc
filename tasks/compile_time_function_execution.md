@@ -86,6 +86,14 @@ $run {
   rather than a parser hook.  `$run` is the primary spelling.
 - M1 restricts both forms to file scope; block scope needs the
   `gen_function()` refactor described under M3.
+- **Relationship with `$(...)`:** `$(...)` is reserved for lightweight
+  compile-time constant folding and literal tuple construction, whereas
+  `$run(...)` explicitly triggers full `libtcc` compilation, relocation, and
+  execution. While `$(...)` could theoretically attempt interpretation or
+  delegate to CTFE when constant folding fails, keeping them separate
+  maintains a clear performance and semantic boundary between cheap folding
+  and heavy in-memory execution (though this design remains open to future
+  refinement).
 
 ## Execution model
 
