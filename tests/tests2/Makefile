@@ -409,3 +409,5 @@ force:
 
 clean :
 	rm -rf .tmp fred.txt $(GEN-ALWAYS)
+444_d_tuple_members_name.test : FLAGS += -lang=d
+444_d_tuple_members_name.test : GEN = $(GEN-TCC)
