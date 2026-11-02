@@ -236,9 +236,11 @@ identifiers:
 
 - element-wise compound assignment on slice ranges (`a[..] += 1`)
 - empty subscripts as full slices (`a[] = b[]`)
+- compile-time value tuples (`$(...)`), `$if`, and `$foreach`
 - `scope(exit)` as an alias for `defer`
 - `version(...)` and `debug(...)` conditional statements
 - the `.sizeof` property on types and expressions
+
 
 In C mode, names such as `version` and `debug` remain ordinary
 identifiers so that existing C code continues to compile unchanged.
