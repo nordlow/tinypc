@@ -51,4 +51,22 @@ int f(void) { $foreach (; $(1, 2)) ; return 0; }
 
 #elif defined test_foreach_without_parens
 int f(void) { $foreach n; $(1,) n; return 0; }
+
+#elif defined test_manifest_arity
+enum (a, b) = $(1, 2, 3);
+
+#elif defined test_manifest_non_tuple
+enum (a, b) = 1;
+
+#elif defined test_manifest_duplicate_names
+enum (a, a) = $(1, 2);
+
+#elif defined test_manifest_no_initializer
+enum (a, b);
+
+#elif defined test_manifest_pattern_not_name
+enum (a, 1) = $(1, 2);
+
+#elif defined test_manifest_float_element
+enum (a, b) = $(1.5, 2);
 #endif

@@ -48,3 +48,21 @@
 
 [test_foreach_without_parens]
 436_d_tuple_destructure_error.c:53: error: '(' expected (got 'n')
+
+[test_manifest_arity]
+436_d_tuple_destructure_error.c:56: error: manifest constant destructuring pattern has 2 names but the initializer has 3 elements
+
+[test_manifest_non_tuple]
+436_d_tuple_destructure_error.c:59: error: manifest constant destructuring requires a constant tuple
+
+[test_manifest_duplicate_names]
+436_d_tuple_destructure_error.c:62: error: redeclaration of 'a'
+
+[test_manifest_no_initializer]
+436_d_tuple_destructure_error.c:65: error: manifest constant destructuring requires an initializer
+
+[test_manifest_pattern_not_name]
+436_d_tuple_destructure_error.c:68: error: identifier expected
+
+[test_manifest_float_element]
+436_d_tuple_destructure_error.c:71: error: manifest constant destructuring: element 1 is not an integer constant

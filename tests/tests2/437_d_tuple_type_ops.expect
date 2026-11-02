@@ -1,0 +1,8 @@
+typeof 10 7 122 1 2
+sizes 4 8 8
+align 4 4 8
+same 1 1 0
+generic 1 1 1
+const 1 2 2 2
+elem 1 2
+copy 40 2 1

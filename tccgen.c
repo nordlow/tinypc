@@ -5834,6 +5834,7 @@ static int tuple_arity(CType *type)
 static void gen_tuple_field(CType *type, int idx)
 {
     int ofs = 0;
+    int qualifiers = type->t & VT_QUALIFIER;
     Sym *f = tuple_field(type, idx, &ofs);
 
     if (!f) {
@@ -5846,6 +5847,8 @@ static void gen_tuple_field(CType *type, int idx)
     vpushi(ofs);
     gen_op('+');
     vtop->type = f->type;
+    if (qualifiers)
+        parse_btype_qualify(&vtop->type, qualifiers);
     if (!(vtop->type.t & VT_ARRAY)) {
         vtop->r |= VT_LVAL;
 #ifdef CONFIG_TCC_BCHECK
@@ -11361,6 +11364,75 @@ static void free_inline_functions(TCCState *s)
     dynarray_reset(&s->inline_fns, &s->nb_inline_fns);
 }
 
+/* `Check` that the constant tuple on top of the value stack has only
+   integer elements, pop it, and return it.  `What` names the construct in
+   the diagnostics.  */
+static TupleConst *pop_int_tuple(const char *what)
+{
+    TupleConst *tc;
+    int i;
+
+    if (!is_tuple_type(&vtop->type) || !(tc = tuple_const_of(vtop)))
+        tcc_error("%s requires a constant tuple", what);
+    for (i = 0; i < tc->n; ++i) {
+        int bt = tc->types[i].t & VT_BTYPE;
+        if ((tc->nested && tc->nested[i])
+            || bt == VT_VOID || bt == VT_FUNC || bt == VT_STRUCT
+            || bt == VT_FLOAT || bt == VT_DOUBLE || bt == VT_LDOUBLE
+            || (tc->types[i].t & VT_ARRAY))
+            tcc_error("%s: element %d is not an integer constant",
+                      what, i + 1);
+    }
+    vpop();
+    return tc;
+}
+
+/* `Parse` and act on `enum (name1, ..., nameN) = tuple`: bind every
+   element of the constant tuple as an integer manifest constant.  `tok`
+   is on the '(' of the pattern.  */
+static void destructure_manifest_constant(void)
+{
+    TupleConst *tc;
+    void **names = NULL;
+    int nb_names = 0, n, i;
+    CType type;
+    Sym *s;
+
+    skip('(');
+    for (;;) {
+        if (tok < TOK_UIDENT)
+            expect("identifier");
+        dynarray_add(&names, &nb_names, (void *)(intptr_t)tok);
+        next();
+        if (tok != ',')
+            break;
+        next();
+        if (tok == ')')         /* (name,) is a 1-element pattern */
+            break;
+    }
+    skip(')');
+    if (tok != '=')
+        tcc_error("manifest constant destructuring requires an initializer");
+    next();
+    expr_const1();
+    tc = pop_int_tuple("manifest constant destructuring");
+    n = tc->n;
+    if (n != nb_names) {
+        tcc_free(names);
+        tcc_error("manifest constant destructuring pattern has %d names "
+                  "but the initializer has %d elements", nb_names, n);
+    }
+    for (i = 0; i < n; ++i) {
+        type = tc->types[i];
+        type.t = (type.t & ~VT_STORAGE) | VT_STORAGE_STATIC | VT_ENUM_VAL;
+        type.ref = push_enum_ref();
+        s = sym_push((int)(intptr_t)names[i], &type, VT_CONST, 0);
+        s->enum_val = tc->vals[i].i;
+    }
+    tcc_free(names);
+    skip(';');
+}
+
 static int check_d_manifest_constant(int l)
 {
     int saved_tok;
@@ -11376,6 +11448,10 @@ static int check_d_manifest_constant(int l)
 
     saved_tok = tok;
     next(); /* consume `TOK_ENUM` */
+    if (tok == '(') {
+        destructure_manifest_constant();
+        return 1;
+    }
     if (tok == '{') {
         unget_tok(saved_tok);
         return 0;
@@ -12450,21 +12526,10 @@ static int check_d_dollar_foreach(int l, int flags)
     next();
     skip(';');
     expr_const1();
-    if (!is_tuple_type(&vtop->type) || !(tc = tuple_const_of(vtop)))
-        tcc_error("'$foreach' requires a constant tuple");
-    vpop();
+    tc = pop_int_tuple("'$foreach'");
     skip(')');
 
     n = tc->n;
-    for (i = 0; i < n; ++i) {
-        int bt = tc->types[i].t & VT_BTYPE;
-        if ((tc->nested && tc->nested[i])
-            || bt == VT_VOID || bt == VT_FUNC || bt == VT_STRUCT
-            || bt == VT_FLOAT || bt == VT_DOUBLE || bt == VT_LDOUBLE
-            || (tc->types[i].t & VT_ARRAY))
-            tcc_error("'$foreach': element %d is not an integer constant",
-                      i + 1);
-    }
 
     body = tok_str_alloc();
     d_scan_body(body, l == VT_CONST);
