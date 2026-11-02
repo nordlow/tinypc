@@ -8125,14 +8125,14 @@ special_math_val:
             break;
         }
         if (tcc_state->lang_d && tok == '('
-            && !strcmp(get_tok_str(t, NULL), "$fields")) {
+            && !strcmp(get_tok_str(t, NULL), "$members")) {
             skip('(');
             if (!parse_btype(&type1, &ad, 0))
                 tcc_error("expected type");
             type_decl(&type1, &ad, &n, TYPE_ABSTRACT);
             skip(')');
             if ((type1.t & VT_BTYPE) != VT_STRUCT)
-                tcc_error("$fields requires a struct or union type");
+                tcc_error("$members requires a struct or union type");
             /* build a constant tuple of type values, one per field */
             {
                 Sym *ts = tuple_begin();
