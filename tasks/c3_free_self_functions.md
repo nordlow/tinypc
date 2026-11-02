@@ -37,11 +37,13 @@ expressed as free self-functions.
 
 ### Relationship with Existing UFCS
 
-> **Open Question:** Since TinyPC already implements Uniform Function Call
-> Syntax (UFCS), investigate whether C3-style free self-functions are
-> entirely redundant with UFCS or whether formalizing a mandatory `self`
-> first-parameter convention offers distinct semantic or stylistic benefits
-> over general UFCS.
+> **Conclusion:** C3-style "self" functions and general UFCS are identical in
+> underlying mechanism. Naming the first parameter `self` is purely an
+> idiomatic naming convention; the compiler dispatches based on the **type**
+> of the first parameter matching the left-hand-side receiver. Therefore,
+> TinyPC's existing UFCS implementation already covers C3-style free self-functions
+> conceptually, requiring no separate language feature beyond standard UFCS
+> rules.
 
 ## Implementation Details (`tccgen.c`)
 
