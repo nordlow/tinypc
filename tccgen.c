@@ -7309,8 +7309,7 @@ static Sym *make_string_sym(const char *s)
     int len = strlen(s) + 1;
     unsigned long off = section_add(rodata_section, len, 1);
     memcpy(rodata_section->data + off, s, len);
-    AttrDef ad;
-    memset(&ad, 0, sizeof ad);
+    AttrDef ad = {0};
     ad.section = rodata_section;
     CType type;
     type.t = VT_BYTE | VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE;
@@ -8435,8 +8434,7 @@ special_math_val:
                 vpushi(res);
             } else if (is_hasInd) {
                 CType t1;
-                AttrDef ad1;
-                memset(&ad1, 0, sizeof ad1);
+                AttrDef ad1 = {0};
                 if (!parse_btype(&t1, &ad1, 0))
                     tcc_error("expected type");
                 type_decl(&t1, &ad1, &n, TYPE_ABSTRACT);
@@ -8444,8 +8442,7 @@ special_math_val:
                 vpushi(type_has_indirections(&t1));
             } else if (is_hasAlias) {
                 CType t1;
-                AttrDef ad1;
-                memset(&ad1, 0, sizeof ad1);
+                AttrDef ad1 = {0};
                 if (!parse_btype(&t1, &ad1, 0))
                     tcc_error("expected type");
                 type_decl(&t1, &ad1, &n, TYPE_ABSTRACT);
@@ -8453,8 +8450,7 @@ special_math_val:
                 vpushi(type_has_aliasing(&t1));
             } else if (is_isSigned || is_isUnsigned || is_isConst || is_isVolatile || is_isImmutable) {
                 CType t1;
-                AttrDef ad1;
-                memset(&ad1, 0, sizeof ad1);
+                AttrDef ad1 = {0};
                 if (!parse_btype(&t1, &ad1, 0))
                     tcc_error("expected type");
                 type_decl(&t1, &ad1, &n, TYPE_ABSTRACT);
@@ -8468,8 +8464,7 @@ special_math_val:
                 vpushi(res);
             } else {
                 CType t1;
-                AttrDef ad1;
-                memset(&ad1, 0, sizeof ad1);
+                AttrDef ad1 = {0};
                 if (!parse_btype(&t1, &ad1, 0))
                     tcc_error("expected type");
                 type_decl(&t1, &ad1, &n, TYPE_ABSTRACT);
@@ -8495,8 +8490,7 @@ special_math_val:
                 } else if (tok == ',') {
                     next();
                     CType t2;
-                    AttrDef ad2;
-                    memset(&ad2, 0, sizeof ad2);
+                    AttrDef ad2 = {0};
                     if (!parse_btype(&t2, &ad2, 0))
                         tcc_error("expected type");
                     type_decl(&t2, &ad2, &n, TYPE_ABSTRACT);
