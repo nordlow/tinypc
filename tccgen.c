@@ -174,6 +174,8 @@ static int tuple_arity(CType *type);
 static Sym *tuple_begin(void);
 static void tuple_add_field(Sym ***pplast, CType *elem, int idx);
 static Sym *tuple_layout(Sym *s);
+static Sym *type_value_sym(CType *ct);
+static CType *type_value_of(Sym *s);
 static void free_tuple_consts(void);
 static Sym *parse_tuple_type_opt(CType *type, AttrDef *ad);
 static void parse_tuple_type_rest(CType *type, AttrDef *ad);
@@ -2901,6 +2903,15 @@ static void type_to_str(char *buf, int buf_size,
     buf += strlen(buf);
 
     switch(bt) {
+    case VT_AUTO: {
+        CType *tv = type_value_of(type->ref);
+        if (tv) {
+            type_to_str(buf, buf_size, tv, varstr);
+            return;
+        }
+        tstr = "type";
+        goto add_tstr;
+    }
     case VT_VOID:
         tstr = "void";
         goto add_tstr;
@@ -3855,6 +3866,15 @@ ST_FUNC int type_size(CType *type, int *a)
     int bt;
 
     bt = type->t & VT_BTYPE;
+    if (bt == VT_AUTO) {
+        CType *tv = type_value_of(type->ref);
+        if (tv) {
+            int ts = type_size(tv, a);
+            return ts;
+        }
+        *a = 1;
+        return 1;
+    }
     if (bt == VT_STRUCT) {
         /* struct/union */
         s = type->ref;
@@ -7165,6 +7185,15 @@ typedef struct TupleConst {
 static TCC_TLS TupleConst **tuple_consts;
 static TCC_TLS int nb_tuple_consts;
 
+/* `Compile-time type values`: a `VT_AUTO` SValue whose symbol is in this
+   table carries a real `CType` (used by `$fields`/reflection).  */
+typedef struct TypeValue {
+    Sym *sym;
+    CType type;
+} TypeValue;
+static TCC_TLS TypeValue **type_values;
+static TCC_TLS int nb_type_values;
+
 static void free_tuple_consts(void)
 {
     int i;
@@ -7180,6 +7209,11 @@ static void free_tuple_consts(void)
     tcc_free(tuple_consts);
     tuple_consts = NULL;
     nb_tuple_consts = 0;
+    for (i = 0; i < nb_type_values; ++i)
+        tcc_free(type_values[i]);
+    tcc_free(type_values);
+    type_values = NULL;
+    nb_type_values = 0;
 }
 
 /* `Return` the constant tuple the value 'sv' refers to, or `NULL` if it is
@@ -7231,6 +7265,35 @@ static Sym *tuple_const_sym(CType *type, Section *sec, unsigned long offset,
 /* `Parse` the compile-time constructor `$(e1, ..., en)`, with 'tok' on the
    '(' of the `$(`.  `Push` the value of the single element, or a reference
    to a constant tuple, on the value stack.  */
+/* `Create` an anonymous symbol that represents the compile-time type value
+   'ct'.  The symbol lives on the global stack and is keyed in the
+   'type_values' table.  */
+static Sym *type_value_sym(CType *ct)
+{
+    TypeValue *tv = tcc_mallocz(sizeof *tv);
+    Sym *s = sym_push2(&global_stack, anon_sym++, VT_AUTO, 0);
+
+    s->r = 0;
+    s->type.t = VT_AUTO;
+    s->type.ref = s;
+    tv->sym = s;
+    tv->type = *ct;
+    type_values = tcc_realloc(type_values,
+                              (nb_type_values + 1) * sizeof *type_values);
+    type_values[nb_type_values++] = tv;
+    return s;
+}
+
+/* `Return` the type carried by the type-value symbol 's', or `NULL`.  */
+static CType *type_value_of(Sym *s)
+{
+    int i;
+    for (i = 0; i < nb_type_values; ++i)
+        if (type_values[i]->sym == s)
+            return &type_values[i]->type;
+    return NULL;
+}
+
 static void parse_dollar_tuple(void)
 {
     CType *types = NULL;
@@ -7441,7 +7504,7 @@ static void call_arg_expr(Sym *sa)
 ST_FUNC void unary(void)
 {
     int n, t, align, size, r, str_lit = 0;
-    CType type;
+    CType type, type1;
     Sym *s;
     AttrDef ad;
 
@@ -7719,6 +7782,11 @@ ST_FUNC void unary(void)
         if (tok == '(')
             tok = TOK_SOTYPE;
         expr_type(&type, unary);
+        if ((type.t & VT_BTYPE) == VT_AUTO && type.ref) {
+            CType *tv = type_value_of(type.ref);
+            if (tv)
+                type = *tv;
+        }
         if (t == TOK_SIZEOF) {
             vpush_type_size(&type, &align);
             gen_cast_s(VT_SIZE_T);
@@ -8054,6 +8122,72 @@ special_math_val:
         if (tcc_state->lang_d && tok == '('
             && !strcmp(get_tok_str(t, NULL), "$")) {
             parse_dollar_tuple();
+            break;
+        }
+        if (tcc_state->lang_d && tok == '('
+            && !strcmp(get_tok_str(t, NULL), "$fields")) {
+            skip('(');
+            if (!parse_btype(&type1, &ad, 0))
+                tcc_error("expected type");
+            type_decl(&type1, &ad, &n, TYPE_ABSTRACT);
+            skip(')');
+            if ((type1.t & VT_BTYPE) != VT_STRUCT)
+                tcc_error("$fields requires a struct or union type");
+            /* build a constant tuple of type values, one per field */
+            {
+                Sym *ts = tuple_begin();
+                Sym **plast = &ts->next;
+                Sym *f;
+                CType ttype;
+                TupleConst *tc;
+                init_params p = { rodata_section };
+                unsigned long offset;
+                int size, align, nf = 0, i;
+                CType *types = NULL;
+                CValue *vals = NULL;
+                Sym **syms = NULL;
+                TupleConst **nested = NULL;
+
+                for (f = type1.ref->next; f; f = f->next, ++nf) {
+                    tuple_add_field(&plast, &f->type, nf);
+                }
+                ttype.t = VT_STRUCT;
+                ttype.ref = tuple_layout(ts);
+                size = type_size(&ttype, &align);
+                if (NODATA_WANTED)
+                    size = 0, align = 1;
+                offset = section_add(p.sec, size, align);
+                tc = tcc_mallocz(sizeof *tc);
+                tc->sym = tuple_const_sym(&ttype, p.sec, offset, size);
+                tc->n = nf;
+                tc->types = tcc_realloc(NULL, nf * sizeof *types);
+                tc->vals = tcc_realloc(NULL, nf * sizeof *vals);
+                tc->syms = NULL;
+                tc->nested = NULL;
+                for (i = 0; i < nf; ++i)
+                    tc->types[i] = type1.ref->next ? type1.ref->next->type : type1.ref->next->type,
+                    tc->vals[i].i = 0;
+                /* fix types per field */
+                {
+                    Sym *ff = type1.ref->next;
+                    for (i = 0; i < nf; ++i, ff = ff->next)
+                        tc->types[i] = ff->type;
+                }
+                for (i = 0; i < nf; ++i) {
+                    int ofs = 0;
+                    tuple_field(&ttype, i, &ofs);
+                    tuple_const_push(tc, i);
+                    if ((tc->types[i].t & VT_BTYPE) != VT_AUTO)
+                        init_putv(&p, &tc->types[i], offset + ofs);
+                    else
+                        vpop();
+                }
+                tuple_consts = tcc_realloc(tuple_consts,
+                                           (nb_tuple_consts + 1) * sizeof *tuple_consts);
+                tuple_consts[nb_tuple_consts++] = tc;
+                vpushsym(&ttype, tc->sym);
+                /* ownership transferred */
+            }
             break;
         }
         s = sym_find(t);
@@ -12651,6 +12785,7 @@ static int tuple_const_is_int(TupleConst *tc, int i)
         return 0;
     return bt != VT_VOID && bt != VT_FUNC && bt != VT_STRUCT
         && bt != VT_FLOAT && bt != VT_DOUBLE && bt != VT_LDOUBLE
+        && bt != VT_AUTO
         && !(tc->types[i].t & VT_ARRAY);
 }
 
@@ -12741,6 +12876,22 @@ static int check_d_dollar_foreach(int l, int flags)
             type.ref = ref = push_enum_ref();
             s = sym_push(name, &type, VT_CONST, 0);
             s->enum_val = tc->vals[i].i;
+        } else if ((type.t & VT_BTYPE) == VT_AUTO) {
+            TypeValue *tvp;
+            CType *stored = type_value_of(tc->syms[i]);
+            type.t = VT_AUTO;
+            type.ref = NULL;
+            s = sym_push(name, &type, VT_CONST, 0);
+            s->type.t = VT_AUTO;
+            s->type.ref = s;
+            s->r = 0;
+            tvp = tcc_mallocz(sizeof *tvp);
+            tvp->sym = s;
+            if (stored)
+                tvp->type = *stored;
+            type_values = tcc_realloc(type_values,
+                                      (nb_type_values + 1) * sizeof *type_values);
+            type_values[nb_type_values++] = tvp;
         } else {
             AttrDef ad2;
             int r = VT_LOCAL;
