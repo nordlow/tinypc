@@ -411,7 +411,32 @@ Rules:
   non-lvalue tuple spills it to a temporary first, like a struct
   member access on an rvalue.
 
+### Return Type Inference & Component Inspection (`typeof(return)`)
+
+When constructing or returning tuple types, functions returning tuple types
+(such as `(struct S, int)`) can inspect their own return type using
+`typeof(return)` or compact variants like `$typeof(return)` or `$returntype`.
+This allows extracting individual element types via indexing (`[i]`) for local
+variable initialization or component construction:
+
+```c
+static (struct S, int) mks(void)
+{
+    typeof(return)[0] s = { 1, 2 };  /* inspects first element type (struct S) */
+    return (s, 3);
+}
+```
+
+#### Compact Syntaxes Considered:
+1. **`typeof(return)`:** Standard C23 extension / mechanism for referencing
+   the enclosing function's return type.
+2. **`$typeof(return)`:** Part of the `$` compile-time family, explicitly
+   evaluating at compile time.
+3. **`$returntype`:** A clean, dedicated keyword/special form representing the
+   return type directly without parentheses.
+
 ### Rejected spellings
+
 
 - **`$EXPR`** -- a unary `$` operator needs `$` removed from the
   identifier character set, which re-lexes `$if`, `$x` and `$T`,
