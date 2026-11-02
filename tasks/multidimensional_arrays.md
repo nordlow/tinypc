@@ -26,8 +26,12 @@ ergonomics.
      (`arr[i, :, k]`).
    - Semantics: Returns a multi-dimensional slice or strided view
      spanning bounds `[iS..iE)` or entire axes for `:`.
-   - Integrates with TPC's existing slice system (`T[..]`) and bounds
-     checking (`-bt`).
+- Integrates with TPC's existing slice system (`T[..]`) and bounds
+  checking (`-bt`).
+- **Named Parameters / Arguments Compatibility:** Both `:` and `..` syntax
+  inside indexing brackets `[...]` will be allowed as long as they do not
+  clash with named parameters or keyword arguments (if introduced).
+
 
 3. **Subscript / Unicode Indexing (`Aᵢⱼ₉`):**
    - Syntax: Identifiers and indexing expressions incorporating Unicode
