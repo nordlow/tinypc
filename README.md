@@ -281,8 +281,38 @@ __builtin_types_compatible_p(Pair, (int, char))   /* 1 */
   as a type, which no valid expression does.
 - Tuples carry no debug information (M1).
 
-Compile-time and run-time *value* tuples (`$(...)` and `(...)`) are
-planned but not implemented yet; see `tasks/support_tuples.md`.
+### Value Tuples (Compile-Time and Run-Time)
+
+In `-lang=d` mode, value tuples provide multi-value constructors and
+literals:
+
+- **Compile-Time Value Tuples (`$(...)`):**
+  ```c
+  enum { N = $(1, 2)[0] };            /* 1 */
+  static int table[$(4, 8)[1]];       /* 8 elements */
+  $assert($(4, 8)[1] == 8);
+  static const int k = $(2 + 3);      /* 5 */
+  ```
+
+- **Run-Time Value Tuples (`(...)`):**
+  Accepted in tuple-expected contexts (initializers, assignments, arguments,
+  returns, and destructuring):
+  ```c
+  (int, int) t = (x, y);
+  return (x, y);
+  auto (a, b) = f();          /* destructuring initializer */
+  ```
+
+- **Static Foreach over Tuples (`$foreach`):**
+  ```c
+  $foreach (x; $(1, 2, 3)) {
+      /* compiled per element at compile time */
+  }
+  ```
+
+See [`tasks/support_tuples.md`](tasks/support_tuples.md) for full design
+details.
+
 
 ## D-style language extensions
 
