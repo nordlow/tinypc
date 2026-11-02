@@ -35,6 +35,14 @@ expressed as free self-functions.
      struct layouts purely data-focused and decoupling data representation
      from behavior.
 
+### Relationship with Existing UFCS
+
+> **Open Question:** Since TinyPC already implements Uniform Function Call
+> Syntax (UFCS), investigate whether C3-style free self-functions are
+> entirely redundant with UFCS or whether formalizing a mandatory `self`
+> first-parameter convention offers distinct semantic or stylistic benefits
+> over general UFCS.
+
 ## Implementation Details (`tccgen.c`)
 
 1. **Method Resolution & UFCS Extension (`tccgen.c`):**
