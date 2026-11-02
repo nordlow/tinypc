@@ -270,6 +270,8 @@ endif
 439_d_tuple_literal_elements.test : GEN = $(GEN-TCC)
 440_d_tuple_destructure_bcheck.test : FLAGS += -b -lang=d
 440_d_tuple_destructure_bcheck.test : GEN = $(GEN-TCC)
+443_d_tuple_fields.test : FLAGS += -lang=d
+443_d_tuple_fields.test : GEN = $(GEN-TCC)
 417_d_foreach_qualifiers.test : FLAGS += -lang=d
 417_d_foreach_qualifiers.test : GEN = $(GEN-TCC)
 104_inline.test : FLAGS += $(subst 104,104+,$1)
