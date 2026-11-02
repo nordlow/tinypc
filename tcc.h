@@ -519,11 +519,11 @@ typedef struct CType {
     union {
         int t;                        /**< Type flags specifying basic type, qualifiers (const/volatile), and modifiers. */
         struct {                      /**< TODO: Structured bitfield view of type flags for introspection/debugging */
-            unsigned int btype      : 4;  /**< Basic type (VT_VOID, VT_INT, etc.) */
-            unsigned int qualifiers : 6;  /**< Type qualifiers (const, volatile, etc.) */
-            unsigned int storage    : 5;  /**< Storage class (extern, static, etc.) */
-            unsigned int sign       : 2;  /**< Signed/unsigned flags */
-            unsigned int modifier   : 15; /**< Additional modifiers / attributes */
+            unsigned int btype      : 4;  /**< Basic type: see VT_VOID, VT_BYTE, VT_SHORT, VT_INT, VT_LLONG, VT_PTR, VT_FUNC, VT_STRUCT, VT_FLOAT, VT_DOUBLE, VT_LDOUBLE, VT_BOOL, VT_SLICE, VT_QLONG, VT_QFLOAT, VT_AUTO (Mask: VT_BTYPE) */
+            unsigned int qualifiers : 6;  /**< Type qualifiers: see VT_CONSTANT, VT_VOLATILE, VT_RESTRICT, VT_IMMUTABLE (Mask: VT_QUAL) */
+            unsigned int storage    : 5;  /**< Storage class: see VT_EXTERN, VT_STATIC, VT_TYPEDEF, VT_INLINE, VT_TLS (Mask: VT_STORAGE) */
+            unsigned int sign       : 2;  /**< Signed/unsigned flags: see VT_UNSIGNED, VT_DEFSIGN */
+            unsigned int modifier   : 15; /**< Additional modifiers: see VT_BITFIELD, VT_VLA, VT_LONG */
         };
     };
     struct Sym *ref;              /**< Reference symbol pointer for structs, unions, enums, functions, or pointer targets. */
@@ -556,14 +556,14 @@ typedef struct SValue {
         unsigned short r;             /**< Register allocation flags, register index, and storage flags (`VT_*`). */
         struct {                      /**< TODO: Structured bitfield view of register and storage flags */
             unsigned int reg_index  : 8;  /**< Physical/virtual register index */
-            unsigned int storage    : 8;  /**< VT_* storage / value location flags */
+            unsigned int storage    : 8;  /**< VT_* storage / value location flags: see VT_VALMASK, VT_CONST, VT_LLOCAL, VT_LOCAL, VT_CMP, VT_JMP, VT_JMPI, VT_LVAL, VT_SYM */
         };
     };
     union {
         unsigned short r2;            /**< Second register index (used for 64-bit `long long` values on 32-bit targets; `VT_CONST` if unused). */
         struct {                      /**< TODO: Structured bitfield view of second register and storage flags */
             unsigned int reg_index2 : 8;  /**< Second register index */
-            unsigned int storage2   : 8;  /**< Second storage / value location flags */
+            unsigned int storage2   : 8;  /**< Second storage / value location flags: see VT_VALMASK, VT_CONST, VT_LLOCAL, VT_LOCAL, VT_CMP, VT_JMP, VT_JMPI, VT_LVAL, VT_SYM */
         };
     };
     union {
@@ -650,7 +650,7 @@ typedef struct Sym {
         unsigned short r;             /**< Associated register, or `VT_CONST`/`VT_LOCAL` storage class and lvalue flags. */
         struct {                      /**< TODO: Structured bitfield view of symbol register and storage flags */
             unsigned int reg_index  : 8;  /**< Register allocation index */
-            unsigned int storage    : 8;  /**< Storage class / lvalue flags */
+            unsigned int storage    : 8;  /**< Storage class / lvalue flags: see VT_CONST, VT_LOCAL, VT_LVAL, VT_SYM */
         };
     };
     struct SymAttr a;             /**< Extended symbol attributes (alignment, packing, weak linkage, visibility). */
