@@ -66,21 +66,45 @@ Instead, we use **Approach B (Modifier Flag Combination)**:
 
 ---
 
-## Implementation Plan
+## Implementation Strategy: Minimal-Sized Incremental Steps
 
-1. **Lexer & Keyword Support (`tcctok.h`, `tccpp.c`):**
-   - Register `_Complex`, `_Imaginary`, and D type keywords (`cfloat`,
-     `creal`, `ifloat`, etc.).
-   - Recognize imaginary literal suffixes (`i`, `j`) following numeric
-     constants and yield complex/imaginary literal tokens.
-2. **Type System Extensions (`tcc.h`):**
-   - Introduce `VT_COMPLEX` and `VT_IMAGINARY` modifier flags.
-3. **Parser & Expression Evaluation (`tccgen.c`):**
-   - Parse complex/imaginary literal expressions and arithmetic operations
-     (`+`, `-`, `*`, `/`, unary `-`).
-4. **Code Generation & ABI (`x86_64-gen.c`, etc.):**
-   - Generate ABI-compliant argument passing and return value handling for
-     complex pairs (SSE registers or memory passing on x86-64).
-5. **Regression Tests:**
-   - Pass gcc complex test suite subset and add comprehensive test cases
-     under `tests/tests2/`.
+Each step is self-contained, builds successfully, and is verified by its
+own dedicated regression test under `tests/tests2/`:
+
+1. **Step 1: Keyword & Token Registration (`tcctok.h`, `tccpp.c`)**
+   - **Action:** Register `_Complex`, `_Imaginary`, and D type keywords
+     (`cfloat`, `cdouble`, `creal`, `ifloat`, `idouble`, `ireal`).
+   - **Verification Test:** Add a test verifying keywords parse successfully
+     in C99 and D modes without syntax errors.
+
+2. **Step 2: Type Modifier Flags (`tcc.h`)**
+   - **Action:** Define `VT_COMPLEX` and `VT_IMAGINARY` modifier flags in
+     the type qualifier/modifier bit range.
+   - **Verification Test:** Verify header compilation and basic type descriptor
+     construction.
+
+3. **Step 3: Imaginary Literal Suffixes (`...i`, `...j`)**
+   - **Action:** Extend the numeric lexer/parser to recognize `i` and `j`
+     suffixes on numeric literals, producing pure imaginary constants.
+   - **Verification Test:** Add `tests/tests2/NN_imaginary_literal.c` verifying
+     constant evaluation of imaginary literals (`2.5i`, `1.0j`).
+
+4. **Step 4: Complex Type Parsing & Declaration (`tccgen.c`)**
+   - **Action:** Update `parse_btype()` and declaration logic to handle
+     complex/imaginary type specifiers, binding them to underlying float
+     types with `VT_COMPLEX` / `VT_IMAGINARY` flags.
+   - **Verification Test:** Add `tests/tests2/NN_complex_decl.c` verifying variable
+     declarations (`_Complex double z;`, `creal c;`) and `sizeof`.
+
+5. **Step 5: Complex Arithmetic & Operations (`tccgen.c`)**
+   - **Action:** Implement type conversion, promotion, and binary arithmetic
+     operations (`+`, `-`, `*`, `/`, `==`, `!=`, unary `-`) for complex/imaginary
+     operands.
+   - **Verification Test:** Add `tests/tests2/NN_complex_arith.c` verifying
+     complex calculations and comparisons.
+
+6. **Step 6: Code Generation & ABI (`x86_64-gen.c`, etc.)**
+   - **Action:** Implement ABI-compliant argument passing and return value
+     handling for complex pairs (SSE registers or memory passing on x86-64).
+   - **Verification Test:** Add `tests/tests2/NN_complex_abi.c` and pass the
+     gcc complex test suite subset.
