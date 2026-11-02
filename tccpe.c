@@ -507,9 +507,8 @@ static int pe_fwrite(struct pe_info *pe, const void *data, int len)
 
 static void pe_fpad(struct pe_info *pe, DWORD new_pos)
 {
-    char buf[256];
+    char buf[256] = {0};
     int n, diff = new_pos - pe->pos;
-    memset(buf, 0, sizeof buf);
     while (diff > 0) {
         diff -= n = umin(diff, sizeof buf);
         fwrite(buf, n, 1, pe->op);
@@ -1485,7 +1484,7 @@ static int pe_check_symbols(struct pe_info *pe)
 #ifdef TCC_TARGET_X86_64
                     write32le(p + 2, (DWORD)-4);
 #endif
-                    put_elf_reloc(symtab_section, text_section, 
+                    put_elf_reloc(symtab_section, text_section,
                         offset + 2, R_XXX_THUNKFIX, is->iat_index);
 #endif
                 }

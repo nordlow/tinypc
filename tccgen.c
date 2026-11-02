@@ -5123,10 +5123,10 @@ static void struct_decl(CType *type, int u)
     int v, c, size, align, flexible;
     int bit_size, bsize, bt, ut;
     Sym *s, *ss, **ps;
-    AttrDef ad, ad1;
+    AttrDef ad1;
     CType type1, btype;
 
-    memset(&ad, 0, sizeof ad);
+    AttrDef ad = {0};
     next();
     parse_attribute(&ad);
 
@@ -5500,10 +5500,9 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
             goto basic_type;
         case TOK_ALIGNAS:
             { int n;
-              AttrDef ad1;
               next();
               skip('(');
-              memset(&ad1, 0, sizeof(AttrDef));
+              AttrDef ad1 = {0};
               if (parse_btype(&type1, &ad1, 0)) {
                   type_decl(&type1, &ad1, &n, TYPE_ABSTRACT);
                   if (ad1.a.aligned)
