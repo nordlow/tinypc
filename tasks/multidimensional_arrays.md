@@ -54,9 +54,35 @@ ergonomics.
 3. **Code Generation (`x86_64-gen.c`, `tccgen.c`):**
    - Emit efficient address calculation code for strided
      multi-dimensional indexing and slice descriptor construction.
-4. **Bounds Checking & Safety (`bcheck.c`):**
-   - Extend pointer and bounds checking (`-bt`) to validate indices and
-     slice ranges across all dimensions.
+- Extend pointer and bounds checking (`-bt`) to validate indices and
+  slice ranges across all dimensions.
+
+## Memory Layouts (NumPy, Julia, Mojo Inspiration)
+
+Different ecosystem paradigms handle multi-dimensional array memory layout
+differently:
+
+1. **NumPy (C-contiguous / Row-Major):**
+   - The last dimension varies fastest in memory. Stride for dimension $i$
+     decreases from left to right. Ideal for C-language interop and row-wise
+     traversal.
+2. **Julia (Fortran-contiguous / Column-Major):**
+   - The first dimension varies fastest in memory. Stride for dimension $i$
+     increases from left to right. Ideal for mathematical and linear algebra
+     computations (BLAS/LAPACK interop).
+3. **Mojo (Explicit Strides & Custom Layouts):**
+   - Allows arbitrary compile-time or runtime strides and layout qualifiers
+     enabling zero-copy transposes and strided slices.
+
+### Convenient Expression in TPC
+
+To express these layouts cleanly without boilerplate:
+- **Layout Modifiers / Attributes:** Support layout specifiers on array and
+  slice types (e.g., `int[N, M, layout(row)]` or `int[N, M, layout(col)]`).
+- **Standard Strided View Descriptor:** Represent multi-dimensional views as
+  compact runtime descriptors containing pointer, shape array, and stride
+  array, allowing zero-copy slicing and seamless interop with NumPy C-API
+  and Julia arrays.
 
 ## Acceptance Criteria
 
