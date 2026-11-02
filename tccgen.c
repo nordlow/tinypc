@@ -175,6 +175,7 @@ static Sym *tuple_begin(void);
 static void tuple_add_field(Sym ***pplast, CType *elem, int idx);
 static Sym *tuple_layout(Sym *s);
 static Sym *type_value_sym(CType *ct);
+static void gen_members_from_type(CType type1);
 static CType *type_value_of(Sym *s);
 static Sym *make_string_sym(const char *s);
 static void free_tuple_consts(void);
@@ -7518,6 +7519,82 @@ static void call_arg_expr(Sym *sa)
     tuple_expect = saved_expect;
 }
 
+static void gen_members_from_type(CType type1)
+{
+    AttrDef ad;
+    int n = 0;
+    memset(&ad, 0, sizeof ad);
+    /* build a constant tuple of type values, one per field */
+    {
+    Sym *ts = tuple_begin();
+    Sym **plast = &ts->next;
+    Sym *f;
+    CType ttype;
+    TupleConst *tc;
+    init_params p = { rodata_section };
+    unsigned long offset;
+    int size, align, nf = 0, i;
+    CType *types = NULL;
+    CValue *vals = NULL;
+    Sym **syms = NULL;
+    TupleConst **nested = NULL;
+
+    for (f = type1.ref->next; f; f = f->next, ++nf) {
+    CType et;
+    et.t = VT_AUTO;
+    et.ref = NULL;
+    tuple_add_field(&plast, &et, nf);
+    }
+    ttype.t = VT_STRUCT;
+    ttype.ref = tuple_layout(ts);
+    size = type_size(&ttype, &align);
+    if (NODATA_WANTED)
+    size = 0, align = 1;
+    offset = section_add(p.sec, size, align);
+    tc = tcc_mallocz(sizeof *tc);
+    tc->sym = tuple_const_sym(&ttype, p.sec, offset, size);
+    tc->n = nf;
+    tc->types = tcc_realloc(NULL, nf * sizeof *types);
+    tc->vals = tcc_realloc(NULL, nf * sizeof *vals);
+    tc->syms = tcc_realloc(NULL, nf * sizeof *syms);
+    tc->nested = NULL;
+    for (i = 0; i < nf; ++i) {
+    tc->types[i].t = VT_AUTO;
+    tc->types[i].ref = NULL;
+    tc->vals[i].i = 0;
+    tc->syms[i] = NULL;
+    }
+    {
+    Sym *ff = type1.ref->next;
+    for (i = 0; i < nf; ++i, ff = ff->next) {
+    Sym *fsym = sym_push2(&global_stack,
+    (ff->v & ~SYM_FIELD) | SYM_FIELD,
+    ff->type.t, 0);
+    fsym->type = ff->type;
+    if (IS_ENUM(type1.t))
+    fsym->c = ff->enum_val;
+    else
+    fsym->c = ff->c;
+    tc->syms[i] = fsym;
+    }
+    }
+    for (i = 0; i < nf; ++i) {
+    int ofs = 0;
+    tuple_field(&ttype, i, &ofs);
+    tuple_const_push(tc, i);
+    if ((tc->types[i].t & VT_BTYPE) != VT_AUTO)
+    init_putv(&p, &tc->types[i], offset + ofs);
+    else
+    vpop();
+    }
+    tuple_consts = tcc_realloc(tuple_consts,
+    (nb_tuple_consts + 1) * sizeof *tuple_consts);
+    tuple_consts[nb_tuple_consts++] = tc;
+    vpushsym(&ttype, tc->sym);
+    /* ownership transferred */
+    }
+}
+
 ST_FUNC void unary(void)
 {
     int n, t, align, size, r, str_lit = 0;
@@ -7535,13 +7612,20 @@ ST_FUNC void unary(void)
         if (tok == '.') {
             next();
             if (tok == TOK_SIZEOF) {
-                next();
-                vpush_type_size(&type, &align);
-                gen_cast_s(VT_SIZE_T);
-                return;
-            } else {
-                tcc_error("expected 'sizeof' after type");
-            }
+            next();
+            vpush_type_size(&type, &align);
+            gen_cast_s(VT_SIZE_T);
+            return;
+        } else if (tok >= TOK_UIDENT
+                   && !strcmp(get_tok_str(tok, NULL), "$members")) {
+            next(); /* consume $members */
+            if ((type.t & VT_BTYPE) != VT_STRUCT && !IS_ENUM(type.t))
+                tcc_error("$members requires a struct, union or enum type");
+            gen_members_from_type(type);
+            return;
+        } else {
+            tcc_error("expected 'sizeof' after type");
+        }
         } else {
             tcc_error("expected '.' after type");
         }
@@ -8141,6 +8225,33 @@ special_math_val:
             parse_dollar_tuple();
             break;
         }
+        /* UFCS: T.$members */
+        if (tcc_state->lang_d && tok == '.' ) {
+            next(); /* consume '.' */
+            if (tok >= TOK_UIDENT && !strcmp(get_tok_str(tok, NULL), "$members")) {
+                Sym *tsym = sym_find(t);
+                memset(&ad, 0, sizeof ad);
+                if (tsym && (tsym->type.t & VT_STORAGE_TYPEDEF)) {
+                    type1 = tsym->type;
+                } else {
+                    Sym *ss = struct_find(t);
+                    if (ss) {
+                        type1.t = ss->type.t;
+                        type1.ref = ss;
+                    } else {
+                        tcc_error("expected type");
+                    }
+                }
+                next(); /* consume $members */
+                if ((type1.t & VT_BTYPE) != VT_STRUCT && !IS_ENUM(type1.t))
+                    tcc_error("$members requires a struct, union or enum type");
+                gen_members_from_type(type1);
+                return;
+            } else {
+                /* not $members: restore the consumed '.' */
+                unget_tok('.');
+            }
+        }
         if (tcc_state->lang_d && tok == '('
             && !strcmp(get_tok_str(t, NULL), "$members")) {
             skip('(');
@@ -8150,75 +8261,8 @@ special_math_val:
             skip(')');
             if ((type1.t & VT_BTYPE) != VT_STRUCT && !IS_ENUM(type1.t))
                 tcc_error("$members requires a struct, union or enum type");
-            /* build a constant tuple of type values, one per field */
-            {
-                Sym *ts = tuple_begin();
-                Sym **plast = &ts->next;
-                Sym *f;
-                CType ttype;
-                TupleConst *tc;
-                init_params p = { rodata_section };
-                unsigned long offset;
-                int size, align, nf = 0, i;
-                CType *types = NULL;
-                CValue *vals = NULL;
-                Sym **syms = NULL;
-                TupleConst **nested = NULL;
-
-                for (f = type1.ref->next; f; f = f->next, ++nf) {
-                    CType et;
-                    et.t = VT_AUTO;
-                    et.ref = NULL;
-                    tuple_add_field(&plast, &et, nf);
-                }
-                ttype.t = VT_STRUCT;
-                ttype.ref = tuple_layout(ts);
-                size = type_size(&ttype, &align);
-                if (NODATA_WANTED)
-                    size = 0, align = 1;
-                offset = section_add(p.sec, size, align);
-                tc = tcc_mallocz(sizeof *tc);
-                tc->sym = tuple_const_sym(&ttype, p.sec, offset, size);
-                tc->n = nf;
-                tc->types = tcc_realloc(NULL, nf * sizeof *types);
-                tc->vals = tcc_realloc(NULL, nf * sizeof *vals);
-                tc->syms = tcc_realloc(NULL, nf * sizeof *syms);
-                tc->nested = NULL;
-                for (i = 0; i < nf; ++i) {
-                    tc->types[i].t = VT_AUTO;
-                    tc->types[i].ref = NULL;
-                    tc->vals[i].i = 0;
-                    tc->syms[i] = NULL;
-                }
-                {
-                    Sym *ff = type1.ref->next;
-                    for (i = 0; i < nf; ++i, ff = ff->next) {
-                        Sym *fsym = sym_push2(&global_stack,
-                                              (ff->v & ~SYM_FIELD) | SYM_FIELD,
-                                              ff->type.t, 0);
-                        fsym->type = ff->type;
-                        if (IS_ENUM(type1.t))
-                            fsym->c = ff->enum_val;
-                        else
-                            fsym->c = ff->c;
-                        tc->syms[i] = fsym;
-                    }
-                }
-                for (i = 0; i < nf; ++i) {
-                    int ofs = 0;
-                    tuple_field(&ttype, i, &ofs);
-                    tuple_const_push(tc, i);
-                    if ((tc->types[i].t & VT_BTYPE) != VT_AUTO)
-                        init_putv(&p, &tc->types[i], offset + ofs);
-                    else
-                        vpop();
-                }
-                tuple_consts = tcc_realloc(tuple_consts,
-                                           (nb_tuple_consts + 1) * sizeof *tuple_consts);
-                tuple_consts[nb_tuple_consts++] = tc;
-                vpushsym(&ttype, tc->sym);
-                /* ownership transferred */
-            }
+        members_impl:;
+            gen_members_from_type(type1);
             break;
         }
         if (tcc_state->lang_d && tok == '('
