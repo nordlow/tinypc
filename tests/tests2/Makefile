@@ -413,3 +413,5 @@ clean :
 444_d_tuple_members_name.test : GEN = $(GEN-TCC)
 445_d_tuple_members_enum.test : FLAGS += -lang=d
 445_d_tuple_members_enum.test : GEN = $(GEN-TCC)
+446_d_members_ufcs.test : FLAGS += -lang=d
+446_d_members_ufcs.test : GEN = $(GEN-TCC)

@@ -1,0 +1,9 @@
+struct a 0 4
+struct b 8 8
+struct c 16 1
+tag a 0
+tag b 8
+tag c 16
+enum Red 0 4
+enum Green 5 4
+enum Blue 6 4
