@@ -176,6 +176,7 @@ static void tuple_add_field(Sym ***pplast, CType *elem, int idx);
 static Sym *tuple_layout(Sym *s);
 static Sym *type_value_sym(CType *ct);
 static CType *type_value_of(Sym *s);
+static Sym *make_string_sym(const char *s);
 static void free_tuple_consts(void);
 static Sym *parse_tuple_type_opt(CType *type, AttrDef *ad);
 static void parse_tuple_type_rest(CType *type, AttrDef *ad);
@@ -7294,6 +7295,22 @@ static CType *type_value_of(Sym *s)
     return NULL;
 }
 
+/* `Create` a rodata symbol for the C string 's' (including NUL).  */
+static Sym *make_string_sym(const char *s)
+{
+    int len = strlen(s) + 1;
+    unsigned long off = section_add(rodata_section, len, 1);
+    memcpy(rodata_section->data + off, s, len);
+    Sym *ref = sym_push2(&global_stack, SYM_FIELD, VT_BYTE | VT_QUALIFIER_CONSTANT, 0);
+    ref->c = len;
+    Sym *sym = sym_push2(&global_stack, anon_sym++, VT_ARRAY | VT_BYTE, 0);
+    sym->type.t = VT_ARRAY | VT_BYTE | VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE;
+    sym->type.ref = ref;
+    sym->r = VT_CONST | VT_SYM;
+    put_extern_sym(sym, rodata_section, off, len);
+    return sym;
+}
+
 static void parse_dollar_tuple(void)
 {
     CType *types = NULL;
@@ -8199,6 +8216,35 @@ special_math_val:
                 vpushsym(&ttype, tc->sym);
                 /* ownership transferred */
             }
+            break;
+        }
+        if (tcc_state->lang_d && tok == '('
+            && (!strcmp(get_tok_str(t, NULL), "$nameof")
+                || !strcmp(get_tok_str(t, NULL), "$offsetof"))) {
+            int want_name = !strcmp(get_tok_str(t, NULL), "$nameof");
+            skip('(');
+            expr_eq();
+            if ((vtop->type.t & VT_BTYPE) != VT_AUTO || !vtop->sym) {
+                /* not a symbol value: try as a normal expression */
+            } else {
+                Sym *sv = vtop->sym;
+                vpop();
+                if (want_name) {
+                    const char *nm = get_tok_str(sv->asm_label & ~SYM_FIELD, NULL);
+                    {
+                        Sym *ss = make_string_sym(nm);
+                        vpushsym(&ss->type, ss);
+                    }
+                    /* make it a pointer */
+                    vtop->type.t = VT_PTR;
+                    /* adjust: make_string_sym returns array; decay handled by vpushsym? */
+                } else {
+                    vpushi(sv->c);
+                }
+                skip(')');
+                break;
+            }
+            skip(')');
             break;
         }
         s = sym_find(t);
@@ -12904,6 +12950,7 @@ static int check_d_dollar_foreach(int l, int flags)
                 type_values[nb_type_values++] = tvp;
             }
             if (tc->syms[i]) {
+                s->asm_label = tc->syms[i]->v;
                 s->c = tc->syms[i]->c;
             }
         } else {
