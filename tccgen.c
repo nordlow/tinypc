@@ -8148,8 +8148,8 @@ special_math_val:
                 tcc_error("expected type");
             type_decl(&type1, &ad, &n, TYPE_ABSTRACT);
             skip(')');
-            if ((type1.t & VT_BTYPE) != VT_STRUCT)
-                tcc_error("$members requires a struct or union type");
+            if ((type1.t & VT_BTYPE) != VT_STRUCT && !IS_ENUM(type1.t))
+                tcc_error("$members requires a struct, union or enum type");
             /* build a constant tuple of type values, one per field */
             {
                 Sym *ts = tuple_begin();
@@ -8197,7 +8197,10 @@ special_math_val:
                                               (ff->v & ~SYM_FIELD) | SYM_FIELD,
                                               ff->type.t, 0);
                         fsym->type = ff->type;
-                        fsym->c = ff->c;
+                        if (IS_ENUM(type1.t))
+                            fsym->c = ff->enum_val;
+                        else
+                            fsym->c = ff->c;
                         tc->syms[i] = fsym;
                     }
                 }
@@ -8220,8 +8223,10 @@ special_math_val:
         }
         if (tcc_state->lang_d && tok == '('
             && (!strcmp(get_tok_str(t, NULL), "$nameof")
-                || !strcmp(get_tok_str(t, NULL), "$offsetof"))) {
+                || !strcmp(get_tok_str(t, NULL), "$offsetof")
+                || !strcmp(get_tok_str(t, NULL), "$valueof"))) {
             int want_name = !strcmp(get_tok_str(t, NULL), "$nameof");
+            int want_value = !strcmp(get_tok_str(t, NULL), "$valueof");
             skip('(');
             expr_eq();
             if ((vtop->type.t & VT_BTYPE) != VT_AUTO || !vtop->sym) {
