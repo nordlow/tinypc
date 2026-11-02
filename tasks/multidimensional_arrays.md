@@ -77,8 +77,8 @@ differently:
 ### Convenient Expression in TPC
 
 To express these layouts cleanly without boilerplate:
-- **Layout Modifiers / Attributes:** Support layout specifiers on array and
-  slice types (e.g., `int[N, M, layout(row)]` or `int[N, M, layout(col)]`).
+- **Layout Attributes:** Support `@`-attribute layout specifiers on array and
+  slice types (e.g., `@layout(row) int[N, M]` or `@layout(col) int[N, M]`).
 - **Standard Strided View Descriptor:** Represent multi-dimensional views as
   compact runtime descriptors containing pointer, shape array, and stride
   array, allowing zero-copy slicing and seamless interop with NumPy C-API
