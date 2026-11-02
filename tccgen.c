@@ -8393,7 +8393,35 @@ special_math_val:
             qualifiers = vtop->type.t & VT_QUALIFIER;
             /* expect pointer on structure */
             next();
-            if (tcc_state->lang_d && (vtop->type.t & VT_ENUM)) {
+            if (tcc_state->lang_d && tok >= TOK_UIDENT
+                && (!strcmp(get_tok_str(tok, NULL), "$nameof")
+                    || !strcmp(get_tok_str(tok, NULL), "$offsetof")
+                    || !strcmp(get_tok_str(tok, NULL), "$valueof"))) {
+                int want_name = !strcmp(get_tok_str(tok, NULL), "$nameof");
+                next(); /* consume */
+                if (!vtop->sym || !vtop->sym->asm_label) {
+                    /* not a symbol value */
+                } else {
+                    Sym *sv = vtop->sym;
+                    if (want_name) {
+                        const char *nm = get_tok_str(sv->asm_label & ~SYM_FIELD, NULL);
+                        Sym *ss = make_string_sym(nm);
+                        vpop();
+                        vpushsym(&ss->type, ss);
+                        vtop->type.t = (vtop->type.t & ~VT_ARRAY) | VT_PTR;
+                    } else {
+                        int val = sv->c;
+                        vpop();
+                        vpushi(val);
+                    }
+                    continue;
+                }
+            }
+            if (tcc_state->lang_d && (vtop->type.t & VT_ENUM)
+                && tok >= TOK_UIDENT
+                && strcmp(get_tok_str(tok, NULL), "$nameof")
+                && strcmp(get_tok_str(tok, NULL), "$offsetof")
+                && strcmp(get_tok_str(tok, NULL), "$valueof")) {
                 Sym *es = vtop->type.ref;
                 int member_tok = tok;
                 if (member_tok < TOK_UIDENT)

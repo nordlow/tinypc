@@ -10,13 +10,15 @@ enum Color { Red, Green = 5, Blue };
 int main(void)
 {
     $foreach (m; SS.$members) {
-        printf("struct %s %d %d\n", $nameof(m), $offsetof(m), (int)sizeof(m));
+        printf("struct %s %d %d\n", m.$nameof, m.$offsetof, (int)m.sizeof);
+        typeof(m) x = 0;
+        (void)x;
     }
     $foreach (m; struct S.$members) {
-        printf("tag %s %d\n", $nameof(m), $offsetof(m));
+        printf("tag %s %d\n", m.$nameof, m.$offsetof);
     }
     $foreach (m; enum Color.$members) {
-        printf("enum %s %d %d\n", $nameof(m), $valueof(m), (int)sizeof(m));
+        printf("enum %s %d %d\n", m.$nameof, m.$valueof, (int)m.sizeof);
     }
     return 0;
 }
