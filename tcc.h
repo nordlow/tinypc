@@ -457,14 +457,14 @@ extern long double strtold (const char *__nptr, char **__endptr);
  * @brief Token symbol entry in the global token hash table.
  */
 typedef struct TokenSym {
-    struct TokenSym *hash_next;   /**< Pointer to the next token symbol in the hash bucket chain. */
-    struct Sym *sym_define;       /**< Direct pointer to the macro definition symbol if defined. */
-    struct Sym *sym_label;        /**< Direct pointer to the label symbol if applicable. */
-    struct Sym *sym_struct;       /**< Direct pointer to the structure, union, or enum symbol. */
-    struct Sym *sym_identifier;   /**< Direct pointer to the identifier symbol table entry. */
-    int tok;                      /**< Unique numeric token identifier assigned by the lexer. */
-    int len;                      /**< Length of the token string in bytes. */
-    char str[1];                  /**< Flexible array member storing the null-terminated token string text. */
+    struct TokenSym *hash_next; /**< Pointer to the next token symbol in the hash bucket chain. */
+    struct Sym *sym_define; /**< Direct pointer to the macro definition symbol if defined. */
+    struct Sym *sym_label; /**< Direct pointer to the label symbol if applicable. */
+    struct Sym *sym_struct; /**< Direct pointer to the structure, union, or enum symbol. */
+    struct Sym *sym_identifier; /**< Direct pointer to the identifier symbol table entry. */
+    int tok; /**< Unique numeric token identifier assigned by the lexer. */
+    int len; /**< Length of the token string in bytes. */
+    char str[1]; /**< Flexible array member storing the null-terminated token string text. */
 } TokenSym;
 
 #ifdef TCC_TARGET_PE
@@ -507,9 +507,9 @@ static inline const char *slice_memmem(StringSlice haystack, StringSlice needle)
  * @brief Dynamic string buffer descriptor used for preprocessor and identifier strings.
  */
 typedef struct CString {
-    int size;                     /**< Current size of the string content in bytes. */
-    int size_allocated;           /**< Total allocated capacity of the data buffer in bytes. */
-    char *data;                   /**< Pointer to the character or wide-character (`nwchar_t*`) data buffer. */
+    int size; /**< Current size of the string content in bytes. */
+    int size_allocated; /**< Total allocated capacity of the data buffer in bytes. */
+    char *data; /**< Pointer to the character or wide-character (`nwchar_t*`) data buffer. */
 } CString;
 
 /**
@@ -517,16 +517,16 @@ typedef struct CString {
  */
 typedef struct CType {
     union {
-        int t;                        /**< Type flags specifying basic type, qualifiers (const/volatile), and modifiers. */
-        struct {                      /**< TODO: Structured bitfield view of type flags for introspection/debugging */
-            unsigned int btype      : 4;  /**< Basic type: see VT_VOID, VT_BYTE, VT_SHORT, VT_INT, VT_LLONG, VT_PTR, VT_FUNC, VT_STRUCT, VT_FLOAT, VT_DOUBLE, VT_LDOUBLE, VT_BOOL, VT_SLICE, VT_QLONG, VT_QFLOAT, VT_AUTO (Mask: VT_BTYPE) */
-            unsigned int qualifiers : 6;  /**< Type qualifiers: see VT_CONSTANT, VT_VOLATILE, VT_RESTRICT, VT_IMMUTABLE (Mask: VT_QUAL) */
-            unsigned int storage    : 5;  /**< Storage class: see VT_EXTERN, VT_STATIC, VT_TYPEDEF, VT_INLINE, VT_TLS (Mask: VT_STORAGE) */
-            unsigned int sign       : 2;  /**< Signed/unsigned flags: see VT_UNSIGNED, VT_DEFSIGN */
+        int t; /**< Type flags specifying basic type, qualifiers (const/volatile), and modifiers. */
+        struct { /**< TODO: Structured bitfield view of type flags for introspection/debugging */
+            unsigned int btype      : 4; /**< Basic type: see VT_VOID, VT_BYTE, VT_SHORT, VT_INT, VT_LLONG, VT_PTR, VT_FUNC, VT_STRUCT, VT_FLOAT, VT_DOUBLE, VT_LDOUBLE, VT_BOOL, VT_SLICE, VT_QLONG, VT_QFLOAT, VT_AUTO (Mask: VT_BTYPE) */
+            unsigned int qualifiers : 6; /**< Type qualifiers: see VT_CONSTANT, VT_VOLATILE, VT_RESTRICT, VT_IMMUTABLE (Mask: VT_QUAL) */
+            unsigned int storage    : 5; /**< Storage class: see VT_EXTERN, VT_STATIC, VT_TYPEDEF, VT_INLINE, VT_TLS (Mask: VT_STORAGE) */
+            unsigned int sign       : 2; /**< Signed/unsigned flags: see VT_UNSIGNED, VT_DEFSIGN */
             unsigned int modifier   : 15; /**< Additional modifiers: see VT_BITFIELD, VT_VLA, VT_LONG */
         };
     };
-    struct Sym *ref;              /**< Reference symbol pointer for structs, unions, enums, functions, or pointer targets. */
+    struct Sym *ref; /**< Reference symbol pointer for structs, unions, enums, functions, or pointer targets. */
 } CType;
 
 /* long double words on host(!) platform */
@@ -536,43 +536,43 @@ typedef struct CType {
  * @brief Union holding compile-time constant scalar, floating-point, or string values.
  */
 typedef union CValue {
-    long double ld;               /**< Long double precision floating-point constant value. */
-    double d;                     /**< Double precision floating-point constant value. */
-    float f;                      /**< Single precision floating-point constant value. */
-    uint64_t i;                   /**< Unsigned 64-bit integer constant value or pointer representation. */
+    long double ld; /**< Long double precision floating-point constant value. */
+    double d; /**< Double precision floating-point constant value. */
+    float f; /**< Single precision floating-point constant value. */
+    uint64_t i; /**< Unsigned 64-bit integer constant value or pointer representation. */
     struct {
-        char *data;               /**< Pointer to string constant literal data bytes. */
-        int size;                 /**< Size of the string constant literal in bytes. */
-    } str;                        /**< String literal constant descriptor. */
-    int tab[LDOUBLE_WORDS];       /**< Raw 32-bit word array representation for long double or large constants. */
+        char *data; /**< Pointer to string constant literal data bytes. */
+        int size; /**< Size of the string constant literal in bytes. */
+    } str; /**< String literal constant descriptor. */
+    int tab[LDOUBLE_WORDS]; /**< Raw 32-bit word array representation for long double or large constants. */
 } CValue;
 
 /**
  * @brief Evaluation stack value descriptor tracking type, register allocation, and constant/symbol state.
  */
 typedef struct SValue {
-    CType type;                   /**< Complete C type descriptor of the expression value. */
+    CType type; /**< Complete C type descriptor of the expression value. */
     union {
-        unsigned short r;             /**< Register allocation flags, register index, and storage flags (`VT_*`). */
-        struct {                      /**< TODO: Structured bitfield view of register and storage flags */
-            unsigned int reg_index  : 8;  /**< Physical/virtual register index */
-            unsigned int storage    : 8;  /**< VT_* storage / value location flags: see VT_VALMASK, VT_CONST, VT_LLOCAL, VT_LOCAL, VT_CMP, VT_JMP, VT_JMPI, VT_LVAL, VT_SYM */
+        unsigned short r; /**< Register allocation flags, register index, and storage flags (`VT_*`). */
+        struct { /**< TODO: Structured bitfield view of register and storage flags */
+            unsigned int reg_index  : 8; /**< Physical/virtual register index */
+            unsigned int storage    : 8; /**< VT_* storage / value location flags: see VT_VALMASK, VT_CONST, VT_LLOCAL, VT_LOCAL, VT_CMP, VT_JMP, VT_JMPI, VT_LVAL, VT_SYM */
         };
     };
     union {
-        unsigned short r2;            /**< Second register index (used for 64-bit `long long` values on 32-bit targets; `VT_CONST` if unused). */
-        struct {                      /**< TODO: Structured bitfield view of second register and storage flags */
-            unsigned int reg_index2 : 8;  /**< Second register index */
-            unsigned int storage2   : 8;  /**< Second storage / value location flags: see VT_VALMASK, VT_CONST, VT_LLOCAL, VT_LOCAL, VT_CMP, VT_JMP, VT_JMPI, VT_LVAL, VT_SYM */
+        unsigned short r2; /**< Second register index (used for 64-bit `long long` values on 32-bit targets; `VT_CONST` if unused). */
+        struct { /**< TODO: Structured bitfield view of second register and storage flags */
+            unsigned int reg_index2 : 8; /**< Second register index */
+            unsigned int storage2   : 8; /**< Second storage / value location flags: see VT_VALMASK, VT_CONST, VT_LLOCAL, VT_LOCAL, VT_CMP, VT_JMP, VT_JMPI, VT_LVAL, VT_SYM */
         };
     };
     union {
       struct { int jtrue, jfalse; }; /**< Jump targets (true and false condition branches) for boolean expressions. */
-      CValue c;                      /**< Constant value descriptor if the storage class is `VT_CONST`. */
+      CValue c; /**< Constant value descriptor if the storage class is `VT_CONST`. */
     };
     union {
       struct { unsigned short cmp_op, cmp_r; }; /**< Comparison operation and register details for `VT_CMP` conditional values. */
-      struct Sym *sym;                          /**< Associated symbol pointer if `VT_SYM` | `VT_CONST`, or result of unary identifier resolution. */
+      struct Sym *sym; /**< Associated symbol pointer if `VT_SYM` | `VT_CONST`, or result of unary identifier resolution. */
     };
 } SValue;
 
@@ -645,43 +645,43 @@ struct FuncAttr {
  * @brief Symbol table entry describing variables, functions, types, labels, macros, and typedefs.
  */
 typedef struct Sym {
-    int v;                        /**< Symbol token identifier representing the name. */
+    int v; /**< Symbol token identifier representing the name. */
     union {
-        unsigned short r;             /**< Associated register, or `VT_CONST`/`VT_LOCAL` storage class and lvalue flags. */
-        struct {                      /**< TODO: Structured bitfield view of symbol register and storage flags */
-            unsigned int reg_index  : 8;  /**< Register allocation index */
-            unsigned int storage    : 8;  /**< Storage class / lvalue flags: see VT_CONST, VT_LOCAL, VT_LVAL, VT_SYM */
+        unsigned short r; /**< Associated register, or `VT_CONST`/`VT_LOCAL` storage class and lvalue flags. */
+        struct { /**< TODO: Structured bitfield view of symbol register and storage flags */
+            unsigned int reg_index  : 8; /**< Register allocation index */
+            unsigned int storage    : 8; /**< Storage class / lvalue flags: see VT_CONST, VT_LOCAL, VT_LVAL, VT_SYM */
         };
     };
-    struct SymAttr a;             /**< Extended symbol attributes (alignment, packing, weak linkage, visibility). */
+    struct SymAttr a; /**< Extended symbol attributes (alignment, packing, weak linkage, visibility). */
     union {
         struct {
-            int c;                /**< Associated integer constant value, stack offset, or ELF symbol index. */
+            int c; /**< Associated integer constant value, stack offset, or ELF symbol index. */
             union {
-                int sym_scope;    /**< Lexical scope nesting level for local variables. */
-                int jnext;        /**< Next jump label index in chain. */
-                int jind;         /**< Generated code index position for labels. */
+                int sym_scope; /**< Lexical scope nesting level for local variables. */
+                int jnext; /**< Next jump label index in chain. */
+                int jind; /**< Generated code index position for labels. */
                 struct FuncAttr f;/**< Function attributes (calling convention, purity, safety, noreturn). */
-                int auxtype;      /**< Auxiliary bitfield access type or underlying integer type. */
+                int auxtype; /**< Auxiliary bitfield access type or underlying integer type. */
             };
         };
-        long long enum_val;       /**< Enumerator constant integer value if `IS_ENUM_VAL` is set. */
-        int *d;                   /**< Preprocessor macro definition token stream. */
+        long long enum_val; /**< Enumerator constant integer value if `IS_ENUM_VAL` is set. */
+        int *d; /**< Preprocessor macro definition token stream. */
         struct Sym *cleanup_func; /**< Cleanup function pointer for variable cleanup attribute. */
     };
 
-    CType type;                   /**< Complete C type descriptor associated with this symbol. */
+    CType type; /**< Complete C type descriptor associated with this symbol. */
     union {
-        struct Sym *next;         /**< Pointer to next related symbol (e.g., struct/union fields or anonymous members). */
-        int *e;                   /**< Expanded token stream with preprocessor macro expansions. */
-        int asm_label;            /**< Associated inline assembly label identifier. */
+        struct Sym *next; /**< Pointer to next related symbol (e.g., struct/union fields or anonymous members). */
+        int *e; /**< Expanded token stream with preprocessor macro expansions. */
+        int asm_label; /**< Associated inline assembly label identifier. */
         struct Sym *cleanupstate; /**< Cleanup state pointer for defined labels. */
-        int *vla_array_str;       /**< Variable-length array allocation code token string. */
+        int *vla_array_str; /**< Variable-length array allocation code token string. */
     };
-    struct Sym *prev;             /**< Pointer to the previous symbol in the current scope symbol stack. */
+    struct Sym *prev; /**< Pointer to the previous symbol in the current scope symbol stack. */
     union {
-        struct Sym *prev_tok;     /**< Previous symbol sharing the same token hash bucket. */
-        struct Sym *cleanup_sym;  /**< Symbol associated with `__attribute__((cleanup()))`. */
+        struct Sym *prev_tok; /**< Previous symbol sharing the same token hash bucket. */
+        struct Sym *cleanup_sym; /**< Symbol associated with `__attribute__((cleanup()))`. */
         struct Sym *cleanup_label;/**< Label in the pending gotos resolution chain. */
     };
 } Sym;
@@ -690,37 +690,37 @@ typedef struct Sym {
  * @brief ELF section descriptor managing section data, relocations, and output attributes.
  */
 typedef struct Section {
-    unsigned long data_offset;    /**< Current write offset position within the section data buffer in bytes. */
-    unsigned char *data;          /**< Pointer to the raw section content data buffer. */
+    unsigned long data_offset; /**< Current write offset position within the section data buffer in bytes. */
+    unsigned char *data; /**< Pointer to the raw section content data buffer. */
     unsigned long data_allocated; /**< Total allocated capacity of the data buffer (used for reallocation management). */
-    TCCState *s1;                 /**< Pointer to the parent `TCCState` compilation session context. */
-    int sh_name;                  /**< ELF section name string table index (used during final output generation). */
-    int sh_num;                   /**< ELF section table index number. */
-    int sh_type;                  /**< ELF section type (e.g., `SHT_PROGBITS`, `SHT_SYMTAB`, `SHT_RELA`). */
-    int sh_flags;                 /**< ELF section attribute flags (e.g., `SHF_ALLOC`, `SHF_WRITE`, `SHF_EXECINSTR`). */
-    int sh_info;                  /**< ELF section extra information field. */
-    int sh_addralign;             /**< Required memory address alignment boundary for the section. */
-    int sh_entsize;               /**< Entry size in bytes for sections containing fixed-size table entries. */
-    unsigned long sh_size;        /**< Final computed section size in bytes (used during output emission). */
-    addr_t sh_addr;               /**< Virtual memory address at which the section is loaded or relocated. */
-    unsigned long sh_offset;      /**< File offset in the generated output file where section data begins. */
-    int nb_hashed_syms;           /**< Number of hashed symbols (used to track and resize symbol hash tables). */
-    struct Section *link;         /**< Pointer to a linked ELF section (such as symbol table linking to string table). */
-    struct Section *reloc;        /**< Pointer to the corresponding relocation section for this section, if any. */
-    struct Section *hash;         /**< Hash table section for fast symbol lookup within symbol tables. */
-    struct Section *prev;         /**< Pointer to the previous section on the active section stack. */
-    char name[1];                 /**< Flexible array member holding the null-terminated section name string. */
+    TCCState *s1; /**< Pointer to the parent `TCCState` compilation session context. */
+    int sh_name; /**< ELF section name string table index (used during final output generation). */
+    int sh_num; /**< ELF section table index number. */
+    int sh_type; /**< ELF section type (e.g., `SHT_PROGBITS`, `SHT_SYMTAB`, `SHT_RELA`). */
+    int sh_flags; /**< ELF section attribute flags (e.g., `SHF_ALLOC`, `SHF_WRITE`, `SHF_EXECINSTR`). */
+    int sh_info; /**< ELF section extra information field. */
+    int sh_addralign; /**< Required memory address alignment boundary for the section. */
+    int sh_entsize; /**< Entry size in bytes for sections containing fixed-size table entries. */
+    unsigned long sh_size; /**< Final computed section size in bytes (used during output emission). */
+    addr_t sh_addr; /**< Virtual memory address at which the section is loaded or relocated. */
+    unsigned long sh_offset; /**< File offset in the generated output file where section data begins. */
+    int nb_hashed_syms; /**< Number of hashed symbols (used to track and resize symbol hash tables). */
+    struct Section *link; /**< Pointer to a linked ELF section (such as symbol table linking to string table). */
+    struct Section *reloc; /**< Pointer to the corresponding relocation section for this section, if any. */
+    struct Section *hash; /**< Hash table section for fast symbol lookup within symbol tables. */
+    struct Section *prev; /**< Pointer to the previous section on the active section stack. */
+    char name[1]; /**< Flexible array member holding the null-terminated section name string. */
 } Section;
 
 /**
  * @brief Dynamic link library (DLL/shared library) reference descriptor.
  */
 typedef struct DLLReference {
-    int level;                    /**< Dependency nesting depth level of the loaded dynamic library. */
-    void *handle;                 /**< Dynamic library loading handle returned by `dlopen` or `LoadLibrary`. */
-    unsigned char found;          /**< Flag indicating whether the library file was successfully found and opened. */
-    unsigned char index;          /**< Assigned internal library index number. */
-    char name[1];                 /**< Flexible array member storing the library filename or path string. */
+    int level; /**< Dependency nesting depth level of the loaded dynamic library. */
+    void *handle; /**< Dynamic library loading handle returned by `dlopen` or `LoadLibrary`. */
+    unsigned char found; /**< Flag indicating whether the library file was successfully found and opened. */
+    unsigned char index; /**< Assigned internal library index number. */
+    char name[1]; /**< Flexible array member storing the library filename or path string. */
 } DLLReference;
 
 /* -------------------------------------------------- */
@@ -769,21 +769,21 @@ typedef struct DLLReference {
  * @brief Lexer input stream buffer descriptor for source files and included headers.
  */
 typedef struct BufferedFile {
-    uint8_t *buf_ptr;             /**< Current read pointer position within the input text buffer. */
-    uint8_t *buf_end;             /**< Pointer to the end of valid data in the input buffer. */
-    int fd;                       /**< File descriptor of the opened source file (-1 if string buffer). */
-    struct BufferedFile *prev;    /**< Pointer to the enclosing outer include file buffer (include stack). */
-    int line_num;                 /**< Current source line number (tracked for error messages and debug info). */
-    int line_ref;                 /**< Last printed line number (used by preprocessor `-E` output formatting). */
-    int ifndef_macro;             /**< Preprocessor macro identifier for include guard detection (`#ifndef ... #endif`). */
-    int ifndef_macro_saved;       /**< Saved outer include guard macro identifier. */
-    int *ifdef_stack_ptr;         /**< Pointer into the conditional inclusion stack at file entry. */
-    int include_next_index;       /**< Next search path index for `#include_next` directives. */
-    int prev_tok_flags;           /**< Saved lexer token parsing flags from prior context. */
-    char filename[1024];          /**< Path string of the source file currently being parsed. */
-    char *true_filename;          /**< Unmodified source filename string (ignoring `#line` preprocessor directives). */
-    unsigned char unget[4];       /**< Pushback character buffer for lexer lookahead. */
-    unsigned char buffer[1];      /**< Flexible array buffer containing source text data with sentinel padding. */
+    uint8_t *buf_ptr; /**< Current read pointer position within the input text buffer. */
+    uint8_t *buf_end; /**< Pointer to the end of valid data in the input buffer. */
+    int fd; /**< File descriptor of the opened source file (-1 if string buffer). */
+    struct BufferedFile *prev; /**< Pointer to the enclosing outer include file buffer (include stack). */
+    int line_num; /**< Current source line number (tracked for error messages and debug info). */
+    int line_ref; /**< Last printed line number (used by preprocessor `-E` output formatting). */
+    int ifndef_macro; /**< Preprocessor macro identifier for include guard detection (`#ifndef ... #endif`). */
+    int ifndef_macro_saved; /**< Saved outer include guard macro identifier. */
+    int *ifdef_stack_ptr; /**< Pointer into the conditional inclusion stack at file entry. */
+    int include_next_index; /**< Next search path index for `#include_next` directives. */
+    int prev_tok_flags; /**< Saved lexer token parsing flags from prior context. */
+    char filename[1024]; /**< Path string of the source file currently being parsed. */
+    char *true_filename; /**< Unmodified source filename string (ignoring `#line` preprocessor directives). */
+    unsigned char unget[4]; /**< Pushback character buffer for lexer lookahead. */
+    unsigned char buffer[1]; /**< Flexible array buffer containing source text data with sentinel padding. */
 } BufferedFile;
 
 #define CH_EOB   '\\'       /**< end of buffer or '\0' char in file */
@@ -793,49 +793,49 @@ typedef struct BufferedFile {
  * @brief Recorded token string buffer for macros, inlines, and token streams.
  */
 typedef struct TokenString {
-    int *str;                     /**< Pointer to the dynamically allocated array of token integers. */
-    int len;                      /**< Number of tokens currently stored in the token stream. */
-    int need_spc;                 /**< Flag indicating whether whitespace separation is required before next token. */
-    int allocated_len;            /**< Total allocated capacity of the token array. */
-    int last_line_num;            /**< Source line number of the last recorded token. */
-    int save_line_num;            /**< Saved source line number during token stream manipulation. */
-    struct TokenString *prev;     /**< Pointer to previous token string for chaining macro expansions. */
-    const int *prev_ptr;          /**< Previous token pointer in expansion stream. */
-    char alloc;                   /**< Allocation type flag indicating memory ownership. */
+    int *str; /**< Pointer to the dynamically allocated array of token integers. */
+    int len; /**< Number of tokens currently stored in the token stream. */
+    int need_spc; /**< Flag indicating whether whitespace separation is required before next token. */
+    int allocated_len; /**< Total allocated capacity of the token array. */
+    int last_line_num; /**< Source line number of the last recorded token. */
+    int save_line_num; /**< Saved source line number during token stream manipulation. */
+    struct TokenString *prev; /**< Pointer to previous token string for chaining macro expansions. */
+    const int *prev_ptr; /**< Previous token pointer in expansion stream. */
+    char alloc; /**< Allocation type flag indicating memory ownership. */
 } TokenString;
 
 /**
  * @brief Combined attribute definition container for declarations and symbols.
  */
 typedef struct AttrDef {
-    struct SymAttr a;             /**< Symbol attributes (alignment, packing, visibility, weak linkage). */
-    struct FuncAttr f;            /**< Function attributes (calling convention, purity, safety, noreturn). */
-    struct Section *section;      /**< Target section pointer specified via section attribute. */
-    Sym *cleanup_func;            /**< Cleanup function symbol pointer for variable cleanup attribute. */
-    int alias_target;             /**< Target symbol token identifier for alias attributes. */
-    int asm_label;                /**< Associated inline assembly label identifier. */
-    char attr_mode;               /**< Machine mode attribute value for type sizing (`__attribute__((__mode__(...)))`). */
-    char new_section;             /**< Flag indicating whether a new section was created. */
-    int noinit;                   /**< Non-zero if `@noinit` storage attribute is specified. */
+    struct SymAttr a; /**< Symbol attributes (alignment, packing, visibility, weak linkage). */
+    struct FuncAttr f; /**< Function attributes (calling convention, purity, safety, noreturn). */
+    struct Section *section; /**< Target section pointer specified via section attribute. */
+    Sym *cleanup_func; /**< Cleanup function symbol pointer for variable cleanup attribute. */
+    int alias_target; /**< Target symbol token identifier for alias attributes. */
+    int asm_label; /**< Associated inline assembly label identifier. */
+    char attr_mode; /**< Machine mode attribute value for type sizing (`__attribute__((__mode__(...)))`). */
+    char new_section; /**< Flag indicating whether a new section was created. */
+    int noinit; /**< Non-zero if `@noinit` storage attribute is specified. */
 } AttrDef;
 
 /**
  * @brief Inline function definition record for deferred compilation of inline functions.
  */
 typedef struct InlineFunc {
-    TokenString *func_str;        /**< Recorded token string of the inline function body. */
-    Sym *sym;                     /**< Symbol table entry corresponding to the inline function. */
-    char filename[1];             /**< Flexible array member storing the source filename where defined. */
+    TokenString *func_str; /**< Recorded token string of the inline function body. */
+    Sym *sym; /**< Symbol table entry corresponding to the inline function. */
+    char filename[1]; /**< Flexible array member storing the source filename where defined. */
 } InlineFunc;
 
 /**
  * @brief Cached include file guard record to speed up header inclusion checks.
  */
 typedef struct CachedInclude {
-    int ifndef_macro;             /**< Include guard preprocessor macro token identifier. */
-    int once;                     /**< Flag indicating whether `#pragma once` was specified in the header. */
-    int hash_next;                /**< Hash chain index pointing to the next cached include entry (-1 if none). */
-    char filename[1];             /**< Flexible array member storing the canonical include file path string. */
+    int ifndef_macro; /**< Include guard preprocessor macro token identifier. */
+    int once; /**< Flag indicating whether `#pragma once` was specified in the header. */
+    int hash_next; /**< Hash chain index pointing to the next cached include entry (-1 if none). */
+    char filename[1]; /**< Flexible array member storing the canonical include file path string. */
 } CachedInclude;
 
 #define CACHED_INCLUDES_HASH_SIZE 32 /**< Hash table size for included files (#pragma once) */
@@ -845,9 +845,9 @@ typedef struct CachedInclude {
  * @brief Evaluated constant expression value structure for assembler expressions.
  */
 typedef struct ExprValue {
-    uint64_t v;                   /**< Evaluated integer constant value offset. */
-    Sym *sym;                     /**< Optional base symbol associated with the expression. */
-    int pcrel;                    /**< Flag indicating whether the expression is PC-relative. */
+    uint64_t v; /**< Evaluated integer constant value offset. */
+    Sym *sym; /**< Optional base symbol associated with the expression. */
+    int pcrel; /**< Flag indicating whether the expression is PC-relative. */
 } ExprValue;
 
 #define MAX_ASM_OPERANDS 30 /**< Maximum number of inline assembly operands */
@@ -855,18 +855,18 @@ typedef struct ExprValue {
  * @brief Inline assembly operand description structure for extended inline assembly (`__asm__`).
  */
 typedef struct ASMOperand {
-    int id;                       /**< GCC 3 optional C identifier token (0 if only positional number supported). */
-    char constraint[16];          /**< Operand constraint string (e.g., "r", "m", "i"). */
-    char asm_str[16];             /**< Computed output assembler string representation for the operand. */
-    SValue *vt;                   /**< C value of the expression on evaluation stack. */
-    int ref_index;                /**< Reference index giving connection to output constraint if >= 0. */
-    int input_index;              /**< Reference index giving connection to input constraint if >= 0. */
-    int priority;                 /**< Register allocation priority used to assign hardware registers. */
-    int reg;                      /**< Hardware register number used for this operand if >= 0. */
-    int is_llong;                 /**< Flag indicating a 64-bit long long double register value. */
-    int is_memory;                /**< Flag indicating the operand resides in memory. */
-    int is_rw;                    /**< Flag indicating read-write modifier (`+`) is set. */
-    int is_label;                 /**< Flag indicating the operand is an asm goto label. */
+    int id; /**< GCC 3 optional C identifier token (0 if only positional number supported). */
+    char constraint[16]; /**< Operand constraint string (e.g., "r", "m", "i"). */
+    char asm_str[16]; /**< Computed output assembler string representation for the operand. */
+    SValue *vt; /**< C value of the expression on evaluation stack. */
+    int ref_index; /**< Reference index giving connection to output constraint if >= 0. */
+    int input_index; /**< Reference index giving connection to input constraint if >= 0. */
+    int priority; /**< Register allocation priority used to assign hardware registers. */
+    int reg; /**< Hardware register number used for this operand if >= 0. */
+    int is_llong; /**< Flag indicating a 64-bit long long double register value. */
+    int is_memory; /**< Flag indicating the operand resides in memory. */
+    int is_rw; /**< Flag indicating read-write modifier (`+`) is set. */
+    int is_label; /**< Flag indicating the operand is an asm goto label. */
 } ASMOperand;
 #endif
 
@@ -1711,30 +1711,30 @@ static inline int toup(int c) {
  * attributes such as '@safe' apply to the block and to everything nested in it.
  */
 typedef struct FuncState {
-    CType vt;             /**< `Function` return type descriptor */
-    const char *name;     /**< `Function` name for diagnostics and `__func__` */
-    int vc;               /**< `Stack` address of implicit struct return */
-    int ind;              /**< `Function` start code address */
-    FuncSafety safety;    /**< `Function` memory safety level */
-    FuncPurity pure;      /**< `Function` purity level */
-    unsigned char variadic;       /**< `Non`-zero if function is variadic */
-    unsigned char old_style;      /**< `Non`-zero if K&R old-style parameter declaration */
+    CType vt; /**< `Function` return type descriptor */
+    const char *name; /**< `Function` name for diagnostics and `__func__` */
+    int vc; /**< `Stack` address of implicit struct return */
+    int ind; /**< `Function` start code address */
+    FuncSafety safety; /**< `Function` memory safety level */
+    FuncPurity pure; /**< `Function` purity level */
+    unsigned char variadic; /**< `Non`-zero if function is variadic */
+    unsigned char old_style; /**< `Non`-zero if K&R old-style parameter declaration */
 } FuncState;
 
 /**
  * @brief `Lexical` scope descriptor for symbol resolution and block-level attributes.
  */
 typedef struct Scope {
-    struct Scope *prev;   /**< `Enclosing` parent scope */
+    struct Scope *prev; /**< `Enclosing` parent scope */
     struct {
-        int loc;     /**< `Variable`-length array location offset */
+        int loc; /**< `Variable`-length array location offset */
         int locorig; /**< `Original` variable-length array location offset */
-        int num;     /**< `Number` of active variable-length arrays */
-    } vla;           /**< `Variable`-length array tracking */
+        int num; /**< `Number` of active variable-length arrays */
+    } vla; /**< `Variable`-length array tracking */
     struct { Sym *s; int n; } cl; /**< `Cleanup` functions */
-    int *bsym, *csym;     /**< `Break` and continue jump target symbol stacks */
-    Sym *lstk, *llstk;    /**< `Local` symbol stack */
-    FuncState fn;         /**< `Function` state for this scope */
+    int *bsym, *csym; /**< `Break` and continue jump target symbol stacks */
+    Sym *lstk, *llstk; /**< `Local` symbol stack */
+    FuncState fn; /**< `Function` state for this scope */
 } Scope;
 
 ST_DATA Scope *cur_scope, *loop_scope, *root_scope;

@@ -20,10 +20,10 @@ performance or binary compatibility.
       union {
           int t;
           struct {
-              unsigned int btype      : 4;  /**< Basic type (VT_VOID, VT_INT, etc.) */
-              unsigned int qualifiers : 6;  /**< Type qualifiers (const, volatile, etc.) */
-              unsigned int storage    : 5;  /**< Storage class (extern, static, etc.) */
-              unsigned int sign       : 2;  /**< Signed/unsigned flags */
+              unsigned int btype      : 4; /**< Basic type (VT_VOID, VT_INT, etc.) */
+              unsigned int qualifiers : 6; /**< Type qualifiers (const, volatile, etc.) */
+              unsigned int storage    : 5; /**< Storage class (extern, static, etc.) */
+              unsigned int sign       : 2; /**< Signed/unsigned flags */
               unsigned int modifier   : 15; /**< Additional modifiers / attributes */
           };
       };
@@ -36,12 +36,12 @@ performance or binary compatibility.
 - **Proposed Anonymous Union Representation:**
   ```c
   typedef struct SValue {
-      CType type;                   /**< Complete C type descriptor */
+      CType type; /**< Complete C type descriptor */
       union {
           unsigned short r;
           struct {
-              unsigned int reg_index  : 8;  /**< Physical/virtual register index */
-              unsigned int storage    : 8;  /**< VT_* storage / value location flags */
+              unsigned int reg_index  : 8; /**< Physical/virtual register index */
+              unsigned int storage    : 8; /**< VT_* storage / value location flags */
           };
       };
       union {
@@ -61,15 +61,15 @@ performance or binary compatibility.
 - **Proposed Anonymous Union Representation:**
   ```c
   typedef struct Sym {
-      int v;                        /**< Symbol token identifier */
+      int v; /**< Symbol token identifier */
       union {
           unsigned short r;
           struct {
-              unsigned int reg_index  : 8;  /**< Register allocation index */
-              unsigned int storage    : 8;  /**< Storage class / lvalue flags */
+              unsigned int reg_index  : 8; /**< Register allocation index */
+              unsigned int storage    : 8; /**< Storage class / lvalue flags */
           };
       };
-      struct SymAttr a;             /**< Extended symbol attributes */
+      struct SymAttr a; /**< Extended symbol attributes */
       // ...
   } Sym;
   ```

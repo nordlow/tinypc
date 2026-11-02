@@ -626,7 +626,7 @@ Add one bit to `struct SymAttr` (`tcc.h:521`) beside `is_slice`
 (`tcc.h:533`):
 
 ```c
-is_tuple : 1;   /**< Struct generated for a tuple type */
+is_tuple : 1; /**< Struct generated for a tuple type */
 ```
 
 A tuple type is an anonymous struct symbol:
