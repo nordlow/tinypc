@@ -1,0 +1,17 @@
+struct: 1
+union: 1
+enum: 1
+pointer: 1
+array: 1
+int: 1
+float: 1
+isA same: 1
+isA diff: 0
+hasIndirections Point: 0
+hasIndirections RefPoint: 1
+hasIndirections int*: 1
+hasIndirections int: 0
+hasAliasing RefPoint: 1
+hasAliasing int: 0
+hasIndirections immutable(int)*: 1
+hasAliasing immutable(int)*: 0

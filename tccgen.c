@@ -176,6 +176,8 @@ static void tuple_add_field(Sym ***pplast, CType *elem, int idx);
 static Sym *tuple_layout(Sym *s);
 static Sym *type_value_sym(CType *ct);
 static void gen_members_from_type(CType type1);
+static int type_is(CType *type, int kind);
+static int type_has_indirections(CType *type);
 static CType *type_value_of(Sym *s);
 static Sym *make_string_sym(const char *s);
 static void free_tuple_consts(void);
@@ -7608,6 +7610,93 @@ static void gen_members_from_type(CType type1)
     }
 }
 
+/* `Type` trait helpers for `$is`/`$has*`.  */
+static int type_is(CType *type, int kind)
+{
+    int bt = type->t & VT_BTYPE;
+    switch (kind) {
+    case 0: /* struct */
+        return bt == VT_STRUCT && !IS_UNION(type->t) && !IS_ENUM(type->t);
+    case 1: /* union */
+        return IS_UNION(type->t);
+    case 2: /* enum */
+        return IS_ENUM(type->t);
+    case 3: /* pointer */
+        return bt == VT_PTR && !(type->t & VT_ARRAY);
+    case 4: /* array */
+        return (type->t & VT_ARRAY) != 0;
+    case 5: /* slice */
+        return bt == VT_SLICE;
+    case 6: /* function */
+        return bt == VT_FUNC;
+    case 7: /* void */
+        return bt == VT_VOID;
+    case 8: /* integer */
+        return bt == VT_BYTE || bt == VT_SHORT || bt == VT_INT
+            || bt == VT_LLONG || bt == VT_BOOL;
+    case 9: /* float */
+        return bt == VT_FLOAT || bt == VT_DOUBLE || bt == VT_LDOUBLE;
+    }
+    return 0;
+}
+
+static int type_has_indirections(CType *type)
+{
+    int bt = type->t & VT_BTYPE;
+    if (bt == VT_PTR || bt == VT_SLICE)
+        return 1;
+    if (bt == VT_STRUCT) {
+        Sym *f;
+        for (f = type->ref ? type->ref->next : NULL; f; f = f->next) {
+            CType ft = f->type;
+            if (type_has_indirections(&ft))
+                return 1;
+        }
+    }
+    if (type->t & VT_ARRAY) {
+        Sym *s = type->ref;
+        if (s && s->c > 0) {
+            CType et = s->type;
+            if (type_has_indirections(&et))
+                return 1;
+        }
+    }
+    return 0;
+}
+static int type_has_aliasing(CType *type)
+{
+    int bt = type->t & VT_BTYPE;
+    if (bt == VT_PTR) {
+        CType *pt = pointed_type(type);
+        if (pt->t & VT_QUALIFIER_IMMUTABLE)
+            return 0;
+        return 1;
+    }
+    if (bt == VT_SLICE) {
+        CType *pt = pointed_type(&type->ref->next->next->type);
+        if (pt->t & VT_QUALIFIER_IMMUTABLE)
+            return 0;
+        return 1;
+    }
+    if (bt == VT_STRUCT) {
+        Sym *f;
+        for (f = type->ref ? type->ref->next : NULL; f; f = f->next) {
+            CType ft = f->type;
+            if (type_has_aliasing(&ft))
+                return 1;
+        }
+    }
+    if (type->t & VT_ARRAY) {
+        Sym *s = type->ref;
+        if (s && s->c > 0) {
+            CType et = s->type;
+            if (type_has_aliasing(&et))
+                return 1;
+        }
+    }
+    return 0;
+}
+
 ST_FUNC void unary(void)
 {
     int n, t, align, size, r, str_lit = 0;
@@ -8276,6 +8365,91 @@ special_math_val:
                 tcc_error("$members requires a struct, union or enum type");
         members_impl:;
             gen_members_from_type(type1);
+            break;
+        }
+        if (tcc_state->lang_d && tok == '('
+            && (!strcmp(get_tok_str(t, NULL), "$is")
+                || !strcmp(get_tok_str(t, NULL), "$isA")
+                || !strcmp(get_tok_str(t, NULL), "$hasIndirections")
+                || !strcmp(get_tok_str(t, NULL), "$hasAliasing"))) {
+            int is_isA = !strcmp(get_tok_str(t, NULL), "$isA");
+            int is_hasInd = !strcmp(get_tok_str(t, NULL), "$hasIndirections");
+            int is_hasAlias = !strcmp(get_tok_str(t, NULL), "$hasAliasing");
+            skip('(');
+            if (is_isA) {
+                CType t1, t2;
+                AttrDef ad1, ad2;
+                memset(&ad1, 0, sizeof ad1);
+                memset(&ad2, 0, sizeof ad2);
+                if (!parse_btype(&t1, &ad1, 0))
+                    tcc_error("expected type");
+                type_decl(&t1, &ad1, &n, TYPE_ABSTRACT);
+                skip(',');
+                if (!parse_btype(&t2, &ad2, 0))
+                    tcc_error("expected type");
+                type_decl(&t2, &ad2, &n, TYPE_ABSTRACT);
+                skip(')');
+                int res = (t1.t == t2.t) && (t1.ref == t2.ref);
+                vpushi(res);
+            } else if (is_hasInd) {
+                CType t1;
+                AttrDef ad1;
+                memset(&ad1, 0, sizeof ad1);
+                if (!parse_btype(&t1, &ad1, 0))
+                    tcc_error("expected type");
+                type_decl(&t1, &ad1, &n, TYPE_ABSTRACT);
+                skip(')');
+                vpushi(type_has_indirections(&t1));
+            } else if (is_hasAlias) {
+                CType t1;
+                AttrDef ad1;
+                memset(&ad1, 0, sizeof ad1);
+                if (!parse_btype(&t1, &ad1, 0))
+                    tcc_error("expected type");
+                type_decl(&t1, &ad1, &n, TYPE_ABSTRACT);
+                skip(')');
+                vpushi(type_has_aliasing(&t1));
+            } else {
+                CType t1;
+                AttrDef ad1;
+                memset(&ad1, 0, sizeof ad1);
+                if (!parse_btype(&t1, &ad1, 0))
+                    tcc_error("expected type");
+                type_decl(&t1, &ad1, &n, TYPE_ABSTRACT);
+                if (tok == TOK_EQ) {
+                    next();
+                    int kind = -1;
+                    if (tok == TOK_STRUCT) { kind = 0; next(); }
+                    else if (tok == TOK_UNION) { kind = 1; next(); }
+                    else if (tok == TOK_ENUM) { kind = 2; next(); }
+                    else {
+                        const char *nm = get_tok_str(tok, NULL);
+                        if (!strcmp(nm, "pointer")) kind = 3;
+                        else if (!strcmp(nm, "array")) kind = 4;
+                        else if (!strcmp(nm, "slice")) kind = 5;
+                        else if (!strcmp(nm, "function")) kind = 6;
+                        else if (!strcmp(nm, "void")) kind = 7;
+                        else if (!strcmp(nm, "int") || !strcmp(nm, "integer") || !strcmp(nm, "char") || !strcmp(nm, "short") || !strcmp(nm, "long")) kind = 8;
+                        else if (!strcmp(nm, "float") || !strcmp(nm, "double")) kind = 9;
+                        next();
+                    }
+                    skip(')');
+                    vpushi(type_is(&t1, kind));
+                } else if (tok == ',') {
+                    next();
+                    CType t2;
+                    AttrDef ad2;
+                    memset(&ad2, 0, sizeof ad2);
+                    if (!parse_btype(&t2, &ad2, 0))
+                        tcc_error("expected type");
+                    type_decl(&t2, &ad2, &n, TYPE_ABSTRACT);
+                    skip(')');
+                    vpushi((t1.t == t2.t) && (t1.ref == t2.ref));
+                } else {
+                    skip(')');
+                    vpushi(1);
+                }
+            }
             break;
         }
         if (tcc_state->lang_d && tok == '('
