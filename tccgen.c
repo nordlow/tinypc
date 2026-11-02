@@ -737,6 +737,7 @@ static inline Sym *sym_malloc(void)
 
 static inline Sym *sym_calloc(void)
 {
+	/* TODO: Is there a more efficient way to doing this? */
     Sym *sym = sym_malloc();
     memset(sym, 0, sizeof *sym);
     return sym;
