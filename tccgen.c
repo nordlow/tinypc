@@ -2906,8 +2906,9 @@ static void type_to_str(char *buf, int buf_size,
 
     switch(bt) {
     case VT_AUTO: {
-        if (type->ref) {
-            type_to_str(buf, buf_size, &type->ref->type, varstr);
+        CType *tv = type_value_of(type->ref);
+        if (tv) {
+            type_to_str(buf, buf_size, tv, varstr);
             return;
         }
         tstr = "symbol";
@@ -3868,8 +3869,9 @@ ST_FUNC int type_size(CType *type, int *a)
 
     bt = type->t & VT_BTYPE;
     if (bt == VT_AUTO) {
-        if (type->ref) {
-            int ts = type_size(&type->ref->type, a);
+        CType *tv = type_value_of(type->ref);
+        if (tv) {
+            int ts = type_size(tv, a);
             return ts;
         }
         *a = 1;
@@ -7302,12 +7304,20 @@ static Sym *make_string_sym(const char *s)
     int len = strlen(s) + 1;
     unsigned long off = section_add(rodata_section, len, 1);
     memcpy(rodata_section->data + off, s, len);
-    Sym *ref = sym_push2(&global_stack, SYM_FIELD, VT_BYTE | VT_QUALIFIER_CONSTANT, 0);
-    ref->c = len;
-    Sym *sym = sym_push2(&global_stack, anon_sym++, VT_ARRAY | VT_BYTE, 0);
-    sym->type.t = VT_ARRAY | VT_BYTE | VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE;
-    sym->type.ref = ref;
-    sym->r = VT_CONST | VT_SYM;
+    AttrDef ad;
+    memset(&ad, 0, sizeof ad);
+    ad.section = rodata_section;
+    CType type;
+    type.t = VT_BYTE | VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE;
+    type.ref = NULL;
+    mk_pointer(&type);       /* char * */
+    type.t |= VT_ARRAY;      /* array of char*? matches TOK_STR */
+    /* fix array size */
+    if (type.ref)
+        type.ref->c = len;
+    Sym *sym = sym_push2(&global_stack, anon_sym++, type.t, 0);
+    sym->type = type;
+    sym->r = VT_CONST;
     put_extern_sym(sym, rodata_section, off, len);
     return sym;
 }
@@ -7540,10 +7550,7 @@ static void gen_members_from_type(CType type1)
     TupleConst **nested = NULL;
 
     for (f = type1.ref->next; f; f = f->next, ++nf) {
-    CType et;
-    et.t = VT_AUTO;
-    et.ref = NULL;
-    tuple_add_field(&plast, &et, nf);
+    tuple_add_field(&plast, &f->type, nf);
     }
     ttype.t = VT_STRUCT;
     ttype.ref = tuple_layout(ts);
@@ -7566,11 +7573,17 @@ static void gen_members_from_type(CType type1)
     }
     {
     Sym *ff = type1.ref->next;
+    for (i = 0; i < nf; ++i, ff = ff->next)
+        tc->types[i] = ff->type;
+    }
+    {
+    Sym *ff = type1.ref->next;
     for (i = 0; i < nf; ++i, ff = ff->next) {
     Sym *fsym = sym_push2(&global_stack,
     (ff->v & ~SYM_FIELD) | SYM_FIELD,
     ff->type.t, 0);
     fsym->type = ff->type;
+    fsym->asm_label = ff->v & ~SYM_FIELD;
     if (IS_ENUM(type1.t))
     fsym->c = ff->enum_val;
     else
@@ -8273,7 +8286,7 @@ special_math_val:
             int want_value = !strcmp(get_tok_str(t, NULL), "$valueof");
             skip('(');
             expr_eq();
-            if ((vtop->type.t & VT_BTYPE) != VT_AUTO || !vtop->sym) {
+            if (!vtop->sym || !vtop->sym->asm_label) {
                 /* not a symbol value: try as a normal expression */
             } else {
                 Sym *sv = vtop->sym;
@@ -8283,6 +8296,8 @@ special_math_val:
                     {
                         Sym *ss = make_string_sym(nm);
                         vpushsym(&ss->type, ss);
+                        /* decay array to pointer */
+                        vtop->type.t = (vtop->type.t & ~VT_ARRAY) | VT_PTR;
                     }
                     /* make it a pointer */
                     vtop->type.t = VT_PTR;
@@ -8400,9 +8415,36 @@ special_math_val:
                 next();
                 {
                     CType expr_type_val = vtop->type;
+                    if ((expr_type_val.t & VT_BTYPE) == VT_AUTO && expr_type_val.ref) {
+                        CType *tv = type_value_of(expr_type_val.ref);
+                        if (tv)
+                            expr_type_val = *tv;
+                    }
                     vpop();
                     vpush_type_size(&expr_type_val, &align);
                     gen_cast_s(VT_SIZE_T);
+                }
+                continue;
+            }
+            if (tcc_state->lang_d && tok >= TOK_UIDENT
+                && (!strcmp(get_tok_str(tok, NULL), "$nameof")
+                    || !strcmp(get_tok_str(tok, NULL), "$offsetof")
+                    || !strcmp(get_tok_str(tok, NULL), "$valueof"))) {
+                int want_name = !strcmp(get_tok_str(tok, NULL), "$nameof");
+                next(); /* consume */
+                if (!vtop->sym || !vtop->sym->asm_label) {
+                    /* not a symbol value; leave as-is */
+                } else {
+                    Sym *sv = vtop->sym;
+                    vpop();
+                    if (want_name) {
+                        const char *nm = get_tok_str(sv->asm_label & ~SYM_FIELD, NULL);
+                        Sym *ss = make_string_sym(nm);
+                        vpushsym(&ss->type, ss);
+                        vtop->type.t = VT_PTR;
+                    } else {
+                        vpushi(sv->c);
+                    }
                 }
                 continue;
             }
@@ -12982,26 +13024,14 @@ static int check_d_dollar_foreach(int l, int flags)
             type.ref = ref = push_enum_ref();
             s = sym_push(name, &type, VT_CONST, 0);
             s->enum_val = tc->vals[i].i;
-        } else if ((type.t & VT_BTYPE) == VT_AUTO) {
-            CType *stored = tc->syms[i] ? &tc->syms[i]->type : NULL;
-            type.t = VT_AUTO;
-            type.ref = NULL;
-            s = sym_push(name, &type, VT_CONST, 0);
-            s->r = 0;
-            s->type.t = VT_AUTO;
-            s->type.ref = s;
-            if (stored) {
-                TypeValue *tvp = tcc_mallocz(sizeof *tvp);
-                tvp->sym = s;
-                tvp->type = *stored;
-                type_values = tcc_realloc(type_values,
-                                          (nb_type_values + 1) * sizeof *type_values);
-                type_values[nb_type_values++] = tvp;
-            }
-            if (tc->syms[i]) {
-                s->asm_label = tc->syms[i]->v;
+            if (tc->syms && tc->syms[i]) {
+                s->asm_label = tc->syms[i]->asm_label;
                 s->c = tc->syms[i]->c;
             }
+        } else if (tc->syms && tc->syms[i]) {
+            s = sym_push(name, &type, VT_CONST, 0);
+            s->asm_label = tc->syms[i]->asm_label;
+            s->c = tc->syms[i]->c;
         } else {
             AttrDef ad2;
             int r = VT_LOCAL;
