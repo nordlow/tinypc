@@ -92,8 +92,10 @@ $run {
   execution. While `$(...)` could theoretically attempt interpretation or
   delegate to CTFE when constant folding fails, keeping them separate
   maintains a clear performance and semantic boundary between cheap folding
-  and heavy in-memory execution (though this design remains open to future
-  refinement).
+  and heavy in-memory execution. However, this design remains preliminary and
+  may evolve or unify once further investigations and profiling have been
+  performed.
+
 
 ## Execution model
 
