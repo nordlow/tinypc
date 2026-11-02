@@ -3988,6 +3988,9 @@ static int is_type_start(int t)
 {
     Sym *s;
 
+    if (t >= TOK_UIDENT && get_tok_str(t, NULL)[0] == '$')
+        return 0;
+
     switch (t) {
     case TOK_VOID: case TOK_CHAR: case TOK_SHORT: case TOK_INT:
     case TOK_LONG: case TOK_FLOAT: case TOK_DOUBLE: case TOK_BOOL:
@@ -7640,6 +7643,20 @@ static int type_is(CType *type, int kind)
     return 0;
 }
 
+static int type_is_signed(CType *type)
+{
+    int bt = type->t & VT_BTYPE;
+    return (bt == VT_BYTE || bt == VT_SHORT || bt == VT_INT || bt == VT_LLONG)
+        && !(type->t & VT_UNSIGNED) && bt != VT_BOOL;
+}
+
+static int type_is_unsigned(CType *type)
+{
+    int bt = type->t & VT_BTYPE;
+    return (bt == VT_BYTE || bt == VT_SHORT || bt == VT_INT || bt == VT_LLONG || bt == VT_BOOL)
+        && ((type->t & VT_UNSIGNED) || bt == VT_BOOL);
+}
+
 static int type_has_indirections(CType *type)
 {
     int bt = type->t & VT_BTYPE;
@@ -8371,10 +8388,14 @@ special_math_val:
             && (!strcmp(get_tok_str(t, NULL), "$is")
                 || !strcmp(get_tok_str(t, NULL), "$isA")
                 || !strcmp(get_tok_str(t, NULL), "$hasIndirections")
-                || !strcmp(get_tok_str(t, NULL), "$hasAliasing"))) {
+                || !strcmp(get_tok_str(t, NULL), "$hasAliasing")
+                || !strcmp(get_tok_str(t, NULL), "$isSigned")
+                || !strcmp(get_tok_str(t, NULL), "$isUnsigned"))) {
             int is_isA = !strcmp(get_tok_str(t, NULL), "$isA");
             int is_hasInd = !strcmp(get_tok_str(t, NULL), "$hasIndirections");
             int is_hasAlias = !strcmp(get_tok_str(t, NULL), "$hasAliasing");
+            int is_isSigned = !strcmp(get_tok_str(t, NULL), "$isSigned");
+            int is_isUnsigned = !strcmp(get_tok_str(t, NULL), "$isUnsigned");
             skip('(');
             if (is_isA) {
                 CType t1, t2;
@@ -8409,6 +8430,15 @@ special_math_val:
                 type_decl(&t1, &ad1, &n, TYPE_ABSTRACT);
                 skip(')');
                 vpushi(type_has_aliasing(&t1));
+            } else if (is_isSigned || is_isUnsigned) {
+                CType t1;
+                AttrDef ad1;
+                memset(&ad1, 0, sizeof ad1);
+                if (!parse_btype(&t1, &ad1, 0))
+                    tcc_error("expected type");
+                type_decl(&t1, &ad1, &n, TYPE_ABSTRACT);
+                skip(')');
+                vpushi(is_isSigned ? type_is_signed(&t1) : type_is_unsigned(&t1));
             } else {
                 CType t1;
                 AttrDef ad1;

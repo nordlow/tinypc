@@ -15,3 +15,7 @@ hasAliasing RefPoint: 1
 hasAliasing int: 0
 hasIndirections immutable(int)*: 1
 hasAliasing immutable(int)*: 0
+isSigned int: 1
+isSigned unsigned int: 0
+isUnsigned int: 0
+isUnsigned unsigned int: 1

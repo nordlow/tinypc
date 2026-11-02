@@ -27,9 +27,13 @@ int main(void)
 
     printf("hasAliasing RefPoint: %d\n", $hasAliasing(struct RefPoint));
     printf("hasAliasing int: %d\n", $hasAliasing(int));
-
     printf("hasIndirections immutable(int)*: %d\n", $hasIndirections(immutable(int)*));
     printf("hasAliasing immutable(int)*: %d\n", $hasAliasing(immutable(int)*));
+
+    printf("isSigned int: %d\n", $isSigned(int));
+    printf("isSigned unsigned int: %d\n", $isSigned(unsigned int));
+    printf("isUnsigned int: %d\n", $isUnsigned(int));
+    printf("isUnsigned unsigned int: %d\n", $isUnsigned(unsigned int));
 
     return 0;
 }
