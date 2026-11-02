@@ -171,6 +171,9 @@ static void cast_error(CType *st, CType *dt);
 static int is_tuple_type(CType *type);
 static Sym *tuple_field(CType *type, int idx, int *pofs);
 static int tuple_arity(CType *type);
+static Sym *tuple_begin(void);
+static void tuple_add_field(Sym ***pplast, CType *elem, int idx);
+static Sym *tuple_layout(Sym *s);
 static void free_tuple_consts(void);
 static Sym *parse_tuple_type_opt(CType *type, AttrDef *ad);
 static void parse_tuple_type_rest(CType *type, AttrDef *ad);
@@ -5392,6 +5395,34 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
     bt = st = -1;
     type->ref = NULL;
     while(1) {
+        /* `$tupleof(T)`: the member types of a struct/union as a tuple
+           type.  Only meaningful in `-lang=d`.  */
+        if (tcc_state->lang_d && tok >= TOK_UIDENT
+            && !strcmp(get_tok_str(tok, &tokc), "$tupleof")
+            && !typespec_found) {
+            Sym *ts;
+            next();         /* `$tupleof` */
+            skip('(');
+            if (!parse_btype(&type1, ad, 0))
+                tcc_error("expected type");
+            type_decl(&type1, ad, &n, TYPE_ABSTRACT);
+            skip(')');
+            if ((type1.t & VT_BTYPE) != VT_STRUCT)
+                tcc_error("$tupleof requires a struct or union type");
+            ts = tuple_begin();
+            {
+                Sym **plast = &ts->next;
+                Sym *f;
+                int idx = 0;
+                for (f = type1.ref->next; f; f = f->next) {
+                    tuple_add_field(&plast, &f->type, idx++);
+                }
+
+            }
+            type->t = VT_STRUCT | (t & (VT_STORAGE | VT_QUALIFIER));
+            type->ref = tuple_layout(ts);
+            return 1;
+        }
         /* `Type` tuple `(T1, ..., Tn)`.  `parse_tuple_type_opt()` leaves
            the token stream unchanged and returns `NULL` if the group is
            not a tuple type.  */
