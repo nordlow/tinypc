@@ -17,10 +17,10 @@ int f(void)
 }
 
 #elif defined test_string_element
-int f(void) { return $("ab")[0]; }
+int f(void) { char buf[2]; return $(buf)[0]; }
 
 #elif defined test_string_tuple_element
-int f(void) { return $(1, "ab")[1]; }
+int f(void) { char buf[2]; return $(1, buf)[1][0]; }
 
 #elif defined test_function_element
 int f(void);

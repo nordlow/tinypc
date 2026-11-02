@@ -41,10 +41,10 @@ int f(int x) { $foreach (n; x) n; return 0; }
 int f(void) { $foreach (n; 1) n; return 0; }
 
 #elif defined test_foreach_float_element
-int f(void) { $foreach (n; $(1.5, 2.5)) n; return 0; }
+int f(void) { int y = 1; $foreach (n; $(y, 2.5)) n; return 0; }
 
 #elif defined test_foreach_nested_element
-int f(void) { $foreach (n; $($(1, 2), 3)) n; return 0; }
+int f(void) { int y = 1; $foreach (n; $(y, 3)) n; return 0; }
 
 #elif defined test_foreach_missing_name
 int f(void) { $foreach (; $(1, 2)) ; return 0; }

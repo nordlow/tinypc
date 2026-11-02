@@ -7126,7 +7126,8 @@ typedef struct TupleConst {
     Sym *sym;                   /* blob symbol, also the lookup key */
     int n;                      /* number of elements */
     CType *types;               /* element types */
-    CValue *vals;               /* scalar element values */
+    CValue *vals;               /* scalar values or symbol addends */
+    Sym **syms;                 /* element symbols, or NULL */
     struct TupleConst **nested; /* tuple-valued elements, or NULL */
 } TupleConst;
 
@@ -7141,6 +7142,7 @@ static void free_tuple_consts(void)
         TupleConst *tc = tuple_consts[i];
         tcc_free(tc->types);
         tcc_free(tc->vals);
+        tcc_free(tc->syms);
         tcc_free(tc->nested);
         tcc_free(tc);
     }
@@ -7166,10 +7168,18 @@ static TupleConst *tuple_const_of(SValue *sv)
 /* `Push` the compile-time element 'idx' of the constant tuple 'tc'.  */
 static void tuple_const_push(TupleConst *tc, int idx)
 {
-    if (tc->nested && tc->nested[idx])
-        vpushsym(&tc->types[idx], tc->nested[idx]->sym);
-    else
-        vsetc(&tc->types[idx], VT_CONST, &tc->vals[idx]);
+    CType *type = &tc->types[idx];
+
+    if (tc->nested && tc->nested[idx]) {
+        vpushsym(type, tc->nested[idx]->sym);
+    } else if (tc->syms && tc->syms[idx]) {
+        vpushsym(type, tc->syms[idx]);
+        vtop->c = tc->vals[idx];
+        if ((type->t & VT_BTYPE) == VT_STRUCT && !(type->t & VT_ARRAY))
+            vtop->r |= VT_LVAL;
+    } else {
+        vsetc(type, VT_CONST, &tc->vals[idx]);
+    }
 }
 
 /* `Add` an anonymous symbol of tuple type 'type' for the 'size' bytes at
@@ -7194,29 +7204,47 @@ static void parse_dollar_tuple(void)
 {
     CType *types = NULL;
     CValue *vals = NULL;
+    Sym **syms = NULL;
     TupleConst **nested = NULL;
-    int n = 0, is_tuple = 0, i;
+    int n = 0, is_tuple = 0, i, saved_global_expr;
     CType ttype;
 
     next();                     /* the '(' of the `$(` */
     if (tok == ')')
         tcc_error("empty '$()' tuple");
+    /* compound literal elements must live in rodata, not on the stack, so
+       that their bytes are available while the compiler is running */
+    saved_global_expr = global_expr;
+    global_expr = 1;
     for (;;) {
         CType el;
         CValue ev;
         TupleConst *sub;
-        int bt;
+        int bt, aggregate;
 
         expr_eq();
         el = vtop->type;
-        if ((vtop->r & (VT_VALMASK | VT_LVAL)) != VT_CONST)
-            goto not_constant;
         sub = tuple_const_of(vtop);
         bt = el.t & VT_BTYPE;
-        if (!sub && ((vtop->r & VT_SYM) || bt == VT_VOID || bt == VT_FUNC
-                     || bt == VT_STRUCT || (el.t & VT_ARRAY)))
-            goto not_constant;
+        aggregate = bt == VT_STRUCT || (el.t & VT_ARRAY);
+        if (!sub) {
+            if ((vtop->r & VT_VALMASK) != VT_CONST)
+                goto not_constant;
+            if (vtop->r & VT_SYM) {
+                if (bt == VT_VOID || bt == VT_FUNC)
+                    goto not_constant;
+                if (aggregate && vtop->sym->v < SYM_FIRST_ANOM)
+                    goto not_constant;
+                if (!aggregate && bt != VT_PTR)
+                    goto not_constant;
+            } else if ((vtop->r & VT_LVAL) || aggregate
+                       || bt == VT_VOID || bt == VT_FUNC) {
+                goto not_constant;
+            }
+        }
         ev = vtop->c;
+        syms = tcc_realloc(syms, (n + 1) * sizeof *syms);
+        syms[n] = (!sub && (vtop->r & VT_SYM)) ? vtop->sym : NULL;
         vpop();
         types = tcc_realloc(types, (n + 1) * sizeof *types);
         vals = tcc_realloc(vals, (n + 1) * sizeof *vals);
@@ -7233,12 +7261,20 @@ static void parse_dollar_tuple(void)
             break;
     }
     skip(')');
+    global_expr = saved_global_expr;
     if (!is_tuple) {
         /* a single element without a trailing comma is a plain value */
-        if (nested[0])
+        if (nested[0]) {
             vpushsym(&types[0], nested[0]->sym);
-        else
+        } else if (syms[0]) {
+            vpushsym(&types[0], syms[0]);
+            vtop->c = vals[0];
+            if ((types[0].t & VT_BTYPE) == VT_STRUCT
+                && !(types[0].t & VT_ARRAY))
+                vtop->r |= VT_LVAL;
+        } else {
             vsetc(&types[0], VT_CONST, &vals[0]);
+        }
     } else {
         Sym *s = tuple_begin();
         Sym **plast = &s->next;
@@ -7260,6 +7296,7 @@ static void parse_dollar_tuple(void)
         tc->n = n;
         tc->types = types;
         tc->vals = vals;
+        tc->syms = syms;
         tc->nested = nested;
         for (i = 0; i < n; ++i) {
             int ofs = 0;
@@ -7272,10 +7309,11 @@ static void parse_dollar_tuple(void)
         tuple_consts[nb_tuple_consts++] = tc;
         vpushsym(&ttype, tc->sym);
         /* the arrays now belong to 'tc' */
-        types = NULL, vals = NULL, nested = NULL;
+        types = NULL, vals = NULL, syms = NULL, nested = NULL;
     }
     tcc_free(types);
     tcc_free(vals);
+    tcc_free(syms);
     tcc_free(nested);
     return;
 not_constant:
@@ -7283,7 +7321,9 @@ not_constant:
        -fsanitize=address test build would otherwise flag them.  */
     tcc_free(types);
     tcc_free(vals);
+    tcc_free(syms);
     tcc_free(nested);
+    global_expr = saved_global_expr;
     tcc_error("'$': element %d is not a compile-time constant", n + 1);
 }
 
@@ -10491,6 +10531,7 @@ static void init_putv(init_params *p, CType *type, unsigned long c)
             && vtop->sym->v >= SYM_FIRST_ANOM
             && ((vtop->r & VT_LVAL) /* compound literal */
                 || bt == VT_STRUCT /* designator */
+                || (type->t & VT_ARRAY) /* string/compound literal */
                 )) {
 	    /* memcpy stuff over.  */
 	    Section *ssec;
@@ -12569,6 +12610,53 @@ static TokenString *tok_str_clone(TokenString *s)
 /* `Parse` and act on `$foreach (name; tuple) body`: replay 'body' once per
    element of the compile-time constant tuple 'tuple', binding 'name' as an
    integer manifest constant in a fresh scope per iteration.  */
+/* `Check` whether element 'i' of 'tc' is a plain integer constant, i.e. one
+   that can be bound as a manifest constant in `$foreach`.  */
+static int tuple_const_is_int(TupleConst *tc, int i)
+{
+    int bt = tc->types[i].t & VT_BTYPE;
+
+    if ((tc->nested && tc->nested[i]) || (tc->syms && tc->syms[i]))
+        return 0;
+    return bt != VT_VOID && bt != VT_FUNC && bt != VT_STRUCT
+        && bt != VT_FLOAT && bt != VT_DOUBLE && bt != VT_LDOUBLE
+        && !(tc->types[i].t & VT_ARRAY);
+}
+
+/* `Copy` element 'i' of the constant tuple 'tc' into the local at 'addr'.  */
+static void gen_const_elem_store(TupleConst *tc, int i, int addr)
+{
+    CType type = tc->types[i];
+    int align;
+    (void)type_size(&type, &align);
+
+    if (type.t & VT_ARRAY) {
+        int esize, ealign;
+
+        esize = type_size(&type, &ealign);
+        tuple_const_push(tc, i);
+#ifdef CONFIG_TCC_BCHECK
+        if (vtop->r & VT_MUSTBOUND)
+            gbound(); /* check would be wrong after gaddrof() */
+#endif
+        gaddrof();  /* source address */
+        vset(&char_pointer_type, VT_LOCAL | VT_LVAL, addr);
+        vswap();
+        vpushv(vtop - 1);
+        vtop->type.t = VT_PTR;
+        gaddrof();  /* destination address */
+        vswap();
+        gen_copy_bytes(esize, ealign);
+        vpop();
+    } else {
+        tuple_const_push(tc, i);
+        vset(&type, VT_LOCAL | VT_LVAL, addr);
+        vswap();
+        vstore();
+        vpop();
+    }
+}
+
 static int check_d_dollar_foreach(int l, int flags)
 {
     TokenString *body;
@@ -12586,8 +12674,10 @@ static int check_d_dollar_foreach(int l, int flags)
     name = tok;
     next();
     skip(';');
-    expr_const1();
-    tc = pop_int_tuple("'$foreach'");
+    expr_eq();
+    if (!is_tuple_type(&vtop->type) || !(tc = tuple_const_of(vtop)))
+        tcc_error("'$foreach' requires a constant tuple");
+    vpop();
     skip(')');
 
     n = tc->n;
@@ -12602,19 +12692,38 @@ static int check_d_dollar_foreach(int l, int flags)
     for (i = 0; i < n; ++i) {
         TokenString *run = tok_str_clone(body);
         CType type = tc->types[i];
+        int is_int = tuple_const_is_int(tc, i);
         Scope *po = NULL;
         Sym **pstack = NULL;
-        Sym *ref, *s;
+        Sym *ref = NULL, *s;
 
-        type.t = (type.t & ~VT_STORAGE) | VT_STORAGE_STATIC | VT_ENUM_VAL;
+        if (l == VT_CONST && !is_int)
+            tcc_error("'$foreach': element %d is not an integer constant",
+                      i + 1);
         if (l == VT_LOCAL) {
             po = new_scope();
         } else {
             pstack = &global_stack;
         }
-        type.ref = ref = push_enum_ref();
-        s = sym_push(name, &type, VT_CONST, 0);
-        s->enum_val = tc->vals[i].i;
+        if (is_int) {
+            type.t = (type.t & ~VT_STORAGE) | VT_STORAGE_STATIC | VT_ENUM_VAL;
+            type.ref = ref = push_enum_ref();
+            s = sym_push(name, &type, VT_CONST, 0);
+            s->enum_val = tc->vals[i].i;
+        } else {
+            AttrDef ad2;
+            int r = VT_LOCAL;
+
+            if (!(type.t & VT_ARRAY))
+                r |= VT_LVAL;
+            memset(&ad2, 0, sizeof ad2);
+            type.t &= ~(VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
+            decl_initializer_alloc(&type, &ad2, r, 0, name, VT_LOCAL);
+            s = local_stack;
+            if (!s || s->v != name)
+                tcc_internal_error("bad '$foreach' local");
+            gen_const_elem_store(tc, i, s->c);
+        }
 
         begin_macro(run, 1);
         next();
@@ -12633,7 +12742,8 @@ static int check_d_dollar_foreach(int l, int flags)
         } else {
             /* file scope: drop only the bindings, keep the declarations */
             sym_unlink(pstack, s);
-            sym_unlink(pstack, ref);
+            if (ref)
+                sym_unlink(pstack, ref);
         }
     }
     tok_str_free(body);

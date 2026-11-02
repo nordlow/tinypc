@@ -38,10 +38,10 @@
 436_d_tuple_destructure_error.c:41: error: '$foreach' requires a constant tuple
 
 [test_foreach_float_element]
-436_d_tuple_destructure_error.c:44: error: '$foreach': element 1 is not an integer constant
+436_d_tuple_destructure_error.c:44: error: '$': element 1 is not a compile-time constant
 
 [test_foreach_nested_element]
-436_d_tuple_destructure_error.c:47: error: '$foreach': element 1 is not an integer constant
+436_d_tuple_destructure_error.c:47: error: '$': element 1 is not a compile-time constant
 
 [test_foreach_missing_name]
 436_d_tuple_destructure_error.c:50: error: identifier expected
