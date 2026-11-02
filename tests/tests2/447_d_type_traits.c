@@ -35,5 +35,10 @@ int main(void)
     printf("isUnsigned int: %d\n", $isUnsigned(int));
     printf("isUnsigned unsigned int: %d\n", $isUnsigned(unsigned int));
 
+    printf("isConst int: %d\n", $isConst(int));
+    printf("isConst const int: %d\n", $isConst(const int));
+    printf("isVolatile volatile int: %d\n", $isVolatile(volatile int));
+    printf("isImmutable immutable(int): %d\n", $isImmutable(immutable(int)));
+
     return 0;
 }

@@ -7657,6 +7657,21 @@ static int type_is_unsigned(CType *type)
         && ((type->t & VT_UNSIGNED) || bt == VT_BOOL);
 }
 
+static int type_is_const(CType *type)
+{
+    return (type->t & VT_QUALIFIER_CONSTANT) != 0;
+}
+
+static int type_is_volatile(CType *type)
+{
+    return (type->t & VT_QUALIFIER_VOLATILE) != 0;
+}
+
+static int type_is_immutable(CType *type)
+{
+    return (type->t & VT_QUALIFIER_IMMUTABLE) != 0;
+}
+
 static int type_has_indirections(CType *type)
 {
     int bt = type->t & VT_BTYPE;
@@ -8390,12 +8405,18 @@ special_math_val:
                 || !strcmp(get_tok_str(t, NULL), "$hasIndirections")
                 || !strcmp(get_tok_str(t, NULL), "$hasAliasing")
                 || !strcmp(get_tok_str(t, NULL), "$isSigned")
-                || !strcmp(get_tok_str(t, NULL), "$isUnsigned"))) {
+                || !strcmp(get_tok_str(t, NULL), "$isUnsigned")
+                || !strcmp(get_tok_str(t, NULL), "$isConst")
+                || !strcmp(get_tok_str(t, NULL), "$isVolatile")
+                || !strcmp(get_tok_str(t, NULL), "$isImmutable"))) {
             int is_isA = !strcmp(get_tok_str(t, NULL), "$isA");
             int is_hasInd = !strcmp(get_tok_str(t, NULL), "$hasIndirections");
             int is_hasAlias = !strcmp(get_tok_str(t, NULL), "$hasAliasing");
             int is_isSigned = !strcmp(get_tok_str(t, NULL), "$isSigned");
             int is_isUnsigned = !strcmp(get_tok_str(t, NULL), "$isUnsigned");
+            int is_isConst = !strcmp(get_tok_str(t, NULL), "$isConst");
+            int is_isVolatile = !strcmp(get_tok_str(t, NULL), "$isVolatile");
+            int is_isImmutable = !strcmp(get_tok_str(t, NULL), "$isImmutable");
             skip('(');
             if (is_isA) {
                 CType t1, t2;
@@ -8430,7 +8451,7 @@ special_math_val:
                 type_decl(&t1, &ad1, &n, TYPE_ABSTRACT);
                 skip(')');
                 vpushi(type_has_aliasing(&t1));
-            } else if (is_isSigned || is_isUnsigned) {
+            } else if (is_isSigned || is_isUnsigned || is_isConst || is_isVolatile || is_isImmutable) {
                 CType t1;
                 AttrDef ad1;
                 memset(&ad1, 0, sizeof ad1);
@@ -8438,7 +8459,13 @@ special_math_val:
                     tcc_error("expected type");
                 type_decl(&t1, &ad1, &n, TYPE_ABSTRACT);
                 skip(')');
-                vpushi(is_isSigned ? type_is_signed(&t1) : type_is_unsigned(&t1));
+                int res = 0;
+                if (is_isSigned) res = type_is_signed(&t1);
+                else if (is_isUnsigned) res = type_is_unsigned(&t1);
+                else if (is_isConst) res = type_is_const(&t1);
+                else if (is_isVolatile) res = type_is_volatile(&t1);
+                else if (is_isImmutable) res = type_is_immutable(&t1);
+                vpushi(res);
             } else {
                 CType t1;
                 AttrDef ad1;

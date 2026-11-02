@@ -19,3 +19,7 @@ isSigned int: 1
 isSigned unsigned int: 0
 isUnsigned int: 0
 isUnsigned unsigned int: 1
+isConst int: 0
+isConst const int: 1
+isVolatile volatile int: 1
+isImmutable immutable(int): 1
