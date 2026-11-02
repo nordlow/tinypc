@@ -561,16 +561,20 @@ void f(void)
     }
 }
 ```
+`-lang=d` mode activates `@safe` by default.  Function attribute
+inference, opposite to D, happens for non-templated functions, as this
+compiler currently has no plans for templates nor type-aware macros (though
+some plan for templates and macros will be added later on).
 
-`@safe` is enforced for functions and blocks: pointer arithmetic and pointer
-indexing are rejected.  `@trusted` and `@system` mark statements, loops (`for`, `foreach`), and blocks as exempt from those checks.  `@pure` enforces functional purity and
-determinism (disallowing global/static variable access and
-non-deterministic pointer arithmetic or relational comparisons, while
-permitting pointer dereferencing and null checks).  `@nodet` serves as an
-opt-out for determinism requirements.  Detailed semantics are
-documented in
-[tasks/pure_attribute_semantics.md](tasks/pure_attribute_semantics.md)
-and [tasks/deterministic_attribute.md](tasks/deterministic_attribute.md).
+ `@safe` is enforced for functions and blocks: pointer arithmetic and pointer
+ indexing are rejected.  `@trusted` and `@system` mark statements, loops (`for`, `foreach`), and blocks as exempt from those checks.  `@pure` enforces functional purity and
+ determinism (disallowing global/static variable access and
+ non-deterministic pointer arithmetic or relational comparisons, while
+ permitting pointer dereferencing and null checks).  `@nodet` serves as an
+ opt-out for determinism requirements.  Detailed semantics are
+ documented in
+ [tasks/pure_attribute_semantics.md](tasks/pure_attribute_semantics.md)
+ and [tasks/deterministic_attribute.md](tasks/deterministic_attribute.md).
 ### Defer and scope(exit)
 
 The `defer` statement registers cleanup code that runs when the
