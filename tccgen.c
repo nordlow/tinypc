@@ -1904,6 +1904,15 @@ ST_FUNC void gbound_args(int nb_args)
     }
 }
 
+/* `Register` a bound-checked region for a local at 'addr' of 'size' bytes.  */
+static void add_local_bound(int addr, int size)
+{
+    addr_t *bounds_ptr = section_ptr_add(lbounds_section,
+                                         2 * sizeof(addr_t));
+    bounds_ptr[0] = addr;
+    bounds_ptr[1] = size;
+}
+
 /* `Add` bounds for local symbols from S to E (via ->prev) */
 static void add_local_bounds(Sym *s, Sym *e)
 {
@@ -1916,10 +1925,7 @@ static void add_local_bounds(Sym *s, Sym *e)
             || s->a.addrtaken) {
             /* add local bound info */
             int align, size = type_size(&s->type, &align);
-            addr_t *bounds_ptr = section_ptr_add(lbounds_section,
-                                                 2 * sizeof(addr_t));
-            bounds_ptr[0] = s->c;
-            bounds_ptr[1] = size;
+            add_local_bound(s->c, size);
         }
     }
 }
@@ -7291,6 +7297,10 @@ static void gen_tuple_literal(CType *type)
     size = type_size(type, &align);
     loc = (loc - size) & -align;
     l = loc;
+#ifdef CONFIG_TCC_BCHECK
+    if (tcc_state->do_bounds_check)
+        add_local_bound(l, size);
+#endif
 
     f = type->ref->next;
     for (;;) {
@@ -8446,8 +8456,12 @@ special_math_val:
                        problems */
                     vseti(VT_LOCAL, loc);
 #ifdef CONFIG_TCC_BCHECK
-                    if (tcc_state->do_bounds_check)
+                    if (tcc_state->do_bounds_check) {
+                        /* the hidden return slot has no symbol, so register
+                           it here for the checked copy that follows */
+                        add_local_bound(loc, size);
                         --loc;
+                    }
 #endif
                     ret.c = vtop->c;
                     if (ret_nregs < 0)
@@ -8541,6 +8555,10 @@ special_math_val:
                         align = ret_align;
                     loc = (loc - size) & -align;
                     addr = loc;
+#ifdef CONFIG_TCC_BCHECK
+                    if (tcc_state->do_bounds_check)
+                        add_local_bound(addr, size);
+#endif
                     offset = 0;
                     for (;;) {
                         vset(&ret.type, VT_LOCAL | VT_LVAL, addr + offset);
@@ -12514,6 +12532,15 @@ static int decl_auto_tuple(AttrDef *ad)
     end_macro();
     addr = vtop->c.i;
     vpop();
+#ifdef CONFIG_TCC_BCHECK
+    if (tcc_state->do_bounds_check) {
+        /* The temporary has no symbol, so `add_local_bounds()` never sees
+           it; register it here or an aggregate element copy trips the
+           checked `memmove` destination.  */
+        int talign;
+        add_local_bound(addr, type_size(&ttype, &talign));
+    }
+#endif
 
     for (i = 0; i < nb_names; ++i) {
         int name = (int)(intptr_t)names[i];
