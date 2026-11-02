@@ -198,6 +198,9 @@ The reference manual is [`tcc-doc.html`](tcc-doc.html), generated from
 are documented in [`CodingStyle`](CodingStyle), and the project's
 planned work is tracked in [`TODO.md`](TODO.md).
 
+For C structure layout and alignment, see Eric S. Raymond's
+[*The Lost Art of C Structure Packing*](http://www.catb.org/esr/structure-packing/).
+
 ## Language modes
 
 The default is C with a number of compatible C superset extensions
