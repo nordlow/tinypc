@@ -87,6 +87,10 @@ To express these layouts cleanly without boilerplate:
   compact runtime descriptors containing pointer, shape array, and stride
   array, allowing zero-copy slicing and seamless interop with NumPy C-API
   and Julia arrays.
+- **Matrix & Vector Constructors via Macros:** Matrix and vector literals can
+  be elegantly constructed using preprocessor macros combined with compound
+  literals or tuple syntax (e.g., `#define vec(...) (Vector){__VA_ARGS__}` or
+  matrix macros expanding into nested array initializers).
 
 ## Acceptance Criteria
 
