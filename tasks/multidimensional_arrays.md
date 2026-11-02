@@ -79,6 +79,10 @@ differently:
 To express these layouts cleanly without boilerplate:
 - **Layout Attributes:** Support `@`-attribute layout specifiers on array and
   slice types (e.g., `@layout(row) int[N, M]` or `@layout(col) int[N, M]`).
+- **Easy Switchability & Zero-Copy Transpose:** Layouts must be easily
+  switchable between row-major and column-major orders without copying data,
+  either via attribute annotations or view-casting methods (e.g.
+  `.layout(row)` / `.layout(col)`).
 - **Standard Strided View Descriptor:** Represent multi-dimensional views as
   compact runtime descriptors containing pointer, shape array, and stride
   array, allowing zero-copy slicing and seamless interop with NumPy C-API
