@@ -266,6 +266,8 @@ endif
 437_d_tuple_type_ops.test : GEN = $(GEN-TCC)
 438_d_tuple_manifest_destructure.test : FLAGS += -lang=d
 438_d_tuple_manifest_destructure.test : GEN = $(GEN-TCC)
+439_d_tuple_literal_elements.test : FLAGS += -lang=d
+439_d_tuple_literal_elements.test : GEN = $(GEN-TCC)
 417_d_foreach_qualifiers.test : FLAGS += -lang=d
 417_d_foreach_qualifiers.test : GEN = $(GEN-TCC)
 104_inline.test : FLAGS += $(subst 104,104+,$1)

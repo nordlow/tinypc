@@ -1,0 +1,12 @@
+nested 1 2 3
+result 1 2 3 sum 6
+var 7 8 9 sum 24
+deep 1 2 3 4
+array 10 20 30 1 sum 61
+compound 40 50 60 2
+return 4 5 6 7 sum 22
+string abc 3 4
+structs 5 6 7 8 11
+mixed 70 80 4 5
+copy 99 20 10 88
+destructure 1 2 3 10 88 1

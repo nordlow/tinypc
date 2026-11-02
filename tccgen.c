@@ -4213,6 +4213,36 @@ static void check_stack_address_escape(Sym *dest_sym, Sym *src_sym, int is_retur
     }
 }
 
+/* `Copy` 'size' bytes from the source address at vtop to the destination
+   address at vtop[-1], leaving the stack below the two addresses intact.
+   `Use` the native block copy when available, otherwise `memmove`.  */
+static void gen_copy_bytes(int size, int align)
+{
+#ifdef TCC_TARGET_NATIVE_STRUCT_COPY
+    if (1
+#ifdef CONFIG_TCC_BCHECK
+        && !tcc_state->do_bounds_check
+#endif
+        ) {
+        gen_struct_copy(size);
+    } else
+#endif
+    {
+        vpushi(size);
+        /* `Use` memmove, rather than memcpy, as dest and src may be same: */
+#ifdef TCC_ARM_EABI
+        if (!(align & 7))
+            vpush_helper_func(TOK_memmove8);
+        else if (!(align & 3))
+            vpush_helper_func(TOK_memmove4);
+        else
+#endif
+        vpush_helper_func(TOK_memmove);
+        vrott(4);
+        gfunc_call(3);
+    }
+}
+
 /* store vtop in lvalue pushed on stack */
 ST_FUNC void vstore(void)
 {
@@ -4257,31 +4287,7 @@ ST_FUNC void vstore(void)
 #endif
         vtop->type.t = VT_PTR;
         gaddrof();
-
-#ifdef TCC_TARGET_NATIVE_STRUCT_COPY
-        if (1
-#ifdef CONFIG_TCC_BCHECK
-            && !tcc_state->do_bounds_check
-#endif
-            ) {
-            gen_struct_copy(size);
-        } else
-#endif
-        {
-            /* type size */
-            vpushi(size);
-            /* `Use` memmove, rather than memcpy, as dest and src may be same: */
-#ifdef TCC_ARM_EABI
-            if(!(align & 7))
-                vpush_helper_func(TOK_memmove8);
-            else if(!(align & 3))
-                vpush_helper_func(TOK_memmove4);
-            else
-#endif
-            vpush_helper_func(TOK_memmove);
-            vrott(4);
-            gfunc_call(3);
-        }
+        gen_copy_bytes(size, align);
 
     } else if (ft & VT_BITFIELD) {
         /* bitfield store handling */
@@ -7288,13 +7294,41 @@ static void gen_tuple_literal(CType *type)
 
     f = type->ref->next;
     for (;;) {
+        /* `A` tuple-typed element expects a nested tuple literal, so give
+           the expression parser the element type as its tuple context.  */
+        CType *saved_expect = tuple_expect;
+        if (is_tuple_type(&f->type))
+            tuple_expect = &f->type;
         expr_eq();
-        gen_cast(&f->type);
-        gv(RC_TYPE(f->type.t));
-        vset(&f->type, VT_LOCAL | VT_LVAL, l + f->c);
-        vswap();
-        vstore();
-        vpop();
+        tuple_expect = saved_expect;
+        if (f->type.t & VT_ARRAY) {
+            int esize, ealign;
+
+            /* `An` array element is not stored but copied, like a struct
+               element: a pointer store would either truncate it or, in D
+               mode, convert the destination to a slice.  */
+            esize = type_size(&f->type, &ealign);
+#ifdef CONFIG_TCC_BCHECK
+            if (vtop->r & VT_MUSTBOUND)
+                gbound(); /* check would be wrong after gaddrof() */
+#endif
+            gaddrof();  /* source address */
+            vset(&char_pointer_type, VT_LOCAL | VT_LVAL, l + f->c);
+            vswap();
+            vpushv(vtop - 1);
+            vtop->type.t = VT_PTR;
+            gaddrof();  /* destination address */
+            vswap();
+            gen_copy_bytes(esize, ealign);
+            vpop();
+        } else {
+            gen_cast(&f->type);
+            gv(RC_TYPE(f->type.t));
+            vset(&f->type, VT_LOCAL | VT_LVAL, l + f->c);
+            vswap();
+            vstore();
+            vpop();
+        }
         ++n;
         f = f->next;
         if (tok != ',')
