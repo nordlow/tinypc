@@ -1,41 +1,46 @@
-# Task: D-Style Built-in Complex Numbers and Imaginary Literals
+# Task: Unified C99 & D Complex/Imaginary Numbers and Literals
 
-Add support for D's built-in complex and imaginary types (`cfloat`,
-`cdouble`, `creal`, `ifloat`, `idouble`, `ireal`) and imaginary literal
-syntax (`...i`) in D language mode (`-lang=d`).
+Implement unified support for C99 complex and imaginary numbers
+(`_Complex float`, `_Complex double`, `_Complex long double`, `_Imaginary`,
+and `<complex.h>`) along with D's built-in complex/imaginary types
+(`cfloat`, `cdouble`, `creal`, `ifloat`, `idouble`, `ireal`) and imaginary
+literal suffix syntax (`...i`).
 
 ## Motivation
 
-Unlike C's `<complex.h>` (which relies on `double _Complex` and library
-functions), D features first-class language support for complex and
-imaginary numbers, including native imaginary literal suffixes (`1.5i`),
-built-in type keywords (`cfloat`, `cdouble`, `creal`, `ifloat`, `idouble`,
-`ireal`), and direct arithmetic operators.
-
-Adding built-in complex numbers to TinyPC provides natural mathematical
-ergonomics for scientific and numerical computing without relying on
-complex header libraries or template wrappers.
+Both C99 and D require robust, first-class language support for complex
+and imaginary numbers:
+- **C99 Standard:** Requires `_Complex` and `_Imaginary` type specifiers
+  and standard header support via `<complex.h>`.
+- **D Language:** Features built-in keywords (`cfloat`, `creal`, etc.) and
+  native imaginary literal suffix syntax (`1.5i`), providing natural mathematical
+  ergonomics for scientific and numerical computing without relying on
+  templates or external helper libraries.
 
 ---
 
 ## Language Specifications
 
-1. **Imaginary and Complex Types**:
-   - Pure imaginary types: `ifloat`, `idouble`, `ireal` (representing
-     floating-point multiples of the imaginary unit $i$).
+1. **C99 Complex & Imaginary Types**:
+   - `_Complex float`, `_Complex double`, `_Complex long double` (and macro
+     aliases `float complex`, `double complex`, `long double complex` from
+     `<complex.h>`).
+   - `_Imaginary` types and associated macros.
+
+2. **D Built-in Complex & Imaginary Types**:
+   - Pure imaginary types: `ifloat`, `idouble`, `ireal` (floating-point
+     multiples of $i$).
    - Complex types: `cfloat`, `cdouble`, `creal` (composed of real and
-     imaginary floating-point components).
+     imaginary parts).
 
-2. **Imaginary Literals (`i` suffix)**:
-   - A numeric literal followed immediately by `i` (e.g., `3.14i`, `42i`)
-     denotes a pure imaginary constant expression of type `ireal` or `idouble`.
-   - Addition of a real and an imaginary literal (e.g., `1.0 + 2.5i`) forms
-     a complex constant.
+3. **Imaginary Literals & Suffixes**:
+   - Numeric literals followed by `i` or `j` (e.g., `3.14i`, `42.0j`) denote
+     pure imaginary constant expressions.
+   - Real + imaginary addition (e.g., `1.0 + 2.5i`) forms a complex constant.
 
-3. **Native Operators & Conversions**:
+4. **Native Operators & Conversions**:
    - Standard arithmetic operations (`+`, `-`, `*`, `/`, `==`, `!=`) operate
-     natively on complex and imaginary operands according to D arithmetic
-     conversion rules.
+     natively on complex and imaginary operands.
 
 ---
 
@@ -43,8 +48,8 @@ complex header libraries or template wrappers.
 
 `VT_BTYPE` currently occupies 4 bits (`0x000f`, values 0–15), and **all 16
 possible slots are completely exhausted** (0 through 15 are assigned).
-To represent complex and imaginary types (`cfloat`, `cdouble`, `creal`,
-`ifloat`, `idouble`, `ireal`), we evaluate two primary design alternatives:
+To represent complex and imaginary types, we evaluate two primary design
+alternatives:
 
 ### Approach A: Extending `VT_BTYPE` (New Dedicated Basic Type Tags)
 Expand `VT_BTYPE` width (e.g., to 5 or 6 bits) and add new basic type tags
@@ -83,14 +88,19 @@ bit range.
 
 ## Implementation Plan
 
-1. **Lexer & Tokenization (`tccpp.c`, `tcctok.h`):**
-   - Recognize imaginary literal suffixes (`i` / `I`) following numeric
+1. **Lexer & Keyword Support (`tcctok.h`, `tccpp.c`):**
+   - Register `_Complex`, `_Imaginary`, and D type keywords (`cfloat`,
+     `creal`, `ifloat`, etc.).
+   - Recognize imaginary literal suffixes (`i`, `j`) following numeric
      constants and yield complex/imaginary literal tokens.
 2. **Type System Extensions (`tcc.h`):**
    - Introduce `VT_COMPLEX` and `VT_IMAGINARY` modifier flags.
-3. **Parser & Code Generation (`tccgen.c`, backends):**
-   - Implement type checking and code generation for complex/imaginary
-     arithmetic expressions and initializers.
-4. **Regression Tests:**
-   - Add comprehensive test cases under `tests/tests2/` covering imaginary
-     literals, complex arithmetic, and type promotions.
+3. **Parser & Expression Evaluation (`tccgen.c`):**
+   - Parse complex/imaginary literal expressions and arithmetic operations
+     (`+`, `-`, `*`, `/`, unary `-`).
+4. **Code Generation & ABI (`x86_64-gen.c`, etc.):**
+   - Generate ABI-compliant argument passing and return value handling for
+     complex pairs (SSE registers or memory passing on x86-64).
+5. **Regression Tests:**
+   - Pass gcc complex test suite subset and add comprehensive test cases
+     under `tests/tests2/`.
