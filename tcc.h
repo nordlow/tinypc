@@ -516,7 +516,16 @@ typedef struct CString {
  * @brief C type descriptor combining type flags and an optional reference symbol.
  */
 typedef struct CType {
-    int t;                        /**< Type flags specifying basic type, qualifiers (const/volatile), and modifiers. */
+    union {
+        int t;                        /**< Type flags specifying basic type, qualifiers (const/volatile), and modifiers. */
+        struct {                      /**< TODO: Structured bitfield view of type flags for introspection/debugging */
+            unsigned int btype      : 4;  /**< Basic type (VT_VOID, VT_INT, etc.) */
+            unsigned int qualifiers : 6;  /**< Type qualifiers (const, volatile, etc.) */
+            unsigned int storage    : 5;  /**< Storage class (extern, static, etc.) */
+            unsigned int sign       : 2;  /**< Signed/unsigned flags */
+            unsigned int modifier   : 15; /**< Additional modifiers / attributes */
+        };
+    };
     struct Sym *ref;              /**< Reference symbol pointer for structs, unions, enums, functions, or pointer targets. */
 } CType;
 
@@ -543,8 +552,20 @@ typedef union CValue {
  */
 typedef struct SValue {
     CType type;                   /**< Complete C type descriptor of the expression value. */
-    unsigned short r;             /**< Register allocation flags, register index, and storage flags (`VT_*`). */
-    unsigned short r2;            /**< Second register index (used for 64-bit `long long` values on 32-bit targets; `VT_CONST` if unused). */
+    union {
+        unsigned short r;             /**< Register allocation flags, register index, and storage flags (`VT_*`). */
+        struct {                      /**< TODO: Structured bitfield view of register and storage flags */
+            unsigned int reg_index  : 8;  /**< Physical/virtual register index */
+            unsigned int storage    : 8;  /**< VT_* storage / value location flags */
+        };
+    };
+    union {
+        unsigned short r2;            /**< Second register index (used for 64-bit `long long` values on 32-bit targets; `VT_CONST` if unused). */
+        struct {                      /**< TODO: Structured bitfield view of second register and storage flags */
+            unsigned int reg_index2 : 8;  /**< Second register index */
+            unsigned int storage2   : 8;  /**< Second storage / value location flags */
+        };
+    };
     union {
       struct { int jtrue, jfalse; }; /**< Jump targets (true and false condition branches) for boolean expressions. */
       CValue c;                      /**< Constant value descriptor if the storage class is `VT_CONST`. */
@@ -625,7 +646,13 @@ struct FuncAttr {
  */
 typedef struct Sym {
     int v;                        /**< Symbol token identifier representing the name. */
-    unsigned short r;             /**< Associated register, or `VT_CONST`/`VT_LOCAL` storage class and lvalue flags. */
+    union {
+        unsigned short r;             /**< Associated register, or `VT_CONST`/`VT_LOCAL` storage class and lvalue flags. */
+        struct {                      /**< TODO: Structured bitfield view of symbol register and storage flags */
+            unsigned int reg_index  : 8;  /**< Register allocation index */
+            unsigned int storage    : 8;  /**< Storage class / lvalue flags */
+        };
+    };
     struct SymAttr a;             /**< Extended symbol attributes (alignment, packing, weak linkage, visibility). */
     union {
         struct {
