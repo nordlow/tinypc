@@ -258,6 +258,10 @@ endif
 428_d_tuple_value.test : GEN = $(GEN-TCC)
 429_d_tuple_value_error.test : FLAGS += -dt -lang=d
 429_d_tuple_value_error.test : GEN = $(GEN-TCC)
+435_d_tuple_destructure.test : FLAGS += -lang=d
+435_d_tuple_destructure.test : GEN = $(GEN-TCC)
+436_d_tuple_destructure_error.test : FLAGS += -dt -lang=d
+436_d_tuple_destructure_error.test : GEN = $(GEN-TCC)
 417_d_foreach_qualifiers.test : FLAGS += -lang=d
 417_d_foreach_qualifiers.test : GEN = $(GEN-TCC)
 104_inline.test : FLAGS += $(subst 104,104+,$1)

@@ -1,0 +1,50 @@
+[test_arity_too_few]
+436_d_tuple_destructure_error.c:4: error: tuple destructuring pattern has 2 names but the initializer has 3 elements
+
+[test_arity_too_many]
+436_d_tuple_destructure_error.c:7: error: tuple destructuring pattern has 3 names but the initializer has 2 elements
+
+[test_literal_arity]
+436_d_tuple_destructure_error.c:10: error: tuple destructuring pattern has 2 names but the initializer has 3 elements
+
+[test_non_tuple]
+436_d_tuple_destructure_error.c:13: error: cannot destructure non-tuple type 'int'
+
+[test_non_tuple_struct]
+436_d_tuple_destructure_error.c:17: error: cannot destructure non-tuple type 'struct S'
+
+[test_file_scope]
+436_d_tuple_destructure_error.c:20: error: tuple destructuring is only allowed at block scope
+
+[test_no_initializer]
+436_d_tuple_destructure_error.c:23: error: destructuring declaration requires an initializer
+
+[test_duplicate_names]
+436_d_tuple_destructure_error.c:26: error: redeclaration of 'a'
+
+[test_loop_variable_shadowed]
+436_d_tuple_destructure_error.c:29: error: redeclaration of 'n'
+
+[test_pattern_not_name]
+436_d_tuple_destructure_error.c:32: error: identifier expected
+
+[test_pattern_missing_name]
+436_d_tuple_destructure_error.c:35: error: identifier expected
+
+[test_foreach_non_constant]
+436_d_tuple_destructure_error.c:38: error: '$foreach' requires a constant tuple
+
+[test_foreach_non_tuple]
+436_d_tuple_destructure_error.c:41: error: '$foreach' requires a constant tuple
+
+[test_foreach_float_element]
+436_d_tuple_destructure_error.c:44: error: '$foreach': element 1 is not an integer constant
+
+[test_foreach_nested_element]
+436_d_tuple_destructure_error.c:47: error: '$foreach': element 1 is not an integer constant
+
+[test_foreach_missing_name]
+436_d_tuple_destructure_error.c:50: error: identifier expected
+
+[test_foreach_without_parens]
+436_d_tuple_destructure_error.c:53: error: '(' expected (got 'n')

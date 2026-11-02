@@ -170,6 +170,7 @@ static int get_temp_local_var(int size,int align,int *r2);
 static void cast_error(CType *st, CType *dt);
 static int is_tuple_type(CType *type);
 static Sym *tuple_field(CType *type, int idx, int *pofs);
+static int tuple_arity(CType *type);
 static void free_tuple_consts(void);
 static Sym *parse_tuple_type_opt(CType *type, AttrDef *ad);
 static void parse_tuple_type_rest(CType *type, AttrDef *ad);
@@ -185,6 +186,7 @@ static void do_d_assert(void);
 static int check_d_manifest_constant(int l);
 static int check_d_conditional(int l, int flags);
 static int check_d_dollar_if(int l, int flags);
+static int check_d_dollar_foreach(int l, int flags);
 static void gen_slice_assign(int assign_tok);
 static void expr_cond(void);
 static void gen_tuple_literal(CType *type);
@@ -806,9 +808,9 @@ static inline void sym_link(Sym *s, int yes)
 static inline int sym_scope_ex(Sym *s)
 {
     /* enums have '`sym_scope`' overwritten by '`enum_val`' */
-    return IS_ENUM_VAL (s->type.t)
-        ? s->type.ref->sym_scope
-        : s->sym_scope;
+    if (IS_ENUM_VAL (s->type.t))
+        return s->type.ref ? s->type.ref->sym_scope : 0;
+    return s->sym_scope;
 }
 
 /* push a given symbol on the symbol stack */
@@ -832,6 +834,21 @@ ST_FUNC Sym *sym_push(int v, CType *type, int r, int c)
     if (cur_tcc_state && cur_tcc_state->dump_decls)
         psyms("DECL", s, s->prev);
     return s;
+}
+
+/* `Push` an anonymous enum reference symbol that carries the scope of an
+   enum-value symbol: such a symbol stores its value where other symbols
+   keep their scope, so the scope is read from the referenced type.  */
+static Sym *push_enum_ref(void)
+{
+    CType type;
+    Sym *ref;
+
+    type.t = VT_ENUM;
+    type.ref = NULL;
+    ref = sym_push(anon_sym++ | SYM_STRUCT, &type, 0, 0);
+    ref->sym_scope = local_scope;
+    return ref;
 }
 
 /* push a global identifier */
@@ -890,6 +907,23 @@ ST_FUNC void sym_pop(Sym **ptop, Sym *b, int keep)
     }
     if (!keep)
 	*ptop = b;
+}
+
+/* `Remove` the single symbol 's' from the symbol stack 'ptop', keeping the
+   symbols that were pushed after it.  `$foreach` uses it to drop its loop
+   variable without discarding the declarations of the replayed body.  */
+static void sym_unlink(Sym **ptop, Sym *s)
+{
+    Sym **ps = ptop;
+
+    while (*ps && *ps != s)
+        ps = &(*ps)->prev;
+    if (!*ps)
+        return;
+    *ps = s->prev;
+    if ((s->v & ~SYM_STRUCT) < SYM_FIRST_ANOM)
+        sym_link(s, 0);
+    sym_free(s);
 }
 
 /* label lookup */
@@ -5782,6 +5816,17 @@ static Sym *tuple_field(CType *type, int idx, int *pofs)
     return f;
 }
 
+/* `Return` the number of elements in tuple type 'type'.  */
+static int tuple_arity(CType *type)
+{
+    Sym *f;
+    int n = 0;
+
+    for (f = type->ref->next; f; f = f->next)
+        ++n;
+    return n;
+}
+
 /* `Replace` the tuple value on top of the value stack with its element
    'idx': the same operation as a `.` field access with a constant field
    index.  `An` `int` element access is an lvalue, an array element is
@@ -9592,6 +9637,8 @@ again:
         return;
     if (check_d_dollar_if(VT_LOCAL, flags))
         return;
+    if (check_d_dollar_foreach(VT_LOCAL, flags))
+        return;
     t = tok;
     /* `If` the token carries a value, next() might destroy it. `Only` with
        invalid code such as f(){"123"4;} */
@@ -11341,7 +11388,7 @@ static int check_d_manifest_constant(int l)
             expr_const1();
             val = vtop->c.i;
             type.t = VT_INT | VT_STORAGE_STATIC | VT_ENUM_VAL;
-            type.ref = NULL;
+            type.ref = push_enum_ref();
             ss = sym_push(id, &type, VT_CONST, 0);
             ss->enum_val = val;
             vpop();
@@ -11361,6 +11408,7 @@ static int check_d_manifest_constant(int l)
                     expr_const1();
                     val = vtop->c.i;
                     btype.t = (btype.t & ~VT_STORAGE) | VT_STORAGE_STATIC | VT_ENUM_VAL;
+                    btype.ref = push_enum_ref();
                     ss = sym_push(id2, &btype, VT_CONST, 0);
                     ss->enum_val = val;
                     vpop();
@@ -12019,7 +12067,8 @@ static void d_scan_body(TokenString *str, int file_scope)
         return;
     }
     if (t == TOK_FOR || t == TOK_WHILE || t == TOK_SWITCH
-        || t == TOK_FOREACH || t == TOK_FOREACH_REVERSE) {
+        || t == TOK_FOREACH || t == TOK_FOREACH_REVERSE
+        || d_ident_is(t, "$foreach")) {
         if (str)
             tok_str_add_tok(str);
         next();
@@ -12203,6 +12252,269 @@ static int check_d_dollar_if(int l, int flags)
     return 1;
 }
 
+/* `Save` the tokens of an initializer up to the ';' or ',' that ends the
+   declaration at the current nesting level, followed by `TOK_EOF`.
+   `Return` that terminating token.  */
+static int save_decl_initializer(TokenString *str)
+{
+    int level = 0, end_tok = ';';
+
+    while (tok != TOK_EOF) {
+        int t = tok;
+        if (level == 0 && (t == ';' || t == ',')) {
+            end_tok = t;
+            break;
+        }
+        tok_str_add_tok(str);
+        if (t == '(' || t == '[' || t == '{')
+            ++level;
+        else if (t == ')' || t == ']' || t == '}') {
+            if (level)
+                --level;
+        }
+        next();
+    }
+    tok_str_add(str, TOK_EOF);
+    return end_tok;
+}
+
+/* `If` the saved initializer 'init_str' is one parenthesized tuple literal
+   that covers the whole expression, build the tuple type from its
+   elements and store it in 'type'.  `Return` zero if it is not, so that
+   the caller falls back to deducing the type of the expression.  */
+static int destructure_tuple_literal(TokenString *init_str, CType *type)
+{
+    TokenString *ts, *dup;
+    Sym *s;
+    Sym **plast;
+    int has_comma, nfields = 0, saved_nocode_wanted;
+
+    if (!init_str->len)
+        return 0;
+    begin_macro(init_str, 0);
+    next();                     /* first token of the initializer */
+    if (tok != '(') {
+        end_macro();
+        return 0;
+    }
+    next();                     /* first token inside the group */
+    ts = scan_paren_group(&dup, &has_comma, 0);
+    tok_str_free(ts);
+    if (dup)
+        tok_str_free(dup);
+    /* 'tok' is on the closing ')': the group covers the whole initializer
+       only if the stream ends right behind it */
+    next();
+    if (tok != TOK_EOF || !has_comma) {
+        end_macro();
+        return 0;
+    }
+    end_macro();
+
+    begin_macro(init_str, 0);
+    next();                     /* the '(' of the group */
+    next();                     /* first element */
+    s = tuple_begin();
+    plast = &s->next;
+    saved_nocode_wanted = nocode_wanted;
+    ++nocode_wanted;
+    for (;;) {
+        CType el;
+        expr_eq();
+        el = vtop->type;
+        if (!(el.t & VT_ARRAY))
+            convert_expression_type(&el);
+        vpop();
+        tuple_add_field(&plast, &el, nfields++);
+        if (tok != ',')
+            break;
+        next();
+        if (tok == ')')         /* (e,) is a 1-tuple */
+            break;
+    }
+    nocode_wanted = saved_nocode_wanted;
+    if (tok != ')')
+        expect("')'");
+    next();
+    end_macro();
+    type->t = VT_STRUCT;
+    type->ref = tuple_layout(s);
+    return 1;
+}
+
+/* `Parse` and act on a destructuring declaration
+   `auto (name1, ..., nameN) = init`, with 'tok' on the '(' of the pattern.
+   `Bind` every name to one element of a single tuple temporary, so that
+   'init' is evaluated exactly once.  `Return` the token that ends the
+   declaration (',' or ';').  */
+static int decl_auto_tuple(AttrDef *ad)
+{
+    TokenString *init_str;
+    CType deduced, ttype;
+    Sym *f;
+    void **names = NULL;
+    int nb_names = 0, arity, i, addr, end_tok, ofs, r;
+    skip('(');
+    for (;;) {
+        if (tok < TOK_UIDENT)
+            expect("identifier");
+        dynarray_add(&names, &nb_names, (void *)(intptr_t)tok);
+        next();
+        if (tok != ',')
+            break;
+        next();
+        if (tok == ')')         /* (name,) is a 1-element pattern */
+            break;
+    }
+    skip(')');
+    if (tok != '=')
+        tcc_error("destructuring declaration requires an initializer");
+    next();
+
+    init_str = tok_str_alloc();
+    end_tok = save_decl_initializer(init_str);
+
+    if (!destructure_tuple_literal(init_str, &deduced)) {
+        begin_macro(init_str, 0);
+        next();
+        expr_type(&deduced, gexpr);
+        if (!(deduced.t & VT_ARRAY))
+            convert_expression_type(&deduced);
+        end_macro();
+    }
+    if (!is_tuple_type(&deduced)) {
+        char buf[256];
+        type_to_str(buf, sizeof buf, &deduced, NULL);
+        tcc_free(names);
+        tcc_error("cannot destructure non-tuple type '%s'", buf);
+    }
+    arity = tuple_arity(&deduced);
+    if (arity != nb_names) {
+        tcc_free(names);
+        tcc_error("tuple destructuring pattern has %d names but the "
+                  "initializer has %d elements", nb_names, arity);
+    }
+
+    /* one temporary, initialized from the replayed tokens */
+    ttype = deduced;
+    ttype.t &= ~VT_QUALIFIER;
+    begin_macro(init_str, 1);   /* frees 'init_str' at end_macro() */
+    next();
+    decl_initializer_alloc(&ttype, ad, VT_LOCAL | VT_LVAL, 1, 0, VT_LOCAL);
+    end_macro();
+    addr = vtop->c.i;
+    vpop();
+
+    for (i = 0; i < nb_names; ++i) {
+        int name = (int)(intptr_t)names[i];
+        f = tuple_field(&ttype, i, &ofs);
+        r = VT_LOCAL;
+        if (!(f->type.t & VT_ARRAY))
+            r |= VT_LVAL;
+        sym_push(name, &f->type, r, addr + ofs);
+    }
+    tcc_free(names);
+    unget_tok(end_tok);
+    return end_tok;
+}
+
+/* `Return` a copy of the token string 's'.  */
+static TokenString *tok_str_clone(TokenString *s)
+{
+    TokenString *str = tok_str_alloc();
+    int i;
+
+    for (i = 0; i < s->len; ++i)
+        tok_str_add(str, s->str[i]);
+    return str;
+}
+
+/* `Parse` and act on `$foreach (name; tuple) body`: replay 'body' once per
+   element of the compile-time constant tuple 'tuple', binding 'name' as an
+   integer manifest constant in a fresh scope per iteration.  */
+static int check_d_dollar_foreach(int l, int flags)
+{
+    TokenString *body;
+    TupleConst *tc;
+    int name, i, n;
+
+    if (!tcc_state->lang_d || (l != VT_CONST && l != VT_LOCAL))
+        return 0;
+    if (!d_ident_is(tok, "$foreach"))
+        return 0;
+    next();
+    skip('(');
+    if (tok < TOK_UIDENT)
+        expect("identifier");
+    name = tok;
+    next();
+    skip(';');
+    expr_const1();
+    if (!is_tuple_type(&vtop->type) || !(tc = tuple_const_of(vtop)))
+        tcc_error("'$foreach' requires a constant tuple");
+    vpop();
+    skip(')');
+
+    n = tc->n;
+    for (i = 0; i < n; ++i) {
+        int bt = tc->types[i].t & VT_BTYPE;
+        if ((tc->nested && tc->nested[i])
+            || bt == VT_VOID || bt == VT_FUNC || bt == VT_STRUCT
+            || bt == VT_FLOAT || bt == VT_DOUBLE || bt == VT_LDOUBLE
+            || (tc->types[i].t & VT_ARRAY))
+            tcc_error("'$foreach': element %d is not an integer constant",
+                      i + 1);
+    }
+
+    body = tok_str_alloc();
+    d_scan_body(body, l == VT_CONST);
+    tok_str_add(body, TOK_EOF);
+    /* `Keep` the token that follows the body in a macro stream so that it
+       is restored after the last replay.  */
+    unget_tok(0);
+
+    for (i = 0; i < n; ++i) {
+        TokenString *run = tok_str_clone(body);
+        CType type = tc->types[i];
+        Scope *po = NULL;
+        Sym **pstack = NULL;
+        Sym *ref, *s;
+
+        type.t = (type.t & ~VT_STORAGE) | VT_STORAGE_STATIC | VT_ENUM_VAL;
+        if (l == VT_LOCAL) {
+            po = new_scope();
+        } else {
+            pstack = &global_stack;
+        }
+        type.ref = ref = push_enum_ref();
+        s = sym_push(name, &type, VT_CONST, 0);
+        s->enum_val = tc->vals[i].i;
+
+        begin_macro(run, 1);
+        next();
+        if (l == VT_CONST) {
+            decl(VT_CONST);
+        } else {
+            decl(VT_LOCAL);
+            if (tok != TOK_EOF)
+                block(flags);
+        }
+        while (tok != TOK_EOF)
+            next();
+        end_macro();
+        if (po) {
+            prev_scope(po, 0);
+        } else {
+            /* file scope: drop only the bindings, keep the declarations */
+            sym_unlink(pstack, s);
+            sym_unlink(pstack, ref);
+        }
+    }
+    tok_str_free(body);
+    next();
+    return 1;
+}
+
 /* 'l' is `VT_LOCAL` or `VT_CONST` to define default storage type
    or `VT_CMP` if parsing old style parameter list
    or `VT_JMP` if parsing c99 for decl: for (int i = 0, ...) */
@@ -12236,6 +12548,8 @@ static int decl(int l)
         if (check_d_conditional(l, 0))
             continue;
         if (check_d_dollar_if(l, 0))
+            continue;
+        if (check_d_dollar_foreach(l, 0))
             continue;
         if (check_d_static_assert())
             continue;
@@ -12319,6 +12633,32 @@ static int decl(int l)
 	    ad = adbase;
             init_str = NULL;
             has_init = 0;
+            if (has_auto_type(&btype) && tok == '(') {
+                TokenString *pats, *pdup;
+                int has_comma;
+
+                next();         /* first token inside the group */
+                pats = scan_paren_group(&pdup, &has_comma, 0);
+                if (pdup)
+                    tok_str_free(pdup);
+                if (has_comma) {
+                    if (l != VT_LOCAL)
+                        tcc_error("tuple destructuring is only allowed at "
+                                  "block scope");
+                    begin_macro(pats, 1);
+                    next();     /* the '(' of the pattern */
+                    end_tok = decl_auto_tuple(&ad);
+                    if (end_tok == ';') {
+                        skip(';');
+                        break;
+                    }
+                    next();     /* ',' */
+                    continue;
+                }
+                /* not a pattern: replay the group for type_decl() */
+                begin_macro(pats, 1);
+                next();         /* the '(' of the declarator */
+            }
             type_decl(&type, &ad, &v, l == VT_CMP ? TYPE_DIRECT | TYPE_PARAM : TYPE_DIRECT);
             if (cur_tcc_state && cur_tcc_state->dump_types)
                 ptype("TYPE", &type, v);

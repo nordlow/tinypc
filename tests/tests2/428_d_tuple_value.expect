@@ -14,3 +14,5 @@ scope 5 8
 shadow 2
 decls 11 14 15 1
 outer 40
+manifest inner 3
+manifest outer 7

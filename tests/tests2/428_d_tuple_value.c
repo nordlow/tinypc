@@ -85,5 +85,13 @@ int main(void)
         printf("decls %d %d %d %d\n", sx, sy, sz, shadow);
     }
     printf("outer %d\n", sx + sy + sz);
+
+    /* a manifest constant may be shadowed by a nested block */
+    enum L = 7;
+    {
+        int L = 3;
+        printf("manifest inner %d\n", L);
+    }
+    printf("manifest outer %d\n", L);
     return 0;
 }
