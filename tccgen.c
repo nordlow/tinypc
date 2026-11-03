@@ -389,10 +389,13 @@ void pv (const char *lbl, int a, int b)
     for (i = a; i < a + b; ++i) {
         SValue *p = &vtop[-i];
         char tbuf[256];
+        const char *sym_name = NULL;
         type_to_str(tbuf, sizeof(tbuf), &p->type, NULL);
+        if ((p->r & VT_SYM) && p->sym && p->sym->v)
+            sym_name = get_tok_str(p->sym->v, 0);
         printf("%s vtop[-%d] : type.t:%04x (%s) r:%04x  r2:%04x  c.i:%d%s%s\n",
             lbl, i, p->type.t, tbuf, p->r, p->r2, (int)p->c.i,
-            p->sym ? " sym:" : "", p->sym && p->sym->v ? get_tok_str(p->sym->v, 0) : "");
+            sym_name ? " sym:" : "", sym_name ? sym_name : "");
     }
 }
 
