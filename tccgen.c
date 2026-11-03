@@ -3996,7 +3996,10 @@ static int is_type_start(int t)
     switch (t) {
     case TOK_VOID: case TOK_CHAR: case TOK_SHORT: case TOK_INT:
     case TOK_LONG: case TOK_FLOAT: case TOK_DOUBLE: case TOK_BOOL:
-    case TOK_COMPLEX: case TOK_STRUCT: case TOK_UNION: case TOK_ENUM:
+    case TOK_COMPLEX: case TOK_IMAGINARY:
+    case TOK_D_CFLOAT: case TOK_D_CDOUBLE: case TOK_D_CREAL:
+    case TOK_D_IFLOAT: case TOK_D_IDOUBLE: case TOK_D_IREAL:
+    case TOK_STRUCT: case TOK_UNION: case TOK_ENUM:
     case TOK_SIGNED1: case TOK_SIGNED2: case TOK_SIGNED3:
     case TOK_UNSIGNED: case TOK__Atomic:
     case TOK_CONST1: case TOK_CONST2: case TOK_CONST3:
@@ -5535,6 +5538,27 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
             goto basic_type;
         case TOK_COMPLEX:
             tcc_error("_Complex is not yet supported");
+            break;
+        case TOK_IMAGINARY:
+            tcc_error("_Imaginary is not yet supported");
+            break;
+        case TOK_D_CFLOAT:
+            tcc_error("cfloat is not yet supported");
+            break;
+        case TOK_D_CDOUBLE:
+            tcc_error("cdouble is not yet supported");
+            break;
+        case TOK_D_CREAL:
+            tcc_error("creal is not yet supported");
+            break;
+        case TOK_D_IFLOAT:
+            tcc_error("ifloat is not yet supported");
+            break;
+        case TOK_D_IDOUBLE:
+            tcc_error("idouble is not yet supported");
+            break;
+        case TOK_D_IREAL:
+            tcc_error("ireal is not yet supported");
         case TOK_FLOAT:
             u = VT_FLOAT;
             goto basic_type;

@@ -1,0 +1,23 @@
+[test_complex]
+451_complex_keywords.c:2: error: _Complex is not yet supported
+
+[test_imaginary]
+451_complex_keywords.c:4: error: _Imaginary is not yet supported
+
+[test_cfloat]
+451_complex_keywords.c:6: error: cfloat is not yet supported
+
+[test_cdouble]
+451_complex_keywords.c:8: error: cdouble is not yet supported
+
+[test_creal]
+451_complex_keywords.c:10: error: creal is not yet supported
+
+[test_ifloat]
+451_complex_keywords.c:12: error: ifloat is not yet supported
+
+[test_idouble]
+451_complex_keywords.c:14: error: idouble is not yet supported
+
+[test_ireal]
+451_complex_keywords.c:16: error: ireal is not yet supported
