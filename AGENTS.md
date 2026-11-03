@@ -59,7 +59,7 @@ and https://claude.ai/chat/264fa269-d936-4483-a2bf-0655dea22bfc.
 **Rule 0: never run a potentially hanging command unbounded.** Always
 use `timeout`, redirect stdin, and capture output:
 
-    timeout -k 5 120 make -j$(nproc) test </dev/null >build.log 2>&1; echo "exit=$?"
+    timeout -k 5 120 ninja -C build test </dev/null >build.log 2>&1; echo "exit=$?"
 
 Exit code 124 means timeout (hang or just slow); 137 means it needed
 SIGKILL. For long-running steps, start them in the background and poll
@@ -67,10 +67,9 @@ SIGKILL. For long-running steps, start them in the background and poll
 
 ### Step 1: Which stage and which command?
 
-    make -n test | head -50            # what would run, without running it
-    make --trace -j1 test              # print each recipe and why it runs
-    make -j1 -Otarget test SHELL='/bin/sh -x'   # trace every recipe line
-    make -d test 2>&1 | grep -E 'Must remake|Reading makefile|Updating goal' | head
+    ninja -C build -t commands | head -50   # what would run, without running it
+    ninja -C build -d explain              # print why each target runs
+    ninja -C build -t commands -v          # trace every command line
     sh -x ./configure 2>&1 | ts -s | tail -30   # configure: find the stuck probe
     tail -50 config.log
 
@@ -103,7 +102,7 @@ Reading the signs:
 
 ### Step 3: strace, the first-line tool
 
-    strace -f -tt -T -s 200 -o trace.txt timeout 60 make test
+    strace -f -tt -T -s 200 -o trace.txt timeout 60 ninja -C build test
     strace -f -p $PID -s 200                  # attach to a running hang
     strace -f -c -p $PID                      # syscall summary
     strace -f -e trace=process,read,write,openat,wait4 -o t.txt ...
@@ -124,7 +123,7 @@ Interpretation of the **last** syscall (`tail trace.txt`):
 
 Build with symbols and no optimization for debugging:
 
-`./configure --extra-cflags="-g -O0" && make -j$(nproc) -B`.
+`./configure --extra-cflags="-g -O0" --ninja && ninja -C build`.
 
     gdb -p $PID -batch -ex 'thread apply all bt full'   # snapshot of a live hang
     gdb --args ./tcc -B. -I. -Iinclude -c foo.c         # run under gdb, Ctrl-C when stuck
@@ -181,12 +180,12 @@ Rebuild tcc itself with sanitizers (they abort with a stack trace
 instead of looping):
 
     ./configure --cc=clang --extra-cflags="-g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer" \
-                --extra-ldflags="-fsanitize=address,undefined" && make -j$(nproc) -B
+                --extra-ldflags="-fsanitize=address,undefined" && ninja -C build
     # threads/deadlocks: -fsanitize=thread (separate build, not combinable with ASan)
 
 A hang that appears only at `-O2` and not at `-O0` is a strong hint of
 UB (signed overflow, uninitialized variable, strict
-aliasing). Compare: `make CFLAGS='-O0 -g'` vs the default, and try
+aliasing). Compare: `CFLAGS='-O0 -g' ninja -C build` vs the default, and try
 `-fwrapv -fno-strict-aliasing`.
 
 ### Step 7: Narrow to a minimal reproducer
@@ -194,7 +193,7 @@ aliasing). Compare: `make CFLAGS='-O0 -g'` vs the default, and try
 **Which commit:**
 
     git bisect start HEAD <known-good>
-    git bisect run sh -c 'make -j$(nproc) -B >/dev/null 2>&1 && timeout 60 make test </dev/null >/dev/null 2>&1'
+    git bisect run sh -c './configure --ninja >/dev/null 2>&1 && ninja -C build >/dev/null 2>&1 && timeout 60 ninja -C build test </dev/null >/dev/null 2>&1'
     # exit 124 (timeout) is treated as "bad" because it is non-zero
 
 **Which test:** run the test files one by one under a timeout and
@@ -212,8 +211,8 @@ the interestingness test. If the hang is in the code tcc *generated*
 (`./tcc -g foo.c -o foo && gdb ./foo`) so gdb sees the symbols.
 
 **Which environment:** compare with a clean checkout in a fresh
-directory (`git worktree add /tmp/clean`), `env -i PATH=$PATH make test`
-(env vars), `ulimit -a` (limits), and `make -j1` (races). Hangs that only
+directory (`git worktree add /tmp/clean`), `env -i PATH=$PATH ninja -C build test`
+(env vars), `ulimit -a` (limits), and `ninja -C build -j1` (races). Hangs that only
 appear on a tty usually involve stdin; hangs only without a tty usually
 involve `/dev/tty` or `isatty` checks.
 
@@ -222,7 +221,7 @@ involve `/dev/tty` or `isatty` checks.
 Save as `tools/hangdiag`. It runs a command with a time limit and,
 if still alive, dumps everything useful before killing it.
 
-Example: `tools/hangdiag 120 make -j$(nproc) test`
+Example: `tools/hangdiag 120 ninja -C build test`
 
 ### Reporting
 
@@ -287,6 +286,7 @@ compiler (`commit`, `date`, `host_cc`, `Mlines/s`, `instructions`), in
 `bench/pgo-history.tsv`:
 
 ```bash
+# pgo-record is Make-based (worktree-driven); no Ninja equivalent yet:
 make pgo-record PGO_HISTORY_RANGE=HEAD^..HEAD
 make pgo-record PGO_HISTORY_CC=gcc PGO_HISTORY_RANGE=a1b2d9c9..HEAD
 ```
