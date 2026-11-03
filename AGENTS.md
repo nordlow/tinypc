@@ -24,6 +24,15 @@ regressions are introduced. Choose the command by what you changed:
   changes, including tests-only ones.  There is no need for a separate
   lighter verification path.
 
+- Before committing, also run the sanitizer pass to catch memory and
+  undefined-behavior errors:
+
+      ninja -C build sani
+
+  (equivalently `make sani-test`.)  This builds an ASan/UBSan-instrumented
+  `tcc_s` and runs the full test suite under it.  Failures here (e.g.
+  leaks) must be investigated even if the normal run passes.
+
 - **Compiler performance benchmark** (whenever you changed compiler
   sources): after the regression tests pass, run `make pgo-bench`
   (or `make pgo`) both *without* the changes (e.g. on
