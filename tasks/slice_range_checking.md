@@ -1,28 +1,29 @@
-# Task: D-Style Slice Range Checking and Bounds Optimization
+# Task: Slice Range Checking and Bounds Optimization
 
 Add run-time bounds checking for D-style slice indexing (`x[i]`) and
-slicing (`x[lo..hi]` half-open and `x[lo..=hi]` inclusive upper limit), and
-optimize out checks for provably safe index expressions such as `x[$/2]` and `x[$/3]`.
+slicing (`x[lo..hi]` half-open and `x[lo..=hi]` inclusive upper
+limit), and optimize out checks for provably safe index expressions
+such as `x[$/2]` and `x[$/3]`.
 
 ## Goal
 
-- [x] **P1 (Runtime Bounds Checking):** In D mode by default (and under
-  `-b` in C mode), validate slice indexing `x[i]` and slicing
-  (`x[lo..hi]` or `x[lo..=hi]`) against the slice's `.length` at run
-  time, replacing raw pointer arithmetic with checked slice boundaries,
-  given `x` of `T[...]` for any type `T`.
-  `-fno-slice-bounds-check` disables the checks.
+- [x] **P1 (Runtime Bounds Checking):** In D mode by default (and
+      under `-b` in C mode), validate slice indexing `x[i]` and
+      slicing (`x[lo..hi]` or `x[lo..=hi]`) against the slice's
+      `.length` at run time, replacing raw pointer arithmetic with
+      checked slice boundaries, given `x` of `T[...]` for any type
+      `T`.  `-fno-slice-bounds-check` disables the checks.
 - [ ] **P2 (Bounds Check Optimization):** Statically identify and omit
-  runtime bounds checks for provably safe index expressions (e.g.,
-  `0`, `$/2`, `$/3`, `$*2/3`, `$/4`, `$*2/4`, `$*3/4`, etc, and static
-  constants within `[0, $ - 1]`) even when `-b` is active.
+      runtime bounds checks for provably safe index expressions (e.g.,
+      `0`, `$/2`, `$/3`, `$*2/3`, `$/4`, `$*2/4`, `$*3/4`, etc, and
+      static constants within `[0, $ - 1]`) even when `-b` is active.
 - [ ] **P3 (Safe `.length` Mutability Restrictions):** In `@safe`
       code, direct modification of a slice's `.length` property (e.g.,
       `x.length = ...` or `x.length += ...`) is a compilation error
       with descriptive diagnostics.  *Note:* Slices can be safely
-      split (typically used in recursive algorithms like Quicksort)
-      via the pattern `x[0..$*P/Q]` where `P` and `Q` are integer
-      compile-time expressions with `P <= Q`.
+      sub-sliced (split) (typically in recursive algorithms like
+      Quicksort) via the pattern `x[0..$*P/Q]` where `P` and `Q` are
+      integer compile-time expressions with `P <= Q`.
 
 ## Motivation
 
