@@ -300,8 +300,13 @@ static int R_RET(int t)
    (masked by `VT_BTYPE`, e.g., `VT_LLONG`, `VT_QLONG`, `VT_QFLOAT`, `VT_LDOUBLE`). */
 static int R2_RET(int t)
 {
-    if (t & VT_COMPLEX)
+    if (t & VT_COMPLEX) {
+#ifdef REG_FRE2
         return REG_FRE2;
+#else
+        return VT_CONST;
+#endif
+    }
     t &= VT_BTYPE;
 #if PTR_SIZE == 4
     if (t == VT_LLONG)
