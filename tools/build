@@ -134,7 +134,7 @@ def main():
     L.append("  phony = 1")
     L.append("")
     L.append("rule run_check")
-    L.append("  command = cd %s && ./configure --ninja -q >/dev/null 2>&1 && ninja -C build --quiet && ninja -C build test >/dev/null 2>&1 && echo 'ALL TESTS PASSED' || (echo 'TESTS FAILED'; exit 1)" % src)
+    L.append("  command = cd %s && ninja -C build --quiet && ninja -C build test >/dev/null 2>&1 && echo 'ALL TESTS PASSED' || (echo 'TESTS FAILED'; exit 1)" % src)
     L.append("  description = CHECK")
     L.append("  pool = console")
     L.append("")
