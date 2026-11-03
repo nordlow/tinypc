@@ -35,6 +35,10 @@ regressions are introduced. Choose the command by what you changed:
       TEST=N ninja -C build test-one   # non-sanitized
       TEST=N ninja -C build sani-one   # under ASan/UBSan
 
+- Code coverage (optional, diagnostic): run `ninja -C build tcov-test` to
+  produce `build/tcc_c.tcov` (gcov-style report).  Not part of the
+  required verification; use when adding tests or auditing coverage.
+
 - **Compiler performance benchmark** (whenever you changed compiler
   sources): after the regression tests pass, run `ninja -C build pgo-bench`
   (or `ninja -C build pgo`) both *without* the changes (e.g. on
