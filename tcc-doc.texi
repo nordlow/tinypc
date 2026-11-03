@@ -317,7 +317,9 @@ assumes a nested named structure declaration without an identifier
 behaves like an unnamed one.
 
 @item -fdollars-in-identifiers
-Allow dollar signs in identifiers
+Allow dollar signs in identifiers.  This flag is disadvised as TinyPC
+now makes extensive use of the dollar character for compile-time
+language features.
 
 @item -freverse-funcargs
 Evaluate function arguments right to left.
@@ -1096,8 +1098,10 @@ same as C.
 
 @item Identifiers are mostly the same as C.  The dot (@code{.}) is
 accepted as an identifier character in assembler code.  The dollar
-sign (@code{$}) is accepted with @option{-fdollars-in-identifiers},
-except in inline assembly on targets other than x86-64 and RISC-V 64.
+sign (@code{$}) is accepted with @option{-fdollars-in-identifiers}
+(disadvised, as TinyPC makes extensive use of the dollar character for
+compile-time language features), except in inline assembly on targets
+other than x86-64 and RISC-V 64.
 
 @item 64-bit integer numbers are supported.
 

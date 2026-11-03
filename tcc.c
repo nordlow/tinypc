@@ -1,6 +1,6 @@
 /*
  *  TPC - Tiny Poly Compiler
- * 
+ *
  *  Copyright (c) 2001-2004 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or
@@ -128,7 +128,7 @@ static const char help2[] =
     "  common                        use common section instead of bss\n"
     "  leading-underscore            decorate extern symbols\n"
     "  ms-extensions                 allow anonymous struct in struct\n"
-    "  dollars-in-identifiers        allow '$' in C symbols\n"
+    "  dollars-in-identifiers        allow '$' in C symbols (disadvised: conflicts with $-features)\n"
     "  reverse-funcargs              evaluate function arguments right to left\n"
     "  gnu89-inline                  'extern inline' is like 'static inline'\n"
     "  asynchronous-unwind-tables    create eh_frame section [on]\n"
