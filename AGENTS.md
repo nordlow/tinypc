@@ -251,13 +251,6 @@ caused by the compiler.  Never "fix" a hang by only raising a timeout.
 - **Preserving Tests:** Never remove existing tests unless explicitly
   approved via a query you propose that proves the test is wrong.
 
-## Final check (before declaring a task done)
-
-The verification command in "Verification (required)" already re-runs
-`./configure --ninja` and rebuilds from scratch (Ninja skips unchanged
-targets), so a separate clean-rebuild step is not needed.  Just run
-that command one final time and confirm exit 0 before declaring done.
-
 ## Profiling & PGO Optimization
 
 When evaluating performance or hot spots in the compiler, build `tcc`
