@@ -251,12 +251,6 @@ about 3 seconds (`./configure` ~41 ms, full rebuild ~1.5 s), so always
 run it as the last step for any task that changed non-test code, and
 whenever incremental results look suspicious.
 
-## Rules
-
-- Do not skip verification, and do not report success if any step
-  fails.
-- Chain steps with `&&` so tests never run against a failed build.
-
 ## Profiling & PGO Optimization
 
 When evaluating performance or hot spots in the compiler, build `tcc`
@@ -308,37 +302,6 @@ the build or the benchmark failed. Numbers are only comparable on the
 same machine with the same PGO settings, so keep `PGO_MARCH` and the
 compiler versions stable. Until the current performance work settles,
 record every commit that touches the compiler sources.
-
-## Profiling Strategy (`perf` & Valgrind Cachegrind)
-
-When analyzing and optimizing performance hot spots:
-
-1. **Instruction-Level Tracing (Valgrind Cachegrind):**
-   ```bash
-   valgrind --tool=cachegrind ./tcc -B. -Iinclude -I. tcc.c -o /dev/null
-   cg_annotate cachegrind.out.<pid>
-   ```
-
-   *Rule:* Measure instruction reference (`Ir`) counts before and after
-   changes. Discard optimizations that increase total `I refs`.
-
-2. **Hardware Performance Sampling (`perf`):**
-   ```bash
-   perf record -o perf.data -- ./tcc -B. -Iinclude -I. tcc.c -o /dev/null
-   perf report -i perf.data --stdio -n --no-children
-   ```
-
-## Key Session Takeaways (2026-10-24)
-
-- **Frontend SIMD Parsing:** Replacing byte-by-byte loops in
-  `parse_pp_string` and `parse_line_comment` with glibc's
-  SIMD-optimized `memchr` speeds up string and comment lexing.
-- **PGO Sweet Spot:** **25 training iterations** provides the optimal
-  balance between profile weight fidelity and build speed in `make
-  pgo`.
-- **Compiler Performance:** Clang PGO (`~5.43M lines/sec`) outperforms
-  GCC PGO (`~4.86M lines/sec`) by ~11% due to LLVM's advanced
-  profile-guided inlining passes.
 
 ## Key Session Takeaways (2026-10-28)
 
