@@ -226,7 +226,9 @@ caused by the compiler.  Never "fix" a hang by only raising a timeout.
 - **Preserving Tests:** Never remove existing tests unless explicitly
   approved via a query you propose that proves the test is wrong.
 ####### Ancestor
-- **Comprehensive Coverage:** Write extensive tests that try to cover all aspects of features added (including edge cases, error conditions, and valid usage).
+- **Comprehensive Coverage:** Write extensive tests that try to cover
+  all aspects of features added (including edge cases, error
+  conditions, and valid usage).
 - When adding a new test, prefer placing it under `tests/tests2/`
   instead of directly under `tests/`. Follow the existing conventions
   there: use the next free numeric prefix, name the source
@@ -234,7 +236,8 @@ caused by the compiler.  Never "fix" a hang by only raising a timeout.
   `NN_descriptive_name.expect` file with the expected output.
 - Only add a test directly under `tests/` if it cannot be expressed in
   the `tests/tests2/` framework.
-- **Preserving Tests:** Never remove existing tests unless explicitly approved via a query you propose that proves the test is wrong.
+- **Preserving Tests:** Never remove existing tests unless explicitly
+  approved via a query you propose that proves the test is wrong.
 
 ## Final check (before declaring a task done)
 
@@ -324,14 +327,6 @@ When analyzing and optimizing performance hot spots:
    perf record -o perf.data -- ./tcc -B. -Iinclude -I. tcc.c -o /dev/null
    perf report -i perf.data --stdio -n --no-children
    ```
-
-## Code style
-- **Helper scripts in `tools/`:** name them without a language
-  extension (`tools/pgo-history`, not `tools/pgo-history.sh`), and
-  give them a shebang plus the executable bit. The extension pins the
-  implementation language at every call site, while a shebang lets the
-  script be rewritten in another language (shell, Python, a compiled
-  binary) without touching callers.
 
 ## Key Session Takeaways (2026-10-24)
 
