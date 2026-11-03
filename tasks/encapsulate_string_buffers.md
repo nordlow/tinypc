@@ -1,4 +1,4 @@
-# Encapsulate Bounded String Buffers into Structs (`CString` / `StringSlice`)
+# Encapsulate Bounded String Buffers into Container and View Structs
 
 > **Status:** Proposed refactoring task.
 
