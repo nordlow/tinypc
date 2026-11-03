@@ -3,8 +3,8 @@
 > **Status:** Proposed refactoring task.
 
 Refactor raw `(char *buf, size_t buf_size)` passing across compiler
-utility functions (`pstrcpy`, `pstrcat`, `pstrncpy`) to reuse and unify
-around existing codebase string buffer types (`CString` and
+utility functions (`pstrcpy`, `pstrcat`, `pstrncpy`) to reuse and
+unify around existing codebase string buffer types (`CString` and
 `StringSlice` defined in `tcc.h`), drawing inspiration from advanced
 D-style fat pointer slice layouts (such as those in `blitz/str.h` and
 `blitz/fstr.h`).
@@ -15,9 +15,12 @@ Currently, TinyPC occasionally relies on raw pointer and size pairs
 (`char *buf, size_t buf_size`) or legacy string helpers alongside
 existing structured buffer types:
 
-- `StringSlice`: non-owning immutable string slice view (`ptr`, `len`).
-- `CString`: dynamic string buffer descriptor
-  (`size`, `size_allocated`, `data`).
+- `StringSlice`: non-owning immutable string slice view (`ptr`,
+  `len`). Should be replaced merged with `str_t` in
+  `blitz/str.h`. Consider unifying on the name `StrV` or `StrSlice`.
+- `CString`: dynamic string buffer descriptor (`size`,
+  `size_allocated`, `data`). Should be merged with with `FStr` in
+  `blitz/ftr.h`.
 
 Referencing design patterns from `blitz` (`str.h` / `fstr.h`), string
 slices can be enriched with metadata bitfields (such as `isNullTerm`,
