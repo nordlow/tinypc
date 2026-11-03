@@ -231,7 +231,7 @@ When you find a hang, report: the stage and command, process state
 minimal reproducer, and the fix. After fixing, run the full
 verification sequence above (including
 
-`./configure && make -j$(nproc) -B && make -j$(nproc) test`),
+`./configure --ninja && ninja -C build && ninja -C build test`),
 
 and add a regression test under `tests/tests2/` where the hang was
 caused by the compiler.  Never "fix" a hang by only raising a timeout.
@@ -258,8 +258,7 @@ using Clang or GCC with maximum preferred optimizations and
 Profile-Guided Optimization (PGO) via the automated Makefile target:
 
 ```bash
-make pgo PGO_CC=clang
-make pgo PGO_CC=gcc
+ninja -C build pgo   # honors PGO_CC env var, defaults to clang
 ```
 
 *(Note: GNU Make assigns a default built-in value to `CC`
@@ -269,16 +268,16 @@ make pgo PGO_CC=gcc
 This automatically handles instrumented building, training runs
 (defaulting to an optimal sweet spot of **25 iterations**), profile
 merging, and the final PGO-optimized production build. It then runs
-`make pgo-bench`, which reports the self-compile throughput in
+`ninja -C build pgo-bench`, which reports the self-compile throughput in
 Mlines/s and the number of executed instructions from Valgrind
 cachegrind (`I refs`). `PGO_MARCH` defaults to `native`; on x86,
 `-mno-avx512f` is added so that Valgrind can decode the generated
-code. Run `make pgo-bench` on its own to benchmark an already-built
+code. Run `ninja -C build pgo-bench` on its own to benchmark an already-built
 `tcc`.
 
 *Note (2026-10-24):* On AMD Ryzen AI 7 350, Linux x64, Clang PGO
- (`CC=clang make pgo`, ~5.13M lines/sec) outperforms GCC PGO (`CC=gcc
- make pgo`, ~4.62M lines/sec) by ~11% due to LLVM's aggressive
+ (`PGO_CC=clang ninja -C build pgo`, ~5.13M lines/sec) outperforms GCC PGO
+ (`PGO_CC=gcc ninja -C build pgo`, ~4.62M lines/sec) by ~11% due to LLVM's aggressive
  profile-guided inlining and optimizer passes.
 
 ### Recording benchmark results
@@ -292,7 +291,7 @@ make pgo-record PGO_HISTORY_RANGE=HEAD^..HEAD
 make pgo-record PGO_HISTORY_CC=gcc PGO_HISTORY_RANGE=a1b2d9c9..HEAD
 ```
 
-`make pgo` and `make pgo-bench` never write that file themselves, so
+`ninja -C build pgo` and `ninja -C build pgo-bench` never write that file themselves, so
 scratch builds cannot pollute it. `pgo-record` builds each commit in a
 throw-away worktree under `${TMPDIR:-/tmp}/pgo-history` (the work is
 done by `tools/pgo-history`), skips the (commit, compiler) pairs that
