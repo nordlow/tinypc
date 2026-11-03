@@ -80,7 +80,7 @@ On BSD hosts use `gmake` instead of `make`.  For Windows, see
 The TPC sources require a C11 host compiler.  The Makefile builds with
 the GNU C11 dialect (`-std=gnu11`) via the `CSTD` variable so that
 features from later C standards are not used accidentally.  See
-[`CodingStyle`](CodingStyle) for the accepted language extensions and
+[`CodingStyle.md`](CodingStyle.md) for the accepted language extensions and
 language rules.  An explicit `-std=` in `CFLAGS` takes precedence; to
 override the default entirely:
 
@@ -195,7 +195,7 @@ space before the parenthesis: `version(...)` and `debug(...)`, not
 The reference manual is [`tcc-doc.html`](tcc-doc.html), generated from
 [`tcc-doc.texi`](tcc-doc.texi).  Windows-specific information is in
 [`win32/tcc-win32.txt`](win32/tcc-win32.txt).  The coding conventions
-are documented in [`CodingStyle`](CodingStyle), and the project's
+are documented in [`CodingStyle.md`](CodingStyle.md), and the project's
 planned work is tracked in [`TODO.md`](TODO.md).
 
 For C structure layout and alignment, see Eric S. Raymond's

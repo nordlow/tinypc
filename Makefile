@@ -19,7 +19,7 @@ endif
 # Minimum C standard required to build TCC: C11, because the sources
 # use unnamed struct and union members.  Use the GNU dialect so that
 # the POSIX/GNU extensions used by the sources and tests remain
-# available.  Keep in sync with the "Language" section of CodingStyle.
+# available.  Keep in sync with the "Language" section of CodingStyle.md.
 # An explicit -std=... in CFLAGS (or --extra-cflags) takes precedence.
 CSTD ?= -std=gnu11
 ifeq (,$(findstring -std=,$(CFLAGS)))
