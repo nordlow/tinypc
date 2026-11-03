@@ -78,9 +78,9 @@ its own dedicated regression test under `tests/tests2/`:
    - [x] **1a:** Register C99 keywords (`_Complex`, `_Imaginary`).
      - *Verification Test:* `NN_c99_keywords.c` (parses C99 complex
        keywords without syntax errors).
-   - [ ] **1b:** Register D type keywords (`cfloat`, `cdouble`, `creal`,
+   - [x] **1b:** Register D type keywords (`cfloat`, `cdouble`, `creal`,
      `ifloat`, `idouble`, `ireal`).
-     - *Verification Test:* `NN_d_keywords.c` (parses D complex/imaginary
+     - *Verification Test:* `452_d_keywords.c` (parses D complex/imaginary
        type aliases successfully).
 
 2. **Step 2: Type Flags**

@@ -3997,8 +3997,6 @@ static int is_type_start(int t)
     case TOK_VOID: case TOK_CHAR: case TOK_SHORT: case TOK_INT:
     case TOK_LONG: case TOK_FLOAT: case TOK_DOUBLE: case TOK_BOOL:
     case TOK_COMPLEX: case TOK_IMAGINARY:
-    case TOK_D_CFLOAT: case TOK_D_CDOUBLE: case TOK_D_CREAL:
-    case TOK_D_IFLOAT: case TOK_D_IDOUBLE: case TOK_D_IREAL:
     case TOK_STRUCT: case TOK_UNION: case TOK_ENUM:
     case TOK_SIGNED1: case TOK_SIGNED2: case TOK_SIGNED3:
     case TOK_UNSIGNED: case TOK__Atomic:
@@ -4010,6 +4008,9 @@ static int is_type_start(int t)
     case TOK_IMMUTABLE:
         return 1;
     case '@':
+        return tcc_state->lang_d;
+    case TOK_D_CFLOAT: case TOK_D_CDOUBLE: case TOK_D_CREAL:
+    case TOK_D_IFLOAT: case TOK_D_IDOUBLE: case TOK_D_IREAL:
         return tcc_state->lang_d;
     }
     s = sym_find(t);
@@ -5543,22 +5544,29 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
             tcc_error("_Imaginary is not yet supported");
             break;
         case TOK_D_CFLOAT:
+            if (!tcc_state->lang_d) break;
             tcc_error("cfloat is not yet supported");
             break;
         case TOK_D_CDOUBLE:
+            if (!tcc_state->lang_d) break;
             tcc_error("cdouble is not yet supported");
             break;
         case TOK_D_CREAL:
+            if (!tcc_state->lang_d) break;
             tcc_error("creal is not yet supported");
             break;
         case TOK_D_IFLOAT:
+            if (!tcc_state->lang_d) break;
             tcc_error("ifloat is not yet supported");
             break;
         case TOK_D_IDOUBLE:
+            if (!tcc_state->lang_d) break;
             tcc_error("idouble is not yet supported");
             break;
         case TOK_D_IREAL:
+            if (!tcc_state->lang_d) break;
             tcc_error("ireal is not yet supported");
+            break;
         case TOK_FLOAT:
             u = VT_FLOAT;
             goto basic_type;
