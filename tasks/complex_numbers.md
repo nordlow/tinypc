@@ -75,62 +75,62 @@ Each step is self-contained, builds successfully, and is verified by
 its own dedicated regression test under `tests/tests2/`:
 
 1. **Step 1: Keywords**
-   - **1a:** Register C99 keywords (`_Complex`, `_Imaginary`).
+   - [x] **1a:** Register C99 keywords (`_Complex`, `_Imaginary`).
      - *Verification Test:* `NN_c99_keywords.c` (parses C99 complex
        keywords without syntax errors).
-   - **1b:** Register D type keywords (`cfloat`, `cdouble`, `creal`,
+   - [ ] **1b:** Register D type keywords (`cfloat`, `cdouble`, `creal`,
      `ifloat`, `idouble`, `ireal`).
      - *Verification Test:* `NN_d_keywords.c` (parses D complex/imaginary
        type aliases successfully).
 
 2. **Step 2: Type Flags**
-   - **2a:** Define `VT_COMPLEX` and `VT_IMAGINARY` modifier bits in
+   - [ ] **2a:** Define `VT_COMPLEX` and `VT_IMAGINARY` modifier bits in
      `tcc.h`.
      - *Verification Test:* Compile-check header and basic type flag
        bitwise operations.
 
 3. **Step 3: Literals**
-   - **3a:** Extend lexer numeric suffix parsing for `i`/`j`.
+   - [ ] **3a:** Extend lexer numeric suffix parsing for `i`/`j`.
      - *Verification Test:* `NN_imaginary_token.c` (verifies tokens carry
        correct imaginary suffix flags).
-   - **3b:** Implement constant expression evaluation for pure
+   - [ ] **3b:** Implement constant expression evaluation for pure
      imaginary literals.
      - *Verification Test:* `NN_imaginary_literal.c` (evaluates
        compile-time imaginary constants `2.5i`).
 
 4. **Step 4: Declarations**
-   - **4a:** Parse C99 complex type specifier combinations
+   - [ ] **4a:** Parse C99 complex type specifier combinations
      (`_Complex double`).
      - *Verification Test:* `NN_c99_decl.c` (validates variable
        declarations, scoping, and `sizeof`).
-   - **4b:** Parse D scalar complex type specifiers (`creal`,
+   - [ ] **4b:** Parse D scalar complex type specifiers (`creal`,
      `cdouble`, etc.).
      - *Verification Test:* `NN_d_decl.c` (validates D-style complex
        variable declarations).
 
 5. **Step 5: Operations**
-   - **5a:** Implement real/imaginary component extraction
+   - [ ] **5a:** Implement real/imaginary component extraction
      (`__real__`, `__imag__` / `.re`, `.im`).
      - *Verification Test:* `NN_complex_parts.c` (read/write access to
        real and imaginary components).
-   - **5b:** Implement unary negation and binary addition/subtraction
+   - [ ] **5b:** Implement unary negation and binary addition/subtraction
      (`+`, `-`).
      - *Verification Test:* `NN_complex_add_sub.c` (complex-complex and
        complex-scalar arithmetic).
-   - **5c:** Implement binary multiplication and division (`*`, `/`).
+   - [ ] **5c:** Implement binary multiplication and division (`*`, `/`).
      - *Verification Test:* `NN_complex_mul_div.c` (complex
        multiplication and division rules).
-   - **5d:** Implement equality and inequality comparisons (`==`,
+   - [ ] **5d:** Implement equality and inequality comparisons (`==`,
      `!=`).
      - *Verification Test:* `NN_complex_cmp.c` (exact comparisons of
        complex values).
 
 6. **Step 6: Code Generation & ABI**
-   - **6a:** Implement vstack slots, load/store, and temporary
+   - [ ] **6a:** Implement vstack slots, load/store, and temporary
      allocation.
      - *Verification Test:* `NN_complex_storage.c` (local variable stack
        frame allocation and spills).
-   - **6b:** Implement function parameter passing and return ABI
+   - [ ] **6b:** Implement function parameter passing and return ABI
      (registers/stack).
      - *Verification Test:* `NN_complex_abi.c` (cross-function complex
        passing and GCC test subset).
