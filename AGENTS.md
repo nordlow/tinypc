@@ -253,15 +253,10 @@ caused by the compiler.  Never "fix" a hang by only raising a timeout.
 
 ## Final check (before declaring a task done)
 
-Before considering a task complete, do a clean reconfigure and full
-rebuild to rule out stale build artifacts and configure-time issues:
-
-    ./configure && make -j$(nproc) -B && make -j$(nproc) test
-
-This currently (on an AMD Ryzen AI 7 350 w/ Radeon 860M) takes only
-about 3 seconds (`./configure` ~41 ms, full rebuild ~1.5 s), so always
-run it as the last step for any task that changed non-test code, and
-whenever incremental results look suspicious.
+The verification command in "Verification (required)" already re-runs
+`./configure --ninja` and rebuilds from scratch (Ninja skips unchanged
+targets), so a separate clean-rebuild step is not needed.  Just run
+that command one final time and confirm exit 0 before declaring done.
 
 ## Profiling & PGO Optimization
 
