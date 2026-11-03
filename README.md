@@ -87,7 +87,7 @@ alternative to GNU Make.  It produces the same native `tcc` and
 ./configure --ninja
 ninja -C build
 ninja -C build test
-TEST=448 ninja -C build one  # run a single test
+TEST=448 ninja -C build one  # run a single test-test
 ```
 
 `./configure --ninja` runs `./configure` as usual and then invokes
