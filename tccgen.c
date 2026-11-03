@@ -5544,27 +5544,27 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
             tcc_error("_Imaginary is not yet supported");
             break;
         case TOK_D_CFLOAT:
-            if (!tcc_state->lang_d) break;
+            if (!tcc_state->lang_d) return 0;
             tcc_error("cfloat is not yet supported");
             break;
         case TOK_D_CDOUBLE:
-            if (!tcc_state->lang_d) break;
+            if (!tcc_state->lang_d) return 0;
             tcc_error("cdouble is not yet supported");
             break;
         case TOK_D_CREAL:
-            if (!tcc_state->lang_d) break;
+            if (!tcc_state->lang_d) return 0;
             tcc_error("creal is not yet supported");
             break;
         case TOK_D_IFLOAT:
-            if (!tcc_state->lang_d) break;
+            if (!tcc_state->lang_d) return 0;
             tcc_error("ifloat is not yet supported");
             break;
         case TOK_D_IDOUBLE:
-            if (!tcc_state->lang_d) break;
+            if (!tcc_state->lang_d) return 0;
             tcc_error("idouble is not yet supported");
             break;
         case TOK_D_IREAL:
-            if (!tcc_state->lang_d) break;
+            if (!tcc_state->lang_d) return 0;
             tcc_error("ireal is not yet supported");
             break;
         case TOK_FLOAT:
