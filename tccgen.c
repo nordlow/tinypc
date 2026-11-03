@@ -2140,7 +2140,7 @@ ST_FUNC int gv(int rc)
         if (bt == VT_LDOUBLE && rc == RC_FLOAT)
           rc = RC_INT;
 #endif
-        rc2 = RC2_TYPE(bt, rc);
+        rc2 = RC2_TYPE(vtop->type.t, rc);
 
         /* need to reload if:
            - constant
@@ -2165,7 +2165,18 @@ ST_FUNC int gv(int rc)
 
             if (rc2) {
                 int load_type = (bt == VT_QFLOAT) ? VT_DOUBLE : VT_PTRDIFF_T;
+                int word_size = PTR_SIZE;
                 int original_type = vtop->type.t;
+                if (original_type & VT_COMPLEX) {
+                    /* complex values are laid out as two consecutive base
+                       type elements, so load each half with its own width */
+                    CType base_type;
+                    int base_align;
+                    base_type.t = bt;
+                    base_type.ref = NULL;
+                    load_type = bt;
+                    word_size = type_size(&base_type, &base_align);
+                }
 
                 /* two register type load :
                    expand to two words temporarily */
@@ -2186,7 +2197,7 @@ ST_FUNC int gv(int rc)
                     vdup();
                     vtop[-1].r = r; /* save register value */
                     /* increment pointer to get second word */
-                    incr_offset(PTR_SIZE);
+                    incr_offset(word_size);
                 } else {
                     /* move registers */
                     if (!r_ok)
@@ -3421,6 +3432,7 @@ static void gen_complex_part(int is_im)
         }
         vtop->type = base_type;
         vtop->r |= VT_LVAL;
+        vtop->r2 = VT_CONST;
     } else if (t & VT_IMAGINARY) {
         if (is_im) {
             vtop->type = base_type;
@@ -4701,16 +4713,24 @@ ST_FUNC void vstore(void)
             }
 
             r = vtop->r & VT_VALMASK;
-            /* two word case handling :
-               store second register at word + 4 (or +8 for x86-64)  */
-            if (USING_TWO_WORDS(dbt)) {
+            if (ft & VT_COMPLEX) {
+                int base_t = dbt;
+                CType base_type; base_type.t = base_t; base_type.ref = NULL;
+                int b_align, b_size = type_size(&base_type, &b_align);
+                vtop[-1].type.t = base_t;
+                store(r, vtop - 1);
+                vswap();
+                incr_offset(b_size);
+                vswap();
+                store(vtop->r2, vtop - 1);
+            } else if (USING_TWO_WORDS(dbt)) {
                 int load_type = (dbt == VT_QFLOAT) ? VT_DOUBLE : VT_PTRDIFF_T;
                 vtop[-1].type.t = load_type;
                 store(r, vtop - 1);
                 vswap();
                 incr_offset(PTR_SIZE);
                 vswap();
-                /* `XXX`: it works because r2 is spilled last ! */
+                /* XXX: it works because r2 is spilled last ! */
                 store(vtop->r2, vtop - 1);
             } else {
                 /* single word */
@@ -11610,6 +11630,7 @@ static void init_putv(init_params *p, CType *type, unsigned long c)
 
         vset(type, VT_LOCAL | VT_LVAL, loc); vtop->r2 = r2; gen_complex_part(1);
         init_putv(p, &base_type, c + base_size);
+        vpop(); /* discard the temporary holding the complex value */
         return;
     }
     dtype = *type;

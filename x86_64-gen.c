@@ -1365,7 +1365,7 @@ void gfunc_call(int nb_args)
                 sse_reg -= 2;
                 gv(RC_FRET); /* Use pair load into xmm0 & xmm1 */
                 if (sse_reg) { /* avoid redundant movaps %xmm0, %xmm0 */
-                    /* movaps %xmm1, %xmmN */
+                    /* movaps %xmm1, %xmmN+1 */
                     o(0x280f);
                     o(0xc1 + ((sse_reg+1) << 3));
                     /* movaps %xmm0, %xmmN */
