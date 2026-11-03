@@ -215,13 +215,12 @@ serialization and graph traversal.
   - glibc requires `libc.so` even when statically linked (very bad,
     but not up to tcc).
 
-## Bound checking
+## Bounds checking (-b)
 
-- Fix bound exit on RedHat 7.3.
-- `setjmp` is not supported properly in bound checking.
-- Fix bound check code with `&` on local variables (currently done
+- C: `setjmp` is not supported properly in bound checking.
+- C: Fix bound check code with `&` on local variables (currently done
   only for local arrays).
-- Bound checking and float/long long/struct copy code; bound checking
+- C: Bound checking and float/long long/struct copy code; bound checking
   and symbol + offset optimization.
 
 ## Missing Features
