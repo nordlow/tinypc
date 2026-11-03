@@ -1,5 +1,7 @@
 # Task: Unified C99 & D Complex/Imaginary Numbers and Literals
 
+> **Status:** Implemented. Regression coverage in `tests/tests2/451`–`463`.
+
 Implement unified support for C99 complex and imaginary numbers
 (`_Complex float`, `_Complex double`, `_Complex long double`,
 `_Imaginary`, and `<complex.h>`) along with D's built-in
@@ -76,23 +78,22 @@ its own dedicated regression test under `tests/tests2/`:
 
 1. **Step 1: Keywords**
    - [x] **1a:** Register C99 keywords (`_Complex`, `_Imaginary`).
-     - [ ] *Verification Test:* `NN_c99_keywords.c` (parses C99 complex
+     - [x] *Verification Test:* `451_complex_keywords.c` (parses C99 complex
        keywords without syntax errors).
    - [x] **1b:** Register D type keywords (`cfloat`, `cdouble`, `creal`,
      `ifloat`, `idouble`, `ireal`).
-     - [ ] *Verification Test:* `452_d_keywords.c` (parses D complex/imaginary
+     - [x] *Verification Test:* `452_d_keywords.c` (parses D complex/imaginary
        type aliases successfully).
 
 2. **Step 2: Type Flags**
    - [x] **2a:** Define `VT_COMPLEX` and `VT_IMAGINARY` modifier bits in
      `tcc.h`.
-     - [ ] *Verification Test:* Compile-check header and basic type flag
-       bitwise operations.
+     - [x] *Verification Test:* Covered by the build check and downstream
+       `455`–`463` tests.
 
 3. **Step 3: Literals**
    - [x] **3a:** Extend lexer numeric suffix parsing for `i`/`j`.
-     - [ ] *Verification Test:* `NN_imaginary_token.c` (verifies tokens carry
-       correct imaginary suffix flags).
+     - [x] *Verification Test:* Covered by `455_imaginary_literal.c`.
    - [x] **3b:** Implement constant expression evaluation for pure
      imaginary literals.
      - [x] *Verification Test:* `455_imaginary_literal.c` (evaluates

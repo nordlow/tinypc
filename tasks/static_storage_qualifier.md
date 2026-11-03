@@ -1,5 +1,9 @@
 # `@static` Qualifier and Inference for Static Storage Data
 
+> **Status:** Implemented at the basic qualifier level. Covered by
+> `tests/tests2/387_d_static_qualifier.c`; inference/diagnostics may
+> still be incomplete.
+
 Investigate the feasibility, semantics, and utility of adding a `@static`
 qualifier that is automatically inferred for static storage data (such as
 string literals, global constants, and read-only data).

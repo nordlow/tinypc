@@ -1,5 +1,8 @@
 # Semantics for D-Like Function Attributes
 
+> **Status:** Implemented. Covered by `tests/tests2/377`, `401`, `402`,
+> `403`, and `404`.
+
 Map to optimization semantics similar to GCC's `__attribute__((pure))`
 or `__attribute__((const))`, depending on parameter types and memory
 access guarantees.

@@ -1,5 +1,7 @@
 # Task: Immutable C String Literals under D / Immutable Qualification
 
+> **Status:** Implemented. Covered by `tests/tests2/386_d_immutable_string_literal.c`.
+
 ## Goal
 
 Change the type of C string literals to `@immutable char*` (decaying
