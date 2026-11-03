@@ -75,3 +75,4 @@ libtcc.dylib
 # Serena MCP
 .serena/.gitignore
 .serena/project.yml
+tcc_s
