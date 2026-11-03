@@ -143,6 +143,8 @@ static void block(int flags);
 
 static void gen_cast(CType *type);
 static void gen_cast_s(int t);
+static void gen_op_complex(int op);
+static void gen_complex_part(int is_im);
 static inline CType *pointed_type(CType *type);
 static void check_restrict_type(CType *type);
 static int type_qualifiers(CType *type);
@@ -313,9 +315,8 @@ static int R2_RET(int t)
     return VT_CONST;
 }
 
-/* `Returns` true for two-word types based on `R2_RET`(`t`). */
-#define USING_TWO_WORDS(t) (R2_RET(t) != VT_CONST)
-
+/* Returns true for two-word types based on R2_RET(t). */
+#define USING_TWO_WORDS(t) ((t & VT_COMPLEX) || R2_RET(t) != VT_CONST)
 /* `Put` function return registers (`R_RET` and `R2_RET`) to stack value sv
    for type flags `t`. */
 static void PUT_R_RET(SValue *sv, int t)
@@ -2777,6 +2778,10 @@ static void gen_opif(int op)
 
     v1 = vtop - 1;
     v2 = vtop;
+    if ((v1->type.t & (VT_COMPLEX | VT_IMAGINARY)) || (v2->type.t & (VT_COMPLEX | VT_IMAGINARY))) {
+        gen_op_complex(op);
+        return;
+    }
     if (op == TOK_NEG)
         v1 = v2;
     bt = v1->type.t & VT_BTYPE;
@@ -3229,10 +3234,35 @@ static int combine_types(CType *dest, SValue *op1, SValue *op2, int op)
     type.t = VT_VOID;
     type.ref = NULL;
 
-     if (bt1 == VT_VOID || bt2 == VT_VOID) {
+     if ((t1 & (VT_COMPLEX | VT_IMAGINARY)) || (t2 & (VT_COMPLEX | VT_IMAGINARY))) {
+         int comb_bt = (bt1 > bt2 ? bt1 : bt2);
+         int has_complex = (t1 & VT_COMPLEX) || (t2 & VT_COMPLEX);
+         int has_imag = (t1 & VT_IMAGINARY) || (t2 & VT_IMAGINARY);
+         int is_real1 = !(t1 & (VT_COMPLEX | VT_IMAGINARY));
+         int is_real2 = !(t2 & (VT_COMPLEX | VT_IMAGINARY));
+
+         if (op == CMP_OP) {
+             type.t = VT_INT;
+         } else if (has_complex) {
+             type.t = comb_bt | VT_COMPLEX;
+         } else if ((is_real1 && has_imag) || (is_real2 && has_imag)) {
+             if (op == '+' || op == '-') {
+                 type.t = comb_bt | VT_COMPLEX;
+             } else {
+                 type.t = comb_bt | VT_IMAGINARY;
+             }
+         } else {
+             if (op == '+' || op == '-') {
+                 type.t = comb_bt | VT_IMAGINARY;
+             } else if (op == '*' || op == '/') {
+                 type.t = comb_bt;
+             } else {
+                 type.t = comb_bt | VT_IMAGINARY;
+             }
+         }
+     } else if (bt1 == VT_VOID || bt2 == VT_VOID) {
          if (op != '?')
              tcc_error("operation on void value");
-         /* `NOTE`: as an extension, we accept void on only one side */
          type.t = VT_VOID;
      } else if (op == CMP_OP && (is_slice_type(type1) || is_slice_type(type2)) && can_compare_array_or_slice_content(type1) && can_compare_array_or_slice_content(type2)) {
          CType elem1, elem2;
@@ -3352,12 +3382,198 @@ static int combine_types(CType *dest, SValue *op1, SValue *op2, int op)
     return ret;
 }
 
+static void gen_complex_part(int is_im)
+{
+    CType ct = vtop->type;
+    int t = ct.t;
+    int base_t = t & ~(VT_COMPLEX | VT_IMAGINARY);
+    CType base_type = ct;
+    base_type.t = base_t;
+    int base_align, base_size = type_size(&base_type, &base_align);
+
+    if (t & VT_COMPLEX) {
+        if (!(vtop->r & VT_LVAL)) {
+            int align, size = type_size(&ct, &align);
+            int r2, loc = get_temp_local_var(size, align, &r2);
+            vset(&ct, VT_LOCAL | VT_LVAL, loc);
+            vtop->r2 = r2;
+            vswap();
+            vstore();
+        }
+        if (is_im) {
+            if ((vtop->r & VT_VALMASK) == VT_LOCAL) {
+                vtop->c.i += base_size;
+            } else {
+                gaddrof();
+                vtop->type = char_pointer_type;
+                vpushi(base_size);
+                gen_op('+');
+                indir();
+            }
+        }
+        vtop->type = base_type;
+        vtop->r |= VT_LVAL;
+    } else if (t & VT_IMAGINARY) {
+        if (is_im) {
+            vtop->type = base_type;
+        } else {
+            vpop();
+            {
+                CValue cval = {0};
+                vsetc(&base_type, VT_CONST, &cval);
+            }
+        }
+    } else {
+        if (is_im) {
+            vpop();
+            {
+                CValue cval = {0};
+                vsetc(&base_type, VT_CONST, &cval);
+            }
+        } else {
+            vtop->type = base_type;
+        }
+    }
+}
+
+static void gen_op_complex(int op)
+{
+    CType combtype;
+    if (!combine_types(&combtype, vtop - 1, vtop, op))
+        tcc_error("invalid operand types for complex binary operation");
+
+    if (op == TOK_EQ || op == TOK_NE) {
+        CType t1 = vtop[-1].type, t2 = vtop[0].type;
+        int align1, size1 = type_size(&t1, &align1);
+        int r2_1, loc1 = get_temp_local_var(size1, align1, &r2_1);
+        int align2, size2 = type_size(&t2, &align2);
+        int r2_2, loc2 = get_temp_local_var(size2, align2, &r2_2);
+
+        vset(&t2, VT_LOCAL | VT_LVAL, loc2); vtop->r2 = r2_2;
+        vswap(); vstore(); vpop();
+        vset(&t1, VT_LOCAL | VT_LVAL, loc1); vtop->r2 = r2_1;
+        vswap(); vstore(); vpop();
+
+        vset(&t1, VT_LOCAL | VT_LVAL, loc1); vtop->r2 = r2_1; gen_complex_part(0);
+        vset(&t2, VT_LOCAL | VT_LVAL, loc2); vtop->r2 = r2_2; gen_complex_part(0);
+        gen_op(TOK_EQ);
+
+        vset(&t1, VT_LOCAL | VT_LVAL, loc1); vtop->r2 = r2_1; gen_complex_part(1);
+        vset(&t2, VT_LOCAL | VT_LVAL, loc2); vtop->r2 = r2_2; gen_complex_part(1);
+        gen_op(TOK_EQ);
+
+        gen_op(TOK_LAND);
+        if (op == TOK_NE) {
+            vpushi(0);
+            gen_op(TOK_EQ);
+        }
+        return;
+    }
+
+    CType t1 = vtop[-1].type, t2 = vtop[0].type;
+    int align1, size1 = type_size(&t1, &align1);
+    int r2_1, loc1 = get_temp_local_var(size1, align1, &r2_1);
+    int align2, size2 = type_size(&t2, &align2);
+    int r2_2, loc2 = get_temp_local_var(size2, align2, &r2_2);
+
+    vset(&t2, VT_LOCAL | VT_LVAL, loc2); vtop->r2 = r2_2;
+    vswap(); vstore(); vpop();
+    vset(&t1, VT_LOCAL | VT_LVAL, loc1); vtop->r2 = r2_1;
+    vswap(); vstore(); vpop();
+
+    int r_align, r_size = type_size(&combtype, &r_align);
+    int r_r2, r_loc = get_temp_local_var(r_size, r_align, &r_r2);
+
+    int base_t = combtype.t & ~(VT_COMPLEX | VT_IMAGINARY);
+    CType base_type; base_type.t = base_t; base_type.ref = NULL;
+
+#define PUSH_PART(loc_id, r2_id, type_id, is_im_val) \
+    vset(&type_id, VT_LOCAL | VT_LVAL, loc_id); vtop->r2 = r2_id; gen_complex_part(is_im_val); if (vtop->r & VT_LVAL) gv(RC_TYPE(vtop->type.t))
+
+    if (op == '+' || op == '-') {
+        PUSH_PART(loc1, r2_1, t1, 0);
+        PUSH_PART(loc2, r2_2, t2, 0);
+        gen_op(op);
+        vset(&base_type, VT_LOCAL | VT_LVAL, r_loc);
+        vswap(); vstore(); vpop();
+
+        if (combtype.t & (VT_COMPLEX | VT_IMAGINARY)) {
+            int base_align, base_sz = type_size(&base_type, &base_align);
+            PUSH_PART(loc1, r2_1, t1, 1);
+            PUSH_PART(loc2, r2_2, t2, 1);
+            gen_op(op);
+            vset(&base_type, VT_LOCAL | VT_LVAL, r_loc + base_sz);
+            vswap(); vstore(); vpop();
+        }
+    } else if (op == '*') {
+        PUSH_PART(loc1, r2_1, t1, 0);
+        PUSH_PART(loc2, r2_2, t2, 0);
+        gen_op('*');
+        PUSH_PART(loc1, r2_1, t1, 1);
+        PUSH_PART(loc2, r2_2, t2, 1);
+        gen_op('*');
+        gen_op('-');
+        vset(&base_type, VT_LOCAL | VT_LVAL, r_loc);
+        vswap(); vstore(); vpop();
+
+        if (combtype.t & (VT_COMPLEX | VT_IMAGINARY)) {
+            int base_align, base_sz = type_size(&base_type, &base_align);
+            PUSH_PART(loc1, r2_1, t1, 0);
+            PUSH_PART(loc2, r2_2, t2, 1);
+            gen_op('*');
+            PUSH_PART(loc1, r2_1, t1, 1);
+            PUSH_PART(loc2, r2_2, t2, 0);
+            gen_op('*');
+            gen_op('+');
+            vset(&base_type, VT_LOCAL | VT_LVAL, r_loc + base_sz);
+            vswap(); vstore(); vpop();
+        }
+    } else if (op == '/') {
+        PUSH_PART(loc2, r2_2, t2, 0); vdup(); gen_op('*');
+        PUSH_PART(loc2, r2_2, t2, 1); vdup(); gen_op('*');
+        gen_op('+');
+        int den_align, den_sz = type_size(&base_type, &den_align);
+        int den_r2, den_loc = get_temp_local_var(den_sz, den_align, &den_r2);
+        vset(&base_type, VT_LOCAL | VT_LVAL, den_loc); vtop->r2 = den_r2;
+        vswap(); vstore(); vpop();
+
+        PUSH_PART(loc1, r2_1, t1, 0); PUSH_PART(loc2, r2_2, t2, 0); gen_op('*');
+        PUSH_PART(loc1, r2_1, t1, 1); PUSH_PART(loc2, r2_2, t2, 1); gen_op('*');
+        gen_op('+');
+        vset(&base_type, VT_LOCAL | VT_LVAL, den_loc); vtop->r2 = den_r2; indir();
+        gen_op('/');
+        vset(&base_type, VT_LOCAL | VT_LVAL, r_loc);
+        vswap(); vstore(); vpop();
+
+        if (combtype.t & (VT_COMPLEX | VT_IMAGINARY)) {
+            int base_align, base_sz = type_size(&base_type, &base_align);
+            PUSH_PART(loc1, r2_1, t1, 1); PUSH_PART(loc2, r2_2, t2, 0); gen_op('*');
+            PUSH_PART(loc1, r2_1, t1, 0); PUSH_PART(loc2, r2_2, t2, 1); gen_op('*');
+            gen_op('-');
+            vset(&base_type, VT_LOCAL | VT_LVAL, den_loc); vtop->r2 = den_r2; indir();
+            gen_op('/');
+        vset(&base_type, VT_LOCAL | VT_LVAL, r_loc + base_sz);
+        vswap(); vstore(); vpop();
+        }
+    }
+
+#undef PUSH_PART
+
+    vset(&combtype, VT_LOCAL | VT_LVAL, r_loc);
+    vtop->r2 = r_r2;
+}
+
 /* generic `gen_op`: handles types problems */
 ST_FUNC void gen_op(int op)
 {
     int t1, t2, bt1, bt2, t;
     CType type1, combtype;
     int op_class = op;
+
+    if ((vtop[-1].type.t & (VT_COMPLEX | VT_IMAGINARY)) || (vtop[0].type.t & (VT_COMPLEX | VT_IMAGINARY))) {
+        gen_op_complex(op);
+        return;
+    }
 
     if (op == TOK_SHR || op == TOK_SAR || op == TOK_SHL)
         op_class = SHIFT_OP;
@@ -3637,7 +3853,30 @@ static void gen_cast(CType *type)
 {
     int sbt, dbt, sf, df, c;
     int dbt_bt, sbt_bt, ds, ss, bits, trunc;
+    static TCC_TLS int casting_complex = 0;
+    if (!casting_complex && ((vtop->type.t & (VT_COMPLEX | VT_IMAGINARY)) || (type->t & (VT_COMPLEX | VT_IMAGINARY)))) {
+        casting_complex = 1;
+        int st_t = vtop->type.t;
+        int dt_t = type->t;
+        int base_dt = dt_t & ~(VT_COMPLEX | VT_IMAGINARY);
+        CType base_type; base_type.t = base_dt; base_type.ref = NULL;
 
+        if (!(st_t & VT_COMPLEX) && (st_t & VT_IMAGINARY) && !(dt_t & (VT_COMPLEX | VT_IMAGINARY))) {
+            vpop();
+            {
+                CValue cval = {0};
+                vsetc(&base_type, VT_CONST, &cval);
+            }
+        } else if (!(st_t & (VT_COMPLEX | VT_IMAGINARY)) && !(dt_t & VT_COMPLEX) && (dt_t & VT_IMAGINARY)) {
+            gen_cast(&base_type);
+            vtop->type.t |= VT_IMAGINARY;
+        } else {
+            gen_cast(&base_type);
+            vtop->type.t = dt_t;
+        }
+        casting_complex = 0;
+        return;
+    }
     /* special delayed cast for char/short */
     if (vtop->r & VT_MUSTCAST)
         force_charshort_cast();
@@ -3883,6 +4122,14 @@ ST_FUNC int type_size(CType *type, int *a)
         base_size = type_size(&base_type, &base_align);
         *a = base_align;
         return 2 * base_size;
+    }
+    if (type->t & VT_IMAGINARY) {
+        int base_size, base_align;
+        CType base_type = *type;
+        base_type.t &= ~VT_IMAGINARY;
+        base_size = type_size(&base_type, &base_align);
+        *a = base_align;
+        return base_size;
     }
     bt = type->t & VT_BTYPE;
     if (bt == VT_AUTO) {
@@ -7000,6 +7247,8 @@ static void gfunc_param_typed(Sym *func, Sym *arg)
     func_type = func->f.func_type;
     if (func_type == FUNC_OLD ||
         (func_type == FUNC_ELLIPSIS && arg == NULL)) {
+        if (vtop->r & VT_LVAL)
+            gv(RC_TYPE(vtop->type.t));
         /* default casting : only need to convert float to double */
         if ((vtop->type.t & VT_BTYPE) == VT_FLOAT) {
             gen_cast_s(VT_DOUBLE);
@@ -7977,7 +8226,7 @@ ST_FUNC void unary(void)
     }
     /* `XXX`: `GCC` 2.95.3 does not generate a table although it should be
        better here */
- tok_next:
+    tok_next:
     switch(tok) {
     case TOK_EXTENSION:
         next();
@@ -8211,6 +8460,18 @@ ST_FUNC void unary(void)
         gen_op('^');
         break;
     case '+':
+        next();
+        unary();
+        if ((vtop->type.t & VT_BTYPE) == VT_PTR)
+            tcc_error("pointer not accepted for unary plus");
+        /* In order to force cast, we add zero, except for floating point
+	   where we really need an noop (otherwise -0.0 will be transformed
+	   into +0.0).  */
+	if (!is_float(vtop->type.t)) {
+	    vpushi(0);
+	    gen_op('+');
+	}
+        break;
         next();
         unary();
         if ((vtop->type.t & VT_BTYPE) == VT_PTR)
@@ -8562,6 +8823,20 @@ special_math_val:
 	goto special_math_val;
 
     default:
+        if (tok >= TOK_UIDENT) {
+            const char *id = get_tok_str(tok, &tokc);
+            if (!strcmp(id, "__real__")) {
+                next();
+                unary();
+                gen_complex_part(0);
+                break;
+            } else if (!strcmp(id, "__imag__")) {
+                next();
+                unary();
+                gen_complex_part(1);
+                break;
+            }
+        }
     tok_identifier:
         if (tok < TOK_UIDENT)
             tcc_error("expression expected before '%s'", get_tok_str(tok, &tokc));
@@ -8832,6 +9107,15 @@ special_math_val:
             qualifiers = vtop->type.t & VT_QUALIFIER;
             /* expect pointer on structure */
             next();
+            if (!is_arrow && tok >= TOK_UIDENT) {
+                const char *member_name = get_tok_str(tok, NULL);
+                if (!strcmp(member_name, "re") || !strcmp(member_name, "im")) {
+                    int is_im = !strcmp(member_name, "im");
+                    next();
+                    gen_complex_part(is_im);
+                    continue;
+                }
+            }
             if (tcc_state->lang_d && tok >= TOK_UIDENT
                 && (!strcmp(get_tok_str(tok, NULL), "$nameof")
                     || !strcmp(get_tok_str(tok, NULL), "$offsetof")
@@ -9726,6 +10010,8 @@ static void expr_const1(void)
 {
     nocode_wanted += CONST_WANTED_BIT;
     expr_cond();
+    if (vtop->type.t & (VT_COMPLEX | VT_IMAGINARY))
+        vtop->r |= VT_NONCONST;
     nocode_wanted -= CONST_WANTED_BIT;
 }
 
@@ -11292,6 +11578,23 @@ static void init_putv(init_params *p, CType *type, unsigned long c)
     Section *sec = p->sec;
     uint64_t val;
 
+    if (type->t & VT_COMPLEX) {
+        CType base_type = *type;
+        base_type.t &= ~VT_COMPLEX;
+        int base_align, base_size = type_size(&base_type, &base_align);
+
+        int align2, size2 = type_size(type, &align2);
+        int r2, loc = get_temp_local_var(size2, align2, &r2);
+        vset(type, VT_LOCAL | VT_LVAL, loc); vtop->r2 = r2;
+        vswap(); vstore();
+
+        vset(type, VT_LOCAL | VT_LVAL, loc); vtop->r2 = r2; gen_complex_part(0);
+        init_putv(p, &base_type, c);
+
+        vset(type, VT_LOCAL | VT_LVAL, loc); vtop->r2 = r2; gen_complex_part(1);
+        init_putv(p, &base_type, c + base_size);
+        return;
+    }
     dtype = *type;
     /* need to do that to avoid false warning */
     dtype.t &= ~(VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);

@@ -2377,7 +2377,6 @@ static void parse_number(const char *p)
     unsigned int bn[BN_SIZE];
     long double d;
 
-    tok_is_imaginary = 0;
 
     /* number */
     q = token_buf;
@@ -2886,6 +2885,7 @@ maybe_newline:
                 break;
             if (!((isidnum_table[c - CH_EOF] & (IS_ID|IS_NUM))
                   || c == '.'
+                  || c == 'i' || c == 'I' || c == 'j' || c == 'J'
                   || ((c == '+' || c == '-')
                       && (((t == 'e' || t == 'E')
                             && !(parse_flags & PARSE_FLAG_ASM_FILE
@@ -2897,8 +2897,20 @@ maybe_newline:
             t = c;
             PEEKC(c, p);
         }
-        /* `We` add a trailing '\0' to ease parsing */
+        /* We add a trailing '\0' to ease parsing */
         cstr_ccat(&tokcstr, '\0');
+        {
+            char *buf = (char*)tokcstr.data;
+            int len = tokcstr.size - 2;
+            if (len >= 0) {
+                char last_ch = buf[len];
+                if (last_ch == 'i' || last_ch == 'I' || last_ch == 'j' || last_ch == 'J') {
+                    tok_is_imaginary = 1;
+                    buf[len] = '\0';
+                    tokcstr.size--;
+                }
+            }
+        }
         tokc.str.size = tokcstr.size;
         tokc.str.data = tokcstr.data;
         tok = TOK_PPNUM;

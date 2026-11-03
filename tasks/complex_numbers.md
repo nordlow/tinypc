@@ -109,20 +109,20 @@ its own dedicated regression test under `tests/tests2/`:
        variable declarations).
 
 5. **Step 5: Operations**
-   - [ ] **5a:** Implement real/imaginary component extraction
+   - [x] **5a:** Implement real/imaginary component extraction
      (`__real__`, `__imag__` / `.re`, `.im`).
-     - [ ] *Verification Test:* `NN_complex_parts.c` (read/write access to
+     - [x] *Verification Test:* `458_complex_parts.c` (read/write access to
        real and imaginary components).
-   - [ ] **5b:** Implement unary negation and binary addition/subtraction
+   - [x] **5b:** Implement unary negation and binary addition/subtraction
      (`+`, `-`).
-     - [ ] *Verification Test:* `NN_complex_add_sub.c` (complex-complex and
+     - [x] *Verification Test:* `459_complex_add_sub.c` (complex-complex and
        complex-scalar arithmetic).
-   - [ ] **5c:** Implement binary multiplication and division (`*`, `/`).
-     - [ ] *Verification Test:* `NN_complex_mul_div.c` (complex
+   - [x] **5c:** Implement binary multiplication and division (`*`, `/`).
+     - [x] *Verification Test:* `460_complex_mul_div.c` (complex
        multiplication and division rules).
-   - [ ] **5d:** Implement equality and inequality comparisons (`==`,
+   - [x] **5d:** Implement equality and inequality comparisons (`==`,
      `!=`).
-     - [ ] *Verification Test:* `NN_complex_cmp.c` (exact comparisons of
+     - [x] *Verification Test:* `461_complex_cmp.c` (exact comparisons of
        complex values).
 
 6. **Step 6: Code Generation & ABI**
