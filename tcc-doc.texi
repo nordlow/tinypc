@@ -319,7 +319,8 @@ behaves like an unnamed one.
 @item -fdollars-in-identifiers
 Allow dollar signs in identifiers.  This flag is disadvised as TinyPC
 now makes extensive use of the dollar character for compile-time
-language features.
+language features such as
+@code{$if}, @code{$foreach}, @code{$assert}, etc.
 
 @item -freverse-funcargs
 Evaluate function arguments right to left.
