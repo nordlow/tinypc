@@ -106,6 +106,29 @@ ninja -C build sani            # whole suite under ASan/UBSan
 TEST=448 ninja -C build sani-one  # single test under sanitizers
 ```
 
+### Make-based equivalents
+
+All of the above have GNU Make equivalents (the Make build remains the
+primary, fully-featured path: cross-targets, installation, PGO):
+
+```sh
+./configure
+make -j$(nproc)
+make test
+make install
+
+# single test
+make tests2.448
+
+# PGO
+make pgo PGO_CC=clang
+make pgo-bench
+
+# sanitizer pass
+make sani-test
+make sani-tests2.448
+```
+
 The Make-based build remains the primary, fully-featured path
 (cross-targets, installation); the Ninja path is intended for fast local
 iteration and performance work.

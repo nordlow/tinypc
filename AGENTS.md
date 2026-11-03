@@ -13,11 +13,8 @@ regressions are introduced. Choose the command by what you changed:
   `./configure --ninja` is cheap (~100 ms) and regenerates `build/build.ninja`,
   so running it every iteration guarantees a fresh, in-sync build.
 
-  The Make-based equivalent remains `make -j$(nproc) && make
-  -j$(nproc) test`.
-
-  Running `ninja -C build test` (or `make -j$(nproc) test`) alone is NOT
-  sufficient, since it can test a stale binary.
+  Running `ninja -C build test` alone is NOT sufficient, since it can test a
+  stale binary.
 
 - Since `./configure --ninja` is cheap and Ninja is incremental (unchanged
   targets are skipped), the single command above is appropriate for *all*
@@ -29,9 +26,9 @@ regressions are introduced. Choose the command by what you changed:
 
       ninja -C build sani
 
-  (equivalently `make sani-test`.)  This builds an ASan/UBSan-instrumented
-  `tcc_s` and runs the full test suite under it.  Failures here (e.g.
-  leaks) must be investigated even if the normal run passes.
+  This builds an ASan/UBSan-instrumented `tcc_s` and runs the full test
+  suite under it.  Failures here (e.g. leaks) must be investigated even if
+  the normal run passes.
 
   Single-test shortcuts (run a specific tests2 entry):
 
@@ -39,8 +36,8 @@ regressions are introduced. Choose the command by what you changed:
       TEST=N ninja -C build sani-one   # under ASan/UBSan
 
 - **Compiler performance benchmark** (whenever you changed compiler
-  sources): after the regression tests pass, run `make pgo-bench`
-  (or `make pgo`) both *without* the changes (e.g. on
+  sources): after the regression tests pass, run `ninja -C build pgo-bench`
+  (or `ninja -C build pgo`) both *without* the changes (e.g. on
   `HEAD^`) and *with* the changes, and include both printed results
   (throughput in Mlines/s and instruction count) in your final
   summary to demonstrate performance impact.
