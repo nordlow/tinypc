@@ -24,8 +24,9 @@ existing structured buffer types:
 
 Referencing design patterns from `blitz` (`str.h` / `fstr.h`), string
 slices can be enriched with metadata bitfields (such as `isNullTerm`,
-`isASCII`, and perhaps also qualifers like `isImmutable`) mimicking
-D-style fat pointers, improving memory safety and performance.
+`isASCII`, and perhaps also access and storage qualifers like
+`isImmutable`) mimicking D-style fat pointers, improving memory safety
+and performance.
 
 ## Goal
 
