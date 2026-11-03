@@ -237,18 +237,7 @@ serialization and graph traversal.
 ## Missing Features
 
 - `TPC`: `--disable-asm` and `--disable-bcheck` options.
-- `C / GCC`: `__builtin_expect()`.
-- `C`: `atexit` (Nigel Horne).
-- `C99`: Add complex types (gcc 3.2 testsuite issue).
-- `C99`: Postfix compound literals (see `20010124-1.c`).
 - `TPC`: Interactive mode / integrated debugger.
-- `C / TPC`: `@attribute` syntax: `@name` / `@name(args)` for builtin
-  and user-defined attributes, e.g. `struct T @nocopy {}`.
-- `C, D`: **Attribute-Based Type/Storage Qualifiers (`@scoped`,
-  `@static`, `@dynamic`, `@in`, `@out` `@const`, `@immutable`
-  (`@immut`), `@mutable` (`@mut`), etc.)**: Allow storage and type
-  qualifiers via `@`-prefixed attribute syntax (e.g., `@const int x`,
-  `@static int y`). For variables and parameters.
 - `D`: Track ownership of D slices (heap-allocated vs view of string
   literal) so that `a.length = n` can reallocate safely.
 - `D`: Several array declarators with initializers (`int[] a = {1, 2,
@@ -267,30 +256,13 @@ serialization and graph traversal.
   and `.stringof`.
 - `D`: **Anonymous Functions & Lambdas**: Short lambdas `(x) => ...`
   and delegate literals.
-- `D`: **`scope` Guards**: `scope(success)` and `scope(failure)`
-  complementing `scope(exit)` (`defer`).
-- `D, Zig, Jai`: **`typeof` and Metaprogramming**: `typeof(expr)`,
-  `typeof(return)`, `typeid`, `__traits`, and reflection nodes
-  (`$fields(T)`, `$members(T)`).
 - `D`: **`ref` Function Parameters & Returns**: Reference parameters
   and returns without explicit pointer syntax.
 - `D`: **`inout` Qualifier**: Qualifier polymorphism for functions
   preserving mutability.
 - `D`: **Mixins**: String mixins (`mixin(...)`) for metaprogramming.
-- `D`: **Manifest Constants**: Aggregate/struct manifest constants
-  (`enum S = { ... };`) (scalar manifest constants are already
-  covered).
-- `D`: **`out` Function Parameters**: Parameters automatically
-  initialized to default/zero upon entry.
 - `D`: **`scope` RAII Objects**: `scope struct T obj = ...;` ensuring
   deterministic object destruction at scope exit.
-- `D`: **`@safe`, `@trusted`, `@system` Attributes**: Function attributes
-  enforcing memory safety.
-- `D`: **`@nogc` Attributes**: Function enforcing non-GC-allocation.
-- `Rust`: **`@unsafe` Attributes**: Function attributes
-  allowing memory un-safety.
-- `D`: **Property Call Syntax**: Omitting parentheses for 0-argument
-  function calls (`obj.method`).
 - `Zig`: **Saturating Arithmetic Operators**: Support saturating
   arithmetic operations (`+|`, `-|`, `*|`, `<<|` and assignment forms
   `+|=`, `-|=`, `*|=`, `<<|=`):
@@ -309,8 +281,6 @@ serialization and graph traversal.
   - *Slice Op-Assign*: Integrates with slice op-assign gating.
   - *Evaluation Invariant*: Both operands are evaluated exactly once
     (using temporary variables).
-- `Zig, Go, D`: **Slice `.len` Property Alias**: Support `.len` as an
-  alias for `.length` on slices and arrays.
 - `TPC`: Suppress specific anonymous symbol handling.
 - `TPC`: More parse optimizations (faster compilation).
 - `TPC`: Memory allocation optimizations.
