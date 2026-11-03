@@ -174,7 +174,6 @@ static int tuple_arity(CType *type);
 static Sym *tuple_begin(void);
 static void tuple_add_field(Sym ***pplast, CType *elem, int idx);
 static Sym *tuple_layout(Sym *s);
-static Sym *type_value_sym(CType *ct);
 static void gen_members_from_type(CType type1);
 static int type_is(CType *type, int kind);
 static int type_has_indirections(CType *type);
@@ -7236,15 +7235,7 @@ typedef struct TupleConst {
 static TCC_TLS TupleConst **tuple_consts;
 static TCC_TLS int nb_tuple_consts;
 
-/* `Compile-time type values`: a `VT_AUTO` SValue whose symbol is in this
-   table carries a real `CType` (used by `$fields`/reflection).  */
-typedef struct TypeValue {
-    Sym *sym;
-    CType type;
-} TypeValue;
-static TCC_TLS TypeValue **type_values;
-static TCC_TLS int nb_type_values;
-
+/* (Removed unused TypeValue table; type_value_of() now always returns NULL.) */
 static void free_tuple_consts(void)
 {
     int i;
@@ -7260,11 +7251,6 @@ static void free_tuple_consts(void)
     tcc_free(tuple_consts);
     tuple_consts = NULL;
     nb_tuple_consts = 0;
-    for (i = 0; i < nb_type_values; ++i)
-        tcc_free(type_values[i]);
-    tcc_free(type_values);
-    type_values = NULL;
-    nb_type_values = 0;
 }
 
 /* `Return` the constant tuple the value 'sv' refers to, or `NULL` if it is
@@ -7318,32 +7304,12 @@ static Sym *tuple_const_sym(CType *type, Section *sec, unsigned long offset,
 /* `Parse` the compile-time constructor `$(e1, ..., en)`, with 'tok' on the
    '(' of the `$(`.  `Push` the value of the single element, or a reference
    to a constant tuple, on the value stack.  */
-/* `Create` an anonymous symbol that represents the compile-time type value
-   'ct'.  The symbol lives on the global stack and is keyed in the
-   'type_values' table.  */
-static Sym *type_value_sym(CType *ct)
-{
-    TypeValue *tv = tcc_mallocz(sizeof *tv);
-    Sym *s = sym_push2(&global_stack, anon_sym++, VT_AUTO, 0);
 
-    s->r = 0;
-    s->type.t = VT_AUTO;
-    s->type.ref = s;
-    tv->sym = s;
-    tv->type = *ct;
-    type_values = tcc_realloc(type_values,
-                              (nb_type_values + 1) * sizeof *type_values);
-    type_values[nb_type_values++] = tv;
-    return s;
-}
-
-/* `Return` the type carried by the type-value symbol 's', or `NULL`.  */
+/* `Return` the type carried by a type-value symbol 's', or `NULL`.
+   (The TypeValue table was never populated, so this always returns NULL.)  */
 static CType *type_value_of(Sym *s)
 {
-    int i;
-    for (i = nb_type_values - 1; i >= 0; --i)
-        if (type_values[i]->sym == s)
-            return &type_values[i]->type;
+    (void)s;
     return NULL;
 }
 
