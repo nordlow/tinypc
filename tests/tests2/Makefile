@@ -10,7 +10,7 @@ TESTS = $(patsubst %.c,%.test,\
 # The compiler accepts .d as a C source extension for D-style file
 # names, so test it outside the *.c wildcard above.
 TESTS += 383_d_source_extension.test
-
+TESTS += 464_d_empty_params.test
 # some tests do not pass on all platforms, remove them for now
 SKIP = 34_array_assignment.test # array assignment is not in C standard
 ifeq (-$(CONFIG_arm_eabi)-$(CONFIG_arm_vfp)-,-yes--)
@@ -429,3 +429,5 @@ clean :
 449_tuple_assign_error.test : GEN = $(GEN-TCC)
 450_d_tuple_assign.test : FLAGS += -lang=d
 450_d_tuple_assign.test : GEN = $(GEN-TCC)
+464_d_empty_params.test : FLAGS += -lang=d
+464_d_empty_params.test : GEN = $(GEN-TCC)

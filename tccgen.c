@@ -6781,8 +6781,15 @@ static int post_type(CType *type, AttrDef *ad, int storage, int td)
         ++local_scope;
         sr = sym_push2(ps, SYM_FIELD, 0, 0);
 
-	if (tok == ')')
-	  l = 0;
+	if (tok == ')') {
+	  if (tcc_state->lang_d) {
+	    pt.t = VT_VOID;
+	    pt.ref = NULL;
+	    l = FUNC_NEW;
+	  } else {
+	    l = 0;
+	  }
+	}
 	else if (parse_btype(&pt, &ad1, 0))
 	  l = FUNC_NEW;
 	else if (td & (TYPE_DIRECT|TYPE_ABSTRACT)) {
