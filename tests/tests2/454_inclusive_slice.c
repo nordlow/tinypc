@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #if defined test_inclusive_slice
 typedef int IntSlice[..];
 int main() {
