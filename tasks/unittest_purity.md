@@ -20,14 +20,16 @@
 
 ## Implementation Details (`tccgen.c`)
 
-- Extend `do_unittest()` to accept optional attributes (`@pure` or
-  `-funittest-pure` mode).
+- **CLI Flags:** Add `-funittest-pure` (and `-fno-unittest-pure`) to
+  enable global purity checking on all `unittest` blocks across a
+  compilation unit.
+- Extend `do_unittest()` to activate purity checks when `-funittest-pure`
+  is active or when `@pure unittest` is explicitly specified.
 - Route `unittest` block parsing through purity-checking scopes
   (`pending_block_pure`), reusing existing `@pure` enforcement logic
   (rejecting global variable writes, non-pure function calls).
 - Provide an escape hatch (`@system unittest` or `@trusted unittest`)
   for tests requiring raw system interaction or I/O.
-
 ## Acceptance Criteria
 
 - [ ] Unittest blocks under `-funittest-pure` correctly enforce purity
