@@ -155,18 +155,11 @@ reflection for structs and pointers to enable zero-boilerplate
 serialization and graph traversal.
 
 ### Semantics & Syntax
-- **`$fields(T)` / `T.$fields`**: Evaluates at compile time to a
-  tuple/array of field reflection nodes (containing `.name`, `.type`,
-  `.offset`, `.size`, `.is_pointer`, etc.).
-- **`$members(T)` / `T.$members`**: Evaluates to all members (fields,
-  methods, nested types) of `T` as reference nodes. UFCS syntax
-  (`T.$members`, `T.$hasAliasing`, etc.) greatly improves readability
-  by chaining type inspections naturally.
 - **Compile-Time Type Traits & Expressions**:
-  - **Function/Trait style**: `$hasIndirections(T)`, `$hasAliasing(T)`,
-    `$isA(T, U)`, etc. Functional syntax (e.g. `$isA(T, U)`) is
-    particularly useful when composing higher-order functions
-    operating on compile-time tuples and reflection nodes.
+  - **Function/Trait style**: `$isA(T, U)`, etc. Functional syntax
+    (e.g. `$isA(T, U)`) is particularly useful when composing
+    higher-order functions operating on compile-time tuples and
+    reflection nodes.
 - **Alternative Syntaxes**:
   - `$is(T == struct)` / `$isA(T, struct)`
   - `T is struct` / `T $is struct` / `T $isA struct`
@@ -175,12 +168,9 @@ serialization and graph traversal.
   - **Run-Time Type Information (RTTI)**: Emits static metadata tables
     (`struct RTTI`) into `.rodata` for runtime graph serialization,
     dynamic printing, and unmarshalling.
-- **Compile-Time Control Flow (`$if`, `$for`, `$foreach`, `$else`,
-  `$while`)**:
+- **Compile-Time Control Flow (`$for`?, `$else`, `$while`)**:
   - Replaces runtime loops and macros with compile-time control
     constructs prefixed with `$`.
-  - Operates on reflection nodes (like `$fields(T)`) to conditionally
-    include code and unroll loops statically at compile time.
 
 ### Use Case
 - Zero-boilerplate binary tree serialization and complex graph
