@@ -200,6 +200,7 @@ static void gen_slice_assign(int assign_tok);
 static void expr_cond(void);
 static void gen_tuple_literal(CType *type);
 static void call_arg_expr(Sym *sa);
+static int try_tuple_assign(void);
 static TCC_TLS int slice_range_target;
 static TCC_TLS CType *tuple_expect;
 /* `Automagical` code suppression */
@@ -6011,18 +6012,8 @@ static Sym *tuple_layout(Sym *s)
    ',' outside of any nested (), [] or {}.  'nested' tells that the
    caller has also consumed a second '(' just inside the group, so that
    the scan starts one level deeper.  */
-static TokenString *scan_paren_group(TokenString **pdup, int *phas_comma,
-                                     int nested)
+static void scan_paren_group_rest(TokenString *ts, int depth, int *phas_comma)
 {
-    TokenString *ts = tok_str_alloc();
-    int depth = nested;
-
-    *phas_comma = 0;
-    *pdup = NULL;
-    /* the '(' that the caller has already consumed */
-    tok_str_add(ts, '(');
-    if (nested)
-        tok_str_add(ts, '(');
     for (;;) {
         int t = tok;
         if (t == TOK_EOF)
@@ -6039,6 +6030,20 @@ static TokenString *scan_paren_group(TokenString **pdup, int *phas_comma,
         next();
     }
     tok_str_add(ts, 0);
+}
+
+static TokenString *scan_paren_group(TokenString **pdup, int *phas_comma,
+                                     int nested)
+{
+    TokenString *ts = tok_str_alloc();
+
+    *phas_comma = 0;
+    *pdup = NULL;
+    /* the '(' that the caller has already consumed */
+    tok_str_add(ts, '(');
+    if (nested)
+        tok_str_add(ts, '(');
+    scan_paren_group_rest(ts, nested, phas_comma);
     if (*phas_comma) {
         /* only a group with a top-level comma can be a tuple: copy it
            for the probe instead of building two streams token by token */
@@ -7473,6 +7478,8 @@ static void gen_tuple_literal(CType *type)
         /* `A` tuple-typed element expects a nested tuple literal, so give
            the expression parser the element type as its tuple context.  */
         CType *saved_expect = tuple_expect;
+        if (!f)
+            tcc_error("tuple literal has more than %d element(s)", arity);
         if (is_tuple_type(&f->type))
             tuple_expect = &f->type;
         expr_eq();
@@ -7531,6 +7538,151 @@ static void call_arg_expr(Sym *sa)
         tuple_expect = &sa->type;
     expr_eq();
     tuple_expect = saved_expect;
+}
+
+/* `Parse` and act on a destructuring assignment
+   `(lvalue1, ..., lvalueN) = init`, with 'tok' on the '(' of the pattern
+   and the '=' already behind the group.  `The` pattern is only committed
+   when the group has a top-level comma and is followed by '='; otherwise
+   the group is replayed and zero is returned, so ordinary comma
+   expressions keep their meaning.  `The` right side is evaluated into a
+   tuple temporary before any destination is written, which makes
+   `(a, b) = (b, a)` swap.  `Return` one with the tuple value as the
+   value of the assignment expression on the value stack.  */
+static int try_tuple_assign(void)
+{
+    TokenString *ts, *dup;
+    AttrDef ad;
+    CType ttype, res;
+    CType *types = NULL;
+    CType *saved_expect;
+    Sym *s;
+    Sym **plast;
+    int has_comma, n = 0, i, base, addr, ofs, above;
+
+    if (tok != '(')
+        return 0;
+    next();                     /* first token inside the group */
+    /* `A` destination is an lvalue, so the group must start with an
+       identifier that is not a type, a dereference or a nested group, and
+       an identifier must be followed by a field, an index or the next
+       destination.  `Skip` all other groups without scanning them, the
+       same cheap probe `parse_tuple_type_opt()` uses.  */
+    if (tok >= TOK_IDENT && !is_type_start(tok)) {
+        int first = tok;
+        next();                 /* token after the first destination name */
+        if (tok != ',' && tok != '.' && tok != TOK_ARROW && tok != '[') {
+            /* `Not` an lvalue destination: a plain expression group.  */
+            unget_tok(first);
+            unget_tok('(');
+            return 0;
+        }
+        ts = tok_str_alloc();
+        tok_str_add(ts, '(');
+        tok_str_add(ts, first);
+        tok_str_add2(ts, tok, &tokc);
+        next();
+        has_comma = 0;
+        scan_paren_group_rest(ts, 0, &has_comma);
+    } else if (tok == '*' || tok == '(') {
+        ts = scan_paren_group(&dup, &has_comma, 0);
+        if (dup)
+            tok_str_free(dup);
+    } else {
+        unget_tok('(');
+        return 0;
+    }
+    if (!has_comma) {
+        /* `Not` a destructuring pattern: put the group back.  'tok' is on
+           the closing ')' and the replay ends right behind it.  */
+        begin_macro(ts, 1);
+        next();
+        return 0;
+    }
+    /* `The` token after the group decides.  It is consumed by the lookahead;
+       on the commit path the replay below ends right at the right side.  */
+    next();
+    if (tok != '=') {
+        /* `Restore` the group and the token that follows it.  */
+        unget_tok('(');
+        begin_macro(ts, 1);
+        next();
+        return 0;
+    }
+
+    saved_expect = tuple_expect;
+    tuple_expect = NULL;
+    begin_macro(ts, 1);         /* frees 'ts' at the end of the group */
+    next();                     /* the '(' of the pattern */
+    skip('(');
+    base = vtop - vstack + 1;
+    for (;;) {
+        expr_eq();
+        if (!(vtop->r & VT_LVAL) && !(vtop->type.t & VT_ARRAY))
+            tcc_error("tuple assignment destination is not an lvalue");
+        types = tcc_realloc(types, (n + 1) * sizeof *types);
+        types[n++] = vtop->type;
+        if (tok != ',')
+            break;
+        next();
+        if (tok == ')')         /* (lvalue,) is a 1-element pattern */
+            break;
+    }
+    skip(')');                  /* ends the replay: 'tok' is the right side */
+
+    /* `Build` the tuple type the right side has to match.  */
+    s = tuple_begin();
+    plast = &s->next;
+    for (i = 0; i < n; ++i)
+        tuple_add_field(&plast, &types[i], i);
+    ttype.t = VT_STRUCT;
+    ttype.ref = tuple_layout(s);
+    memset(&ad, 0, sizeof ad);
+    decl_initializer_alloc(&ttype, &ad, VT_LOCAL | VT_LVAL, 1, 0, VT_LOCAL);
+    addr = vtop->c.i;
+    vpop();
+#ifdef CONFIG_TCC_BCHECK
+    if (tcc_state->do_bounds_check) {
+        int align;
+        /* the temporary has no symbol, so register its bound by hand like
+           the destructuring declaration does */
+        add_local_bound(addr, type_size(&ttype, &align));
+    }
+#endif
+
+    for (i = 0; i < n; ++i) {
+        Sym *f = tuple_field(&ttype, i, &ofs);
+        vpushv(&vstack[base + i]);
+        if (f->type.t & VT_ARRAY) {
+            int esize, ealign;
+            esize = type_size(&f->type, &ealign);
+#ifdef CONFIG_TCC_BCHECK
+            if (vtop->r & VT_MUSTBOUND)
+                gbound();
+#endif
+            gaddrof();          /* destination address */
+            vset(&f->type, VT_LOCAL | VT_LVAL, addr + ofs);
+            gaddrof();          /* source address */
+            gen_copy_bytes(esize, ealign);
+        } else {
+            vset(&f->type, VT_LOCAL | VT_LVAL, addr + ofs);
+            vstore();
+            vpop();
+        }
+    }
+
+    /* `Keep` the right side as the value of the assignment expression and
+       drop the saved destinations underneath it.  */
+    res = ttype;
+    res.t &= ~(VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
+    vset(&res, VT_LOCAL | VT_LVAL, addr);
+    above = (vtop - vstack) - (base + n) + 1;
+    memmove(&vstack[base], &vstack[base + n], above * sizeof *vstack);
+    vtop -= n;
+
+    tcc_free(types);
+    tuple_expect = saved_expect;
+    return 1;
 }
 
 static void gen_members_from_type(CType type1)
@@ -9445,6 +9597,8 @@ static void expr_eq(void)
 {
     int t;
 
+    if (tok == '(' && try_tuple_assign())
+        return;
     slice_range_target = 0;
     expr_cond();
     if ((t = tok) == '=' || TOK_ASSIGN(t)) {
@@ -11461,6 +11615,11 @@ static void decl_initializer(init_params *p, CType *type, unsigned long c, int f
         goto one_elem;
 
     } else if ((type->t & VT_BTYPE) == VT_STRUCT) {
+        /* `An` initializer expression was parsed but does not have the
+           struct type, as in `(int, int) t = 1;`.  A braced list never
+           reaches this point with DIF_HAVE_ELEM set.  */
+        if (is_tuple_type(type) && (flags & DIF_HAVE_ELEM))
+            cast_error(&vtop->type, type);
         no_oblock = 1;
         if ((flags & DIF_FIRST) || tok == '{') {
             skip('{');

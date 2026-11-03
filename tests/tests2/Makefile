@@ -417,3 +417,8 @@ clean :
 446_d_members_ufcs.test : GEN = $(GEN-TCC)
 447_d_type_traits.test : FLAGS += -lang=d
 447_d_type_traits.test : GEN = $(GEN-TCC)
+448_tuple_assign.test : GEN = $(GEN-TCC)
+449_tuple_assign_error.test : FLAGS += -dt
+449_tuple_assign_error.test : GEN = $(GEN-TCC)
+450_d_tuple_assign.test : FLAGS += -lang=d
+450_d_tuple_assign.test : GEN = $(GEN-TCC)

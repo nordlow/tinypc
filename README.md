@@ -282,8 +282,9 @@ __builtin_types_compatible_p(Pair, (int, char))   /* 1 */
 - A cast to a tuple type is rejected; use an initializer or a
   compound literal such as `(Pair){1, 'a'}` instead.
 - `(a, b)` where `a` and `b` are values remains a comma expression
-  everywhere; a group is only a tuple type when every element parses
-  as a type, which no valid expression does.
+  everywhere except as the pattern of a destructuring assignment
+  `(a, b) = ...`; a group is only a tuple type when every element
+  parses as a type, which no valid expression does.
 - Tuples carry no debug information (M1).
 
 ### Value Tuples (Compile-Time and Run-Time)
@@ -307,6 +308,20 @@ literals:
   return (x, y);
   auto (a, b) = f();          /* destructuring initializer */
   ```
+
+- **Destructuring Assignment:**
+  A parenthesized pattern of lvalues followed by `=` stores the
+  elements of a tuple into them.  This works in both language modes:
+  ```c
+  (a, b) = (b, a);            /* swap                            */
+  (a, b, c) = (b, c, a);      /* rotate                          */
+  (s.x, arr[i]) = (1, 2);     /* fields and array elements       */
+  int z = ((a, b) = (3, 4))[0];    /* the right side is the value */
+  ```
+  The right side is evaluated into a temporary before any destination
+  is written, so a swap really swaps.  The pattern is only recognised
+  when the group has a top-level comma and is followed by `=`;
+  otherwise `(a, b)` keeps its comma-expression meaning.
 
 - **Static Foreach over Tuples (`$foreach`):**
   ```c

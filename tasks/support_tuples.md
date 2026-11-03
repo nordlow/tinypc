@@ -376,7 +376,8 @@ Rules:
 - `(...)` is a tuple only in a tuple-expected context: an initializer
   for a tuple-typed object, the right side of an assignment to one,
   an argument for a tuple parameter, a `return` from a tuple-returning
-  function, a cast operand, or a destructuring initializer.
+  function, a cast operand, a destructuring initializer, or the right
+  side of a destructuring assignment.
 - Everywhere else `(a, b)` remains a comma expression:
 
   ```c
@@ -410,6 +411,41 @@ Rules:
 - The value of a tuple is copied, not aliased.  `t[0]` on a
   non-lvalue tuple spills it to a temporary first, like a struct
   member access on an rvalue.
+
+### Destructuring assignment: `(lvalue, ...) = expr`
+
+A destructuring assignment reuses the tuple-pattern spelling without
+`auto` and without declarations:
+
+```c
+int a = 1, b = 2;
+int arr[3];
+struct S s;
+
+(a, b) = (b, a);            /* swap                              */
+(a, b, c) = (b, c, a);      /* rotate                            */
+(s.x, arr[1]) = (1, 2);     /* any assignable lvalue             */
+(a,) = (42,);               /* one-element pattern               */
+```
+
+- Each destination is parsed as an expression and must be an lvalue
+  (an array destination is copied element-wise, like a struct field).
+- All destinations are kept on the value stack while the right side is
+  evaluated into a tuple temporary.  Only then are the stores
+  performed, so `(a, b) = (b, a)` swaps rather than duplicating `b`.
+- The expected tuple type is built from the destination types, so the
+  right side may be a tuple literal, a `$(...)` constant, a function
+  result, tuple variable, or field/index/dereference.  Element
+  conversions follow the ordinary tuple initializer rules.
+- The value of the assignment expression is the right-side tuple, so
+  `((a, b) = (3, 4))[1]` is `4`.
+- The parser only commits to the pattern when the parenthesised group
+  has a top-level comma and is immediately followed by `=`.  Every
+  other group, including `(a, b)` in a statement or argument, is
+  replayed unchanged as a comma expression.
+- Diagnostics: a non-lvalue destination is rejected by name; too many
+  or too few tuple-literal elements and non-tuple right sides report
+  the tuple arity or the `cannot convert 'T' to '(T1, T2)'` error.
 
 ### Return Type Inference & Component Inspection (`typeof(return)`)
 
@@ -1113,6 +1149,16 @@ static TCC_TLS int nb_tuple_consts;
   manifest constants instead of locals (M5; useful for reflection).
 - The initializer must be evaluated exactly once.  Reuse the
   `init_str` save/replay so side effects are not duplicated.
+- Destructuring assignment is the expression-level counterpart:
+  `expr_eq()` calls `try_tuple_assign()` when a group starts with
+  `(`.  `scan_paren_group()` checks for a top-level comma and the
+  lookahead token checks for `=`; on success the pattern is replayed,
+  destinations are parsed with `expr_eq()` and left on the value
+  stack, the tuple temporary is allocated with
+  `decl_initializer_alloc()`, and the stores run only afterwards.
+  On failure the tokens are replayed and the group keeps its comma
+  expression meaning.  The pattern is therefore usable in ordinary
+  expression contexts, not just as a statement.
 
 ### 8. Diagnostics, dumps, debug info (`tccgen.c`, `tccdbg.c`)
 
@@ -1166,6 +1212,8 @@ static TCC_TLS int nb_tuple_consts;
 | `tccgen.c` | `unary()` cast path (6727) | M1: reject tuple casts; M3: `gen_tuple_cast()` |
 | `tccgen.c` | `gen_assign_cast()` (4021) | M3: `gen_tuple_cast()` |
 | `tccgen.c` | `decl()` (11444) | M4: `auto (a, b) = ...` pattern |
+| `tccgen.c` | `expr_eq()` (9567) | M4: `try_tuple_assign()` hook for `(a, b) = ...` |
+| `tccgen.c` | `decl_initializer()` (11366) | M4: type error for an incompatible tuple initializer expression |
 | `tccgen.c` | `tccgen_compile()` (445) | reset the tuple constant table |
 | `tccgen.c` | `init_putv()` (9624) | reuse for tuple blobs; no signature change |
 | `tccdbg.c` | `STRUCT_NODEBUG()` (1747) | tuples marked `nodebug` in M1 |
@@ -1307,10 +1355,11 @@ pass; the comma-expression suite passes in both modes; the ABI
 matches the equivalent struct for 8-, 16- and >16-byte tuples.
 
 **M4 -- destructuring and multiple returns (P3 ergonomics).**
-`auto (a, b) = expr;`; evaluation exactly once; arity and type
-checks; destructuring a tuple-typed variable and a function result;
-`$foreach (x; t) ...` over a constant tuple.  Exit criteria:
-`435`-`436` pass; the initializer's side effects occur once.
+`auto (a, b) = expr;` and `(a, b) = expr;`; evaluation exactly once;
+arity and type checks; destructuring a tuple-typed variable and a
+function result; `$foreach (x; t) ...` over a constant tuple.  Exit
+criteria: `435`-`436` and `448`-`450` pass; the initializer's side
+effects occur once.
 
 **M5 -- type-level and constant-level operations (P2/P3).**
 Hash-consing/interning if profiling justifies it; `typeof(t[i])`;
@@ -1358,6 +1407,9 @@ and pulled in with `FLAGS += $(subst 425,425+,$1)`.
 | `436_d_tuple_destructure_error.c` (`-dt -lang=d`) | M4 | arity mismatch, non-tuple initializer, duplicate names |
 | `437_d_tuple_type_ops.c` (`-lang=d`) | M5 | `typeof(t[i])`, tuple `~`/`==` if implemented, qualifiers, interning identity |
 | `438_d_tuple_manifest_destructure.c` (`-lang=d`) | M5 | destructuring a compile-time tuple into manifest constants; no side effects at the binding site |
+| `448_tuple_assign.c` | M4 | `(a, b) = (b, a)` swap and rotation, one-element pattern, parenthesized lvalues, function result evaluated once, tuple variables and conversions, fields/indices/dereferences, array and struct destinations, nested tuple destination, assignment-expression value, chaining, `if`/loop contexts, comma expressions unchanged |
+| `449_tuple_assign_error.c` (`-dt`) | M4 | non-lvalue literal/expression/`void` destination, too many and too few tuple-literal elements, non-tuple literal and object right sides, function-result arity mismatch |
+| `450_d_tuple_assign.c` (`-lang=d`) | M4 | destructuring assignment in D mode with `$(...)`, aliases, calls, indexed elements, and comma expressions unchanged |
 
 Additional coverage:
 
