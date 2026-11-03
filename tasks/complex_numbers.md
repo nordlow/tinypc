@@ -126,11 +126,11 @@ its own dedicated regression test under `tests/tests2/`:
        complex values).
 
 6. **Step 6: Code Generation & ABI**
-   - [ ] **6a:** Implement vstack slots, load/store, and temporary
+   - [x] **6a:** Implement vstack slots, load/store, and temporary
      allocation.
-     - [ ] *Verification Test:* `NN_complex_storage.c` (local variable stack
+     - [x] *Verification Test:* `462_complex_storage.c` (local variable stack
        frame allocation and spills).
-   - [ ] **6b:** Implement function parameter passing and return ABI
+   - [x] **6b:** Implement function parameter passing and return ABI
      (registers/stack).
-     - [ ] *Verification Test:* `NN_complex_abi.c` (cross-function complex
+     - [x] *Verification Test:* `463_complex_abi.c` (cross-function complex
        passing and GCC test subset).
