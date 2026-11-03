@@ -156,6 +156,13 @@ def main():
     L.append("build sani-test: run_sani")
     L.append("  phony = 1")
     L.append("")
+    L.append("rule run_sani_one")
+    L.append("  command = make -C %s sani-tests2.$$TEST" % src)
+    L.append("  description = SANI-ONE")
+    L.append("")
+    L.append("build sani-one: run_sani_one")
+    L.append("  phony = 1")
+    L.append("")
     L.append("default %s/tcc %s/libtcc1.a" % (bld, bld))
     L.append("")
 

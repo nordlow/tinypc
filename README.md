@@ -96,6 +96,8 @@ delegates to the existing test suite.  PGO is also available:
 ```sh
 ninja -C build pgo
 ninja -C build pgo-bench
+ninja -C build sani            # whole suite under ASan/UBSan
+TEST=448 ninja -C build sani-one  # single test under sanitizers
 ```
 
 The Make-based build remains the primary, fully-featured path
