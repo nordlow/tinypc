@@ -1083,9 +1083,9 @@ TinyPC extends C with a robust set of D-inspired language features and
 compile-time metaprogramming capabilities, enabling high-performance
 system programming with zero-cost abstractions.
 
-@section D-Style Slices and Dynamic Arrays (@code{T[...]})
+@section D-Style Slices and Dynamic Arrays (@code{T[..]})
 
-Slices (@code{T[...]}) in TinyPC are fat pointers consisting of a pointer to
+Slices (@code{T[..]}) in TinyPC are fat pointers consisting of a pointer to
 data and a @code{.length} property.
 
 @itemize
