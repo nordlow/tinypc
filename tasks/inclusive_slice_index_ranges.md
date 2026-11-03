@@ -3,22 +3,21 @@
 ## Goal
 
 Extend slice indexing, slicing, and range expressions in TinyPC (TPC) from exclusive upper bounds (`1..10`, representing `[1, 10)`) to support inclusive upper bounds (`1..=10`, representing `[1, 10]`), taking inspiration from Rust and modern language ergonomics.
-
 ## Syntax & Semantics
 
 1. **Inclusive Slice Range Syntax:**
-   - Syntax: `arr[lo..=hi]`
-   - Semantics: Represents the inclusive range from index `lo` through `hi` (`[lo, hi]`), including both `lo` and `hi`.
-   - Length of slice: `hi - lo + 1` (when `hi >= lo`).
-   - Supports expressions, constants, and `$`: e.g., `arr[0..=$-1]` or `arr[1..=10]`.
+   - [x] Syntax: `arr[lo..=hi]`
+   - [x] Semantics: Represents the inclusive range from index `lo` through `hi` (`[lo, hi]`), including both `lo` and `hi`.
+   - [x] Length of slice: `hi - lo + 1` (when `hi >= lo`).
+   - [x] Supports expressions, constants, and `$`: e.g., `arr[0..=$-1]` or `arr[1..=10]`.
 
 2. **Multidimensional Inclusive Slicing:**
-   - Syntax: `arr[iS..=iE, jS..=jE]`
-   - Semantics: Multi-dimensional inclusive range slicing along axes.
+   - [ ] Syntax: `arr[iS..=iE, jS..=jE]`
+   - [ ] Semantics: Multi-dimensional inclusive range slicing along axes.
 
 3. **Foreach Range Integration:**
-   - Syntax: `foreach (i; lo..=hi)`
-   - Semantics: Inclusive integer range iteration from `lo` to `hi` inclusive.
+   - [x] Syntax: `foreach (i; lo..=hi)`
+   - [x] Semantics: Inclusive integer range iteration from `lo` to `hi` inclusive.
 
 ## Design & Implementation Plan
 
@@ -31,7 +30,7 @@ Extend slice indexing, slicing, and range expressions in TinyPC (TPC) from exclu
 
 ## Acceptance Criteria
 
-- **P1:** Support `arr[lo..=hi]` slice indexing and range expressions returning slices with inclusive upper bound `hi`.
-- **P2:** Support multidimensional inclusive slicing (`A[iS..=iE, jS..=jE]`) and `foreach (i; lo..=hi)` inclusive loops.
-- **P3:** Full integration with bounds checking (`-bt`) and D-style safety/purity checks.
-- **Verification:** `./configure && make -j$(nproc) -B && make -j$(nproc) test` passes with new regression tests under `tests/tests2/`.
+- [x] **P1:** Support `arr[lo..=hi]` slice indexing and range expressions returning slices with inclusive upper bound `hi`.
+- [ ] **P2:** Support multidimensional inclusive slicing (`A[iS..=iE, jS..=jE]`) [x] `foreach (i; lo..=hi)` inclusive loops.
+- [x] **P3:** Full integration with bounds checking (`-bt`) and D-style safety/purity checks.
+- [x] **Verification:** `./configure && make -j$(nproc) -B && make -j$(nproc) test` passes with new regression tests under `tests/tests2/`.
