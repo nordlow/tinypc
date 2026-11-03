@@ -33,6 +33,11 @@ regressions are introduced. Choose the command by what you changed:
   `tcc_s` and runs the full test suite under it.  Failures here (e.g.
   leaks) must be investigated even if the normal run passes.
 
+  Single-test shortcuts (run a specific tests2 entry):
+
+      TEST=N ninja -C build test-one   # non-sanitized
+      TEST=N ninja -C build sani-one   # under ASan/UBSan
+
 - **Compiler performance benchmark** (whenever you changed compiler
   sources): after the regression tests pass, run `make pgo-bench`
   (or `make pgo`) both *without* the changes (e.g. on
