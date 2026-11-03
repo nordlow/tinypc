@@ -144,7 +144,19 @@ def main():
     L.append("  command = make -C %s $TARGET" % src)
     L.append("  description = MAKE $TARGET")
     L.append("")
-    for tgt in ("doc", "clean", "distclean", "stack-address-check", "tcov-test"):
+    # tcc_c: coverage-instrumented compiler
+    L.append("build %s/tcc_c: cc %s/tcc.c | %s/tccdefs_.h %s/tcctools.c" % (bld, src, bld, src))
+    L.append("  cflags = %s %s -ftest-coverage -DONE_SOURCE=0" % (cflags, defs))
+    L.append("")
+    # tcov-test: run tests with TCC_LOCAL pointing at tcc_c
+    L.append("rule run_tcov")
+    L.append("  command = TCC_LOCAL=%s/tcc_c make -C %s test" % (bld, src))
+    L.append("  description = TCOV-TEST")
+    L.append("")
+    L.append("build tcov-test: run_tcov | %s/tcc_c" % bld)
+    L.append("  phony = 1")
+    L.append("")
+    for tgt in ("doc", "clean", "distclean", "stack-address-check"):
         L.append("build %s: run_make" % tgt)
         L.append("  TARGET = %s" % tgt)
         L.append("  phony = 1")
