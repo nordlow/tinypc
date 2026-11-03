@@ -201,6 +201,7 @@ static void expr_cond(void);
 static void gen_tuple_literal(CType *type);
 static void call_arg_expr(Sym *sa);
 static int try_tuple_assign(void);
+static void type_to_str(char *buf, int buf_size, CType *type, const char *varstr);
 static TCC_TLS int slice_range_target;
 static TCC_TLS CType *tuple_expect;
 /* `Automagical` code suppression */
@@ -387,8 +388,11 @@ void pv (const char *lbl, int a, int b)
     int i;
     for (i = a; i < a + b; ++i) {
         SValue *p = &vtop[-i];
-        printf("%s vtop[-%d] : type.t:%04x  r:%04x  r2:%04x  c.i:%d\n",
-            lbl, i, p->type.t, p->r, p->r2, (int)p->c.i);
+        char tbuf[256];
+        type_to_str(tbuf, sizeof(tbuf), &p->type, NULL);
+        printf("%s vtop[-%d] : type.t:%04x (%s) r:%04x  r2:%04x  c.i:%d%s%s\n",
+            lbl, i, p->type.t, tbuf, p->r, p->r2, (int)p->c.i,
+            p->sym ? " sym:" : "", p->sym && p->sym->v ? get_tok_str(p->sym->v, 0) : "");
     }
 }
 
@@ -405,10 +409,12 @@ static void dump_vstack(const char *op)
 /* dump symbols on stack from s ... last */
 static inline void psyms(const char *msg, Sym *s, Sym *last)
 {
-    printf("%-8s scope         v        c        r   type.t\n", msg);
+    printf("%-8s scope         v        c        r   type.t          type\n", msg);
     while (s && s != last) {
-        printf("      %8x  %08x %08x %08x %08x %s\n",
-            s->sym_scope, s->v, s->c, s->r, s->type.t, get_tok_str(s->v, 0));
+        char tbuf[256];
+        type_to_str(tbuf, sizeof(tbuf), &s->type, get_tok_str(s->v, 0));
+        printf("      %8x  %08x %08x %08x %08x %-15s [%s]\n",
+            s->sym_scope, s->v, s->c, s->r, s->type.t, get_tok_str(s->v, 0), tbuf);
         s = s->prev;
     }
 }
