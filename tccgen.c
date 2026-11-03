@@ -412,12 +412,10 @@ static void dump_vstack(const char *op)
 /* dump symbols on stack from s ... last */
 static inline void psyms(const char *msg, Sym *s, Sym *last)
 {
-    printf("%-8s scope         v        c        r   type.t          type\n", msg);
+    printf("%-8s scope         v        c        r   type.t\n", msg);
     while (s && s != last) {
-        char tbuf[256];
-        type_to_str(tbuf, sizeof(tbuf), &s->type, get_tok_str(s->v, 0));
-        printf("      %8x  %08x %08x %08x %08x %-15s [%s]\n",
-            s->sym_scope, s->v, s->c, s->r, s->type.t, get_tok_str(s->v, 0), tbuf);
+        printf("      %8x  %08x %08x %08x %08x %s\n",
+            s->sym_scope, s->v, s->c, s->r, s->type.t, get_tok_str(s->v, 0));
         s = s->prev;
     }
 }
