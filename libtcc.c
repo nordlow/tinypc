@@ -909,7 +909,7 @@ LIBTCCAPI TCCState *tcc_new(void)
     s->tcc_ext = 1;
     s->nocommon = 1;
     s->dollars_in_identifiers = 1; /*on by default like in gcc/clang*/
-    s->cversion = 199901; /* default unless -std=c11 is supplied */
+    s->cversion = 201112; /* default: C11 */
     s->warn_implicit_function_declaration = 1;
     s->warn_discarded_qualifiers = 1;
     s->ms_extensions = 1;
