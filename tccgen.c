@@ -3876,7 +3876,14 @@ ST_FUNC int type_size(CType *type, int *a)
 {
     Sym *s;
     int bt;
-
+    if (type->t & VT_COMPLEX) {
+        int base_size, base_align;
+        CType base_type = *type;
+        base_type.t &= ~VT_COMPLEX;
+        base_size = type_size(&base_type, &base_align);
+        *a = base_align;
+        return 2 * base_size;
+    }
     bt = type->t & VT_BTYPE;
     if (bt == VT_AUTO) {
         CType *tv = type_value_of(type->ref);
@@ -5428,10 +5435,9 @@ static void parse_btype_qualify(CType *type, int qualifiers)
  */
 static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
 {
-    int t, u, bt, st, type_found, typespec_found, g, n;
+    int t, u, bt, st, type_found, typespec_found, g, n, is_complex_or_imaginary = 0;
     Sym *s;
     CType type1;
-
     memset(ad, 0, sizeof(AttrDef));
     type_found = 0;
     typespec_found = 0;
@@ -5549,35 +5555,59 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
             u = VT_BOOL;
             goto basic_type;
         case TOK_COMPLEX:
-            tcc_error("_Complex is not yet supported");
+            if (t & VT_COMPLEX)
+                tcc_error("duplicate _Complex specifier");
+            if (t & VT_IMAGINARY)
+                tcc_error("both _Complex and _Imaginary specified");
+            t |= VT_COMPLEX;
+            is_complex_or_imaginary = 1;
+            next();
             break;
         case TOK_IMAGINARY:
-            tcc_error("_Imaginary is not yet supported");
+            if (t & VT_IMAGINARY)
+                tcc_error("duplicate _Imaginary specifier");
+            if (t & VT_COMPLEX)
+                tcc_error("both _Complex and _Imaginary specified");
+            t |= VT_IMAGINARY;
+            is_complex_or_imaginary = 1;
+            next();
             break;
         case TOK_D_CFLOAT:
             if (!tcc_state->lang_d) return 0;
-            tcc_error("cfloat is not yet supported");
-            break;
+            u = VT_FLOAT;
+            t |= VT_COMPLEX;
+            is_complex_or_imaginary = 1;
+            goto basic_type;
         case TOK_D_CDOUBLE:
             if (!tcc_state->lang_d) return 0;
-            tcc_error("cdouble is not yet supported");
-            break;
+            u = VT_DOUBLE;
+            t |= VT_COMPLEX;
+            is_complex_or_imaginary = 1;
+            goto basic_type;
         case TOK_D_CREAL:
             if (!tcc_state->lang_d) return 0;
-            tcc_error("creal is not yet supported");
-            break;
+            u = VT_LDOUBLE;
+            t |= VT_COMPLEX;
+            is_complex_or_imaginary = 1;
+            goto basic_type;
         case TOK_D_IFLOAT:
             if (!tcc_state->lang_d) return 0;
-            tcc_error("ifloat is not yet supported");
-            break;
+            u = VT_FLOAT;
+            t |= VT_IMAGINARY;
+            is_complex_or_imaginary = 1;
+            goto basic_type;
         case TOK_D_IDOUBLE:
             if (!tcc_state->lang_d) return 0;
-            tcc_error("idouble is not yet supported");
-            break;
+            u = VT_DOUBLE;
+            t |= VT_IMAGINARY;
+            is_complex_or_imaginary = 1;
+            goto basic_type;
         case TOK_D_IREAL:
             if (!tcc_state->lang_d) return 0;
-            tcc_error("ireal is not yet supported");
-            break;
+            u = VT_LDOUBLE;
+            t |= VT_IMAGINARY;
+            is_complex_or_imaginary = 1;
+            goto basic_type;
         case TOK_FLOAT:
             u = VT_FLOAT;
             goto basic_type;
@@ -5862,6 +5892,16 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
         type_found = 1;
     }
 the_end:
+    if (is_complex_or_imaginary) {
+        int bt_val = t & VT_BTYPE;
+        if (bt == -1) {
+            t = (t & ~VT_BTYPE) | VT_DOUBLE;
+            bt_val = VT_DOUBLE;
+        }
+        if (bt_val != VT_FLOAT && bt_val != VT_DOUBLE && bt_val != VT_LDOUBLE) {
+            tcc_error("complex/imaginary type must be floating point");
+        }
+    }
     if (tcc_state->char_is_unsigned) {
         if ((t & (VT_DEFSIGN|VT_BTYPE)) == VT_BYTE)
             t |= VT_UNSIGNED;

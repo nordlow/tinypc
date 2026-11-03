@@ -1,5 +1,3 @@
 [test_complex]
-451_complex_keywords.c:2: error: _Complex is not yet supported
 
 [test_imaginary]
-451_complex_keywords.c:4: error: _Imaginary is not yet supported

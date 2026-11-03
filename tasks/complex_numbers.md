@@ -99,13 +99,13 @@ its own dedicated regression test under `tests/tests2/`:
        compile-time imaginary constants `2.5i`).
 
 4. **Step 4: Declarations**
-   - [ ] **4a:** Parse C99 complex type specifier combinations
+   - [x] **4a:** Parse C99 complex type specifier combinations
      (`_Complex double`).
-     - [ ] *Verification Test:* `NN_c99_decl.c` (validates variable
+     - [x] *Verification Test:* `456_c99_decl.c` (validates variable
        declarations, scoping, and `sizeof`).
-   - [ ] **4b:** Parse D scalar complex type specifiers (`creal`,
+   - [x] **4b:** Parse D scalar complex type specifiers (`creal`,
      `cdouble`, etc.).
-     - [ ] *Verification Test:* `NN_d_decl.c` (validates D-style complex
+     - [x] *Verification Test:* `457_d_decl.c` (validates D-style complex
        variable declarations).
 
 5. **Step 5: Operations**

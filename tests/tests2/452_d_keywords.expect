@@ -1,17 +1,11 @@
 [test_cfloat]
-452_d_keywords.c:2: error: cfloat is not yet supported
 
 [test_cdouble]
-452_d_keywords.c:4: error: cdouble is not yet supported
 
 [test_creal]
-452_d_keywords.c:6: error: creal is not yet supported
 
 [test_ifloat]
-452_d_keywords.c:8: error: ifloat is not yet supported
 
 [test_idouble]
-452_d_keywords.c:10: error: idouble is not yet supported
 
 [test_ireal]
-452_d_keywords.c:12: error: ireal is not yet supported

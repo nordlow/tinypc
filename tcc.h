@@ -1250,8 +1250,8 @@ struct filespec {
 #define VT_QUALIFIER_VOLATILE    0x0200  /**< Volatile modifier. */
 #define VT_QUALIFIER_RESTRICT    0x0400  /**< Restrict modifier. */
 #define VT_QUALIFIER_IMMUTABLE   0x00040000 /**< D-style immutable modifier. */
-#define VT_COMPLEX               0x00200000 /**< Complex type modifier. */
-#define VT_IMAGINARY             0x00400000 /**< Imaginary type modifier. */
+#define VT_COMPLEX               0x00080000 /**< Complex type modifier. */
+#define VT_IMAGINARY             0x0010     /**< Imaginary type modifier. */
 #define VT_QUALIFIER        (VT_QUALIFIER_CONSTANT | VT_QUALIFIER_VOLATILE | VT_QUALIFIER_RESTRICT | VT_QUALIFIER_IMMUTABLE) /**< `Type` descriptor modifier or basic type flag */
 #define VT_VLA         0x0800  /**< `VLA` type (also has `VT_PTR` and `VT_ARRAY`) */
 #define VT_LONG        0x1000  /**< Long type (also has `VT_INT` rsp. `VT_LLONG`). */

@@ -262,7 +262,9 @@ endif
 452_d_keywords.test : FLAGS += -dt -lang=d
 453_d_func_proc.test : FLAGS += -dt -lang=d
 454_inclusive_slice.test : FLAGS += -dt -lang=d
-455_imaginary_literal.test : FLAGS += -lm
+456_c99_decl.test : FLAGS += -lm
+457_d_decl.test : FLAGS += -lang=d -lm
+ 455_imaginary_literal.test : FLAGS += -lm
 435_d_tuple_destructure.test : FLAGS += -lang=d
 435_d_tuple_destructure.test : GEN = $(GEN-TCC)
 436_d_tuple_destructure_error.test : FLAGS += -dt -lang=d
