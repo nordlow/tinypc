@@ -235,6 +235,7 @@ verification sequence above (including
 
 and add a regression test under `tests/tests2/` where the hang was
 caused by the compiler.  Never "fix" a hang by only raising a timeout.
+
 ## Adding tests
 
 - **Comprehensive Coverage:** Write extensive tests that try to cover
