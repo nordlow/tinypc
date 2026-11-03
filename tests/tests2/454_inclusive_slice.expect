@@ -1,0 +1,5 @@
+[test_inclusive_slice]
+3
+
+[test_foreach_inclusive]
+sum=15

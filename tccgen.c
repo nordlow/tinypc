@@ -9159,16 +9159,24 @@ special_math_val:
 
             gexpr();
             if (tok == TOK_TWODOTS || tok == TOK_DOTS) {
-                /* range slice: a[lo..hi] */
+                int inclusive = 0;
+                next();
+                if (tok == '=') {
+                    inclusive = 1;
+                    next();
+                }
                 if (nocode_wanted & DATA_ONLY_WANTED)
                     tcc_error("slice expression is not computable at load time");
-                next();
                 gexpr();
                 skip(']');
-                --nb_dollar_ctx;
+                nb_dollar_ctx--;
                 /* [base, lo, hi] -> [base + lo, hi - lo] */
                 vpushv(vtop - 1);   /* lo */
                 gen_op('-');        /* hi - lo */
+                if (inclusive) {
+                    vpushi(1);
+                    gen_op('+');
+                }
                 vrott(3);           /* [len, base, lo] */
                 gen_op('+');        /* [len, base + lo] */
                 vswap();            /* [ptr, len] */
@@ -9178,7 +9186,7 @@ special_math_val:
                 gen_op('+');
                 indir();
                 skip(']');
-                --nb_dollar_ctx;
+                nb_dollar_ctx--;
             }
         } else if (tok == '(') {
             SValue ret;
@@ -10176,9 +10184,15 @@ static void do_foreach(int reverse)
     gexpr();
 
     if (tok == TOK_TWODOTS || tok == TOK_DOTS) {
+        int inclusive = 0;
         CType start_type, end_type;
         int start_addr, end_addr;
 
+        next(); /* consume '..' */
+        if (tok == '=') {
+            inclusive = 1;
+            next();
+        }
         if (nvars != 1)
             tcc_error("range 'foreach' requires a single loop variable");
 
@@ -10190,8 +10204,6 @@ static void do_foreach(int reverse)
         vswap();
         vstore();
         vpop();
-
-        next(); /* consume '..' */
 
         gexpr();
         skip(')');
@@ -10212,15 +10224,17 @@ static void do_foreach(int reverse)
                                names[0], 0);
         vaddr[0] = sym_find(names[0])->c;
 
-        /* i = reverse ? end - 1 : start */
+        /* i = reverse ? (inclusive ? end : end - 1) : start */
         {
             CType mut_vtype = vtypes[0];
             mut_vtype.t &= ~(VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
             vset(&mut_vtype, VT_LOCAL | VT_LVAL, vaddr[0]);
             if (reverse) {
                 vset(&end_type, VT_LOCAL | VT_LVAL, end_addr);
-                vpushi(1);
-                gen_op('-');
+                if (!inclusive) {
+                    vpushi(1);
+                    gen_op('-');
+                }
                 gen_assign_cast(&mut_vtype);
             } else {
                 vset(&start_type, VT_LOCAL | VT_LVAL, start_addr);
@@ -10232,14 +10246,14 @@ static void do_foreach(int reverse)
 
         a = b = 0;
         c = gind();
-        /* condition: forward: i < end; reverse: i >= start */
+        /* condition: forward: inclusive ? i <= end : i < end; reverse: i >= start */
         vset(&vtypes[0], VT_LOCAL | VT_LVAL, vaddr[0]);
         if (reverse) {
             vset(&start_type, VT_LOCAL | VT_LVAL, start_addr);
             gen_op(TOK_GE);
         } else {
             vset(&end_type, VT_LOCAL | VT_LVAL, end_addr);
-            gen_op(TOK_LT);
+            gen_op(inclusive ? TOK_LE : TOK_LT);
         }
         a = gvtst(1, 0);
         e = gjmp(0);
