@@ -431,3 +431,5 @@ clean :
 450_d_tuple_assign.test : GEN = $(GEN-TCC)
 464_d_empty_params.test : FLAGS += -lang=d
 464_d_empty_params.test : GEN = $(GEN-TCC)
+465_d_pragma_msg.test : FLAGS += -lang=d
+465_d_pragma_msg.test : GEN = $(GEN-TCC)

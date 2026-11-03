@@ -785,6 +785,17 @@ $assert(sizeof(int) == 4);
 $assert(sizeof(void *) == 8, "expected 64-bit pointers");
 ```
 
+### Compile-time messages: `pragma(msg, ...)` and `$msg(...)`
+
+In D mode, `pragma(msg, ...)` prints its arguments while the source is
+compiled.  `$msg(...)` is a shorter alias.  Both take a variadic list of
+string, integer, floating-point, character, or identifier arguments:
+
+```c
+pragma(msg, "building for ", __FILE__);
+$msg("size of int is 4");
+```
+
 ### Runtime `assert` with custom message
 
 In D mode (`-lang=d`), runtime `assert` is supported with an optional message string:

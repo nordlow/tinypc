@@ -1,0 +1,9 @@
+compile-time message
+42
+alias message
+multipart
+123
+types: int long
+block-scope message
+block-scope alias
+runtime

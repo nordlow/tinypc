@@ -195,6 +195,7 @@ static void do_Static_assert(void);
 static void do_d_assert(void);
 static int check_d_manifest_constant(int l);
 static int check_d_conditional(int l, int flags);
+static int check_d_pragma(int l);
 static int check_d_dollar_if(int l, int flags);
 static int check_d_dollar_foreach(int l, int flags);
 static void gen_slice_assign(int assign_tok);
@@ -10821,6 +10822,8 @@ again:
     memset(&ad, 0, sizeof ad);
     if (check_d_conditional(VT_LOCAL, flags))
         return;
+    if (check_d_pragma(VT_LOCAL))
+        return;
     if (check_d_dollar_if(VT_LOCAL, flags))
         return;
     if (check_d_dollar_foreach(VT_LOCAL, flags))
@@ -13513,6 +13516,94 @@ static int check_d_conditional(int l, int flags)
     return 1;
 }
 
+/* `Parse` and act on a D `pragma(msg, ...)` directive.  `Returns`
+   nonzero when the current token started such a construct.  */
+/* `Return` the stream used for `pragma(msg)` output.  `Reuse` the
+   preprocessing stream when one is set, otherwise use stderr.  */
+static FILE *d_msg_stream(void)
+{
+    return tcc_state->ppfp ? tcc_state->ppfp : stderr;
+}
+
+static int check_d_pragma(int l)
+{
+    FILE *fp;
+    int is_msg, is_alias;
+
+    if (!tcc_state->lang_d || (l != VT_CONST && l != VT_LOCAL))
+        return 0;
+    is_alias = d_ident_is(tok, "$msg");
+    if (!is_alias && tok != TOK_PRAGMA)
+        return 0;
+    next();
+    skip('(');
+    if (is_alias) {
+        is_msg = 1;
+    } else if (tok >= TOK_UIDENT) {
+        is_msg = !strcmp(get_tok_str(tok, &tokc), "msg");
+    } else {
+        is_msg = 0;
+    }
+    if (!is_msg) {
+        /* Ignore unknown pragmas after consuming their argument list.  */
+        int depth = 1;
+        while (depth > 0 && tok != TOK_EOF) {
+            if (tok == '(')
+                depth++;
+            else if (tok == ')')
+                depth--;
+            if (depth > 0)
+                next();
+        }
+        skip(')');
+        if (tok == ';')
+            next();
+        return 1;
+    }
+    if (!is_alias)
+        next();
+    if (tok == ',')
+        next();
+    fp = d_msg_stream();
+    while (tok != ')' && tok != TOK_EOF) {
+        if (tok == TOK_STR) {
+            fputs((const char *)tokc.str.data, fp);
+            next();
+        } else if (tok == TOK_LSTR) {
+            next();
+        } else if (d_tok_is_int(tok)) {
+            fprintf(fp, "%lld", (long long)tokc.i);
+            next();
+        } else if (tok == TOK_CFLOAT) {
+            fprintf(fp, "%g", (double)tokc.f);
+            next();
+        } else if (tok == TOK_CDOUBLE) {
+            fprintf(fp, "%g", tokc.d);
+            next();
+        } else if (tok == TOK_CLDOUBLE) {
+            fprintf(fp, "%Lg", tokc.ld);
+            next();
+        } else if (tok == TOK_CCHAR || tok == TOK_LCHAR) {
+            fprintf(fp, "%lld", (long long)tokc.i);
+            next();
+        } else if (tok >= TOK_IDENT) {
+            fputs(get_tok_str(tok, &tokc), fp);
+            next();
+        } else {
+            tcc_error("unsupported pragma(msg) argument");
+        }
+        if (tok == ',')
+            next();
+        else
+            break;
+    }
+    skip(')');
+    if (tok == ';')
+        next();
+    fputc('\n', fp);
+    return 1;
+}
+
 /* `Parse` and act on `$if (c) ... [else ...]`.  `The` condition must be a
    compile-time constant and only the selected branch is parsed, so the
    other one may contain code that is invalid for this target.  */
@@ -13904,6 +13995,8 @@ static int decl(int l)
         memset(&adbase, 0, sizeof(adbase));
         oldint = 0;
         if (check_d_conditional(l, 0))
+            continue;
+        if (check_d_pragma(l))
             continue;
         if (check_d_dollar_if(l, 0))
             continue;
