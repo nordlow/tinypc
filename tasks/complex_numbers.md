@@ -69,50 +69,22 @@ Instead, we use **Approach B (Modifier Flag Combination)**:
 
 ---
 
-## Implementation Strategy: Minimal-Sized Incremental Steps
+## Implementation Strategy: Fine-Grained Incremental Steps
 
-Each step is self-contained, builds successfully, and is verified by
-its own dedicated regression test under `tests/tests2/`:
+Each step is self-contained, builds successfully, and is verified by its own dedicated regression test under `tests/tests2/`:
 
-1. **Step 1: Keyword & Token Registration (`tcctok.h`, `tccpp.c`)**
-   - **Action:** Register `_Complex`, `_Imaginary`, and D type
-     keywords (`cfloat`, `cdouble`, `creal`, `ifloat`, `idouble`,
-     `ireal`).
-   - **Verification Test:** Add a test verifying keywords parse
-     successfully in C99 and D modes without syntax errors.
-
-2. **Step 2: Type Modifier Flags (`tcc.h`)**
-   - **Action:** Define `VT_COMPLEX` and `VT_IMAGINARY` modifier flags
-     in the type qualifier/modifier bit range.
-   - **Verification Test:** Verify header compilation and basic type
-     descriptor construction.
-
-3. **Step 3: Imaginary Literal Suffixes (`...i`, `...j`)**
-   - **Action:** Extend the numeric lexer/parser to recognize `i` and
-     `j` suffixes on numeric literals, producing pure imaginary
-     constants.
-   - **Verification Test:** Add `tests/tests2/NN_imaginary_literal.c`
-     verifying constant evaluation of imaginary literals (`2.5i`,
-     `1.0j`).
-
-4. **Step 4: Complex Type Parsing & Declaration (`tccgen.c`)**
-   - **Action:** Update `parse_btype()` and declaration logic to
-     handle complex/imaginary type specifiers, binding them to
-     underlying float types with `VT_COMPLEX` / `VT_IMAGINARY` flags.
-   - **Verification Test:** Add `tests/tests2/NN_complex_decl.c`
-     verifying variable declarations (`_Complex double z;`, `creal
-     c;`) and `sizeof`.
-
-5. **Step 5: Complex Arithmetic & Operations (`tccgen.c`)**
-   - **Action:** Implement type conversion, promotion, and binary
-     arithmetic operations (`+`, `-`, `*`, `/`, `==`, `!=`, unary `-`)
-     for complex/imaginary operands.
-   - **Verification Test:** Add `tests/tests2/NN_complex_arith.c`
-     verifying complex calculations and comparisons.
-
-6. **Step 6: Code Generation & ABI (`x86_64-gen.c`, etc.)**
-   - **Action:** Implement ABI-compliant argument passing and return
-     value handling for complex pairs (SSE registers or memory passing
-     on x86-64).
-   - **Verification Test:** Add `tests/tests2/NN_complex_abi.c` and
-     pass the gcc complex test suite subset.
+| Step | Sub-Step | Action & Scope | Verification Test (`tests/tests2/`) |
+| :--- | :--- | :--- | :--- |
+| **1. Keywords** | **1a** | Register C99 keywords (`_Complex`, `_Imaginary`). | `NN_c99_keywords.c`: Parses C99 complex keywords without syntax errors. |
+| | **1b** | Register D type keywords (`cfloat`, `cdouble`, `creal`, `ifloat`, `idouble`, `ireal`). | `NN_d_keywords.c`: Parses D complex/imaginary type aliases successfully. |
+| **2. Type Flags** | **2a** | Define `VT_COMPLEX` and `VT_IMAGINARY` modifier bits in `tcc.h`. | Compile-check header and basic type flag bitwise operations. |
+| **3. Literals** | **3a** | Extend lexer numeric suffix parsing for `i`/`j`. | `NN_imaginary_token.c`: Verifies tokens carry correct imaginary suffix flags. |
+| | **3b** | Implement constant expression evaluation for pure imaginary literals. | `NN_imaginary_literal.c`: Evaluates compile-time imaginary constants (`2.5i`). |
+| **4. Declarations** | **4a** | Parse C99 complex type specifier combinations (`_Complex double`). | `NN_c99_decl.c`: Validates variable declarations, scoping, and `sizeof`. |
+| | **4b** | Parse D scalar complex type specifiers (`creal`, `cdouble`, etc.). | `NN_d_decl.c`: Validates D-style complex variable declarations. |
+| **5. Operations** | **5a** | Implement real/imaginary component extraction (`__real__`, `__imag__` / `.re`, `.im`). | `NN_complex_parts.c`: Read/write access to real and imaginary components. |
+| | **5b** | Implement unary negation and binary addition/subtraction (`+`, `-`). | `NN_complex_add_sub.c`: Complex-complex and complex-scalar arithmetic. |
+| | **5c** | Implement binary multiplication and division (`*`, `/`). | `NN_complex_mul_div.c`: Complex multiplication and division rules. |
+| | **5d** | Implement equality and inequality comparisons (`==`, `!=`). | `NN_complex_cmp.c`: Exact comparisons of complex values. |
+| **6. Gen & ABI** | **6a** | Implement vstack slots, load/store, and temporary allocation. | `NN_complex_storage.c`: Local variable stack frame allocation and spills. |
+| | **6b** | Implement function parameter passing and return ABI (registers/stack). | `NN_complex_abi.c`: Cross-function complex passing and GCC test subset. |
