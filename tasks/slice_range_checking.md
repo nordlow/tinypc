@@ -16,6 +16,13 @@ optimize out checks for provably safe index expressions such as `x[$/2]` and `x[
   runtime bounds checks for provably safe index expressions (e.g.,
   `0`, `$/2`, `$/3`, `$*2/3`, `$/4`, `$*2/4`, `$*3/4`, etc, and static
   constants within `[0, $ - 1]`) even when `-b` is active.
+- [ ] **P3 (Safe `.length` Mutability Restrictions):** In `@safe`
+      code, direct modification of a slice's `.length` property (e.g.,
+      `x.length = ...` or `x.length += ...`) is a compilation error
+      with descriptive diagnostics.  *Note:* Slices can be safely
+      split (typically used in recursive algorithms like Quicksort)
+      via the pattern `x[0..$*P/Q]` where `P` and `Q` are integer
+      compile-time expressions with `P <= Q`.
 
 ## Motivation
 

@@ -215,14 +215,6 @@ serialization and graph traversal.
   - glibc requires `libc.so` even when statically linked (very bad,
     but not up to tcc).
 
-## Bounds checking (-b)
-
-- C: `setjmp` is not supported properly in bound checking.
-- C: Fix bound check code with `&` on local variables (currently done
-  only for local arrays).
-- C: Bound checking and float/long long/struct copy code; bound checking
-  and symbol + offset optimization.
-
 ## Missing Features
 
 - `TPC`: `--disable-asm` and `--disable-bcheck` options.
