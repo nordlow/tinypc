@@ -913,6 +913,8 @@ LIBTCCAPI TCCState *tcc_new(void)
     s->warn_implicit_function_declaration = 1;
     s->warn_discarded_qualifiers = 1;
     s->ms_extensions = 1;
+    /* slice bounds checking: auto (on in -lang=d, else follow -b) */
+    s->slice_bounds_check = 255;
 #ifdef CHAR_IS_UNSIGNED
     s->char_is_unsigned = 1;
 #endif
@@ -1791,6 +1793,7 @@ static const FlagDef options_f[] = {
     { offsetof(TCCState, ms_extensions), 0, "ms-extensions" },
     { offsetof(TCCState, dollars_in_identifiers), 0, "dollars-in-identifiers" },
     { offsetof(TCCState, test_coverage), 0, "test-coverage" },
+    { offsetof(TCCState, slice_bounds_check), 0, "slice-bounds-check" },
     { offsetof(TCCState, dump_types), 0, "dump-types" },
     { offsetof(TCCState, dump_decls), 0, "dump-decls" },
     { offsetof(TCCState, dump_vstack), 0, "dump-vstack" },

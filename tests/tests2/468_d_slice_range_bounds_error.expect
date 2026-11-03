@@ -1,0 +1,2 @@
+before
+468_d_slice_range_bounds_error.c:11: slice range 0..6 out of bounds (length 3)

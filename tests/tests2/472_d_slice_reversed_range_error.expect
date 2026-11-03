@@ -1,0 +1,2 @@
+before
+472_d_slice_reversed_range_error.c:12: slice range 3..2 out of bounds (length 3)

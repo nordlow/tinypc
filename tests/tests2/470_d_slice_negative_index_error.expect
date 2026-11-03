@@ -1,0 +1,2 @@
+before
+470_d_slice_negative_index_error.c:12: slice index 18446744073709551615 out of bounds (length 3)

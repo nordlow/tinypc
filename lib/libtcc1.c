@@ -784,6 +784,26 @@ void __d_assert(const char *msg)
     exit(255);
 }
 
+void __slice_index_bounds_error(const char *file, int line,
+                                size_t index, size_t length)
+{
+    printf("%s:%d: slice index %llu out of bounds (length %llu)\n",
+           file, line,
+           (unsigned long long)index, (unsigned long long)length);
+    exit(255);
+}
+
+void __slice_range_bounds_error(const char *file, int line,
+                                size_t lo, size_t hi, size_t length,
+                                int inclusive)
+{
+    printf("%s:%d: slice range %llu..%s%llu out of bounds (length %llu)\n",
+           file, line,
+           (unsigned long long)lo, inclusive ? "=" : "",
+           (unsigned long long)hi, (unsigned long long)length);
+    exit(255);
+}
+
 extern size_t strlen(const char *);
 
 /* basic types of the values rendered by the assertion helpers (subset of

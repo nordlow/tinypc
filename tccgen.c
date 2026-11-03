@@ -188,6 +188,11 @@ static int is_slice_type(CType *type);
 static Sym *make_slice_type(CType *elem);
 static int convert_array_to_slice(CType *dt);
 static int copy_slice_to_temp(CType *type);
+static int slice_bounds_checking(void);
+static void gen_slice_index_check(int slice_tmp, const char *file, int line);
+static void gen_slice_range_check(int slice_tmp, int inclusive,
+                                  const char *file, int line);
+static void vpush_string(const char *str);
 static void d_array_suffix(CType *type, int storage);
 static void end_switch(void);
 static int check_d_static_assert(void);
@@ -206,6 +211,11 @@ static int try_tuple_assign(void);
 static void type_to_str(char *buf, int buf_size, CType *type, const char *varstr);
 static TCC_TLS int slice_range_target;
 static TCC_TLS CType *tuple_expect;
+#ifdef CONFIG_TCC_BCHECK
+/* set while the slice access code performs its own length check, so
+   that the generic allocation-based pointer check is skipped */
+static TCC_TLS int no_ptr_bounds_check;
+#endif
 /* `Automagical` code suppression */
 
 /* `Clear` '`nocode_wanted`' at forward label if it was used */
@@ -3725,7 +3735,8 @@ redo:
             vtop->type.t &= ~VT_UNSIGNED;
             gen_op('*');
 #ifdef CONFIG_TCC_BCHECK
-            if (tcc_state->do_bounds_check && !CONST_WANTED) {
+            if (tcc_state->do_bounds_check && !CONST_WANTED
+                && !no_ptr_bounds_check) {
                 /* if bounded pointers, we generate a special code to
                    test bounds */
                 if (op == '-') {
@@ -6668,6 +6679,175 @@ static void copy_slice_value(void)
     vset(&type, VT_LOCAL | VT_LVAL, l);
 }
 
+/* `Return` whether slice indexing must be checked against `.length`.
+   An explicit `-f[no-]slice-bounds-check` wins; otherwise the check is
+   on in D mode and follows `-b` in C mode.  */
+static int slice_bounds_checking(void)
+{
+    if (tcc_state->slice_bounds_check != 255)
+        return tcc_state->slice_bounds_check;
+    if (tcc_state->lang_d)
+        return 1;
+#ifdef CONFIG_TCC_BCHECK
+    return tcc_state->do_bounds_check;
+#else
+    return 0;
+#endif
+}
+
+/* `Emit` a call to 'helper' when the comparison 'op' of the two size_t
+   temporaries 'a_loc' and 'b_loc' is false.  `The` failure path never
+   returns, and the value stack is otherwise left unchanged.  */
+static void gen_slice_cmp_check(int a_loc, int b_loc, int op,
+                                const char *helper, int is_index,
+                                int slice_tmp, int lo_loc, int hi_loc,
+                                int inclusive, const char *file, int line)
+{
+    CType size_type;
+    int fail, cont;
+
+    size_type.t = VT_SIZE_T;
+    size_type.ref = NULL;
+
+    /* values below the check (e.g. earlier call arguments) stay live
+       across the failure branch; spill any register-resident ones now,
+       before the runtime call in that branch can clobber them */
+    save_regs(0);
+
+    vset(&size_type, VT_LOCAL | VT_LVAL, a_loc);
+    vset(&size_type, VT_LOCAL | VT_LVAL, b_loc);
+    gen_op(op);
+    fail = gvtst(1, 0);
+    cont = gjmp(0);
+    gsym(fail);
+
+    vpush_helper_func(tok_alloc_const(helper));
+    vpush_string(file);
+    vpushi(line);
+    if (is_index) {
+        /* index, length */
+        vset(&size_type, VT_LOCAL | VT_LVAL, a_loc);
+        vset(&size_type, VT_LOCAL | VT_LVAL, slice_tmp);
+        gfunc_call(4);
+    } else {
+        /* lo, hi, length, inclusive */
+        vset(&size_type, VT_LOCAL | VT_LVAL, lo_loc);
+        vset(&size_type, VT_LOCAL | VT_LVAL, hi_loc);
+        vset(&size_type, VT_LOCAL | VT_LVAL, slice_tmp);
+        vpushi(inclusive);
+        gfunc_call(6);
+    }
+    gsym(cont);
+}
+
+/* `Check` the index on top of the stack against the length of the
+   slice stored at local offset 'slice_tmp'.  `The` stack layout
+   `[ptr, index]` is preserved, with the index converted to size_t.  */
+static void gen_slice_index_check(int slice_tmp, const char *file, int line)
+{
+    CType size_type, ptr_type;
+    int size, align, idx_loc, ptr_loc;
+
+    size_type.t = VT_SIZE_T;
+    size_type.ref = NULL;
+    ptr_type = vtop[-1].type;
+
+    /* save the index as an unsigned size_t temporary; this also turns
+       a negative index into a large unsigned value */
+    size = type_size(&size_type, &align);
+    loc = (loc - size) & -align;
+    idx_loc = loc;
+    vset(&size_type, VT_LOCAL | VT_LVAL, idx_loc);
+    vswap();
+    vstore();
+    vtop--;
+
+    /* also spill the pointer: it stays live across the failure branch
+       and must not be kept in a register that the runtime call clobbers */
+    size = type_size(&ptr_type, &align);
+    loc = (loc - size) & -align;
+    ptr_loc = loc;
+    vset(&ptr_type, VT_LOCAL | VT_LVAL, ptr_loc);
+    vswap();
+    vstore();
+    vtop--;
+
+    gen_slice_cmp_check(idx_loc, slice_tmp, TOK_LT,
+                        "__slice_index_bounds_error", 1, slice_tmp,
+                        0, 0, 0, file, line);
+
+    /* restore the pointer and the index */
+    vset(&ptr_type, VT_LOCAL | VT_LVAL, ptr_loc);
+    vset(&size_type, VT_LOCAL | VT_LVAL, idx_loc);
+}
+
+/* `Check` the slice range `[lo..hi]` on the value stack against the
+   length of the slice stored at local offset 'slice_tmp'.  `The` stack
+   `[ptr, lo, hi]` is preserved, with both bounds converted to size_t. */
+static void gen_slice_range_check(int slice_tmp, int inclusive,
+                                  const char *file, int line)
+{
+    CType size_type, ptr_type;
+    int size, align, lo_loc, hi_loc, ptr_loc;
+
+    size_type.t = VT_SIZE_T;
+    size_type.ref = NULL;
+    ptr_type = vtop[-2].type;
+    size = type_size(&size_type, &align);
+
+    /* save hi, then lo, as unsigned size_t temporaries */
+    loc = (loc - size) & -align;
+    hi_loc = loc;
+    vset(&size_type, VT_LOCAL | VT_LVAL, hi_loc);
+    vswap();
+    vstore();
+    vtop--;
+
+    loc = (loc - size) & -align;
+    lo_loc = loc;
+    vset(&size_type, VT_LOCAL | VT_LVAL, lo_loc);
+    vswap();
+    vstore();
+    vtop--;
+
+    /* spill the base pointer across the failure branches */
+    size = type_size(&ptr_type, &align);
+    loc = (loc - size) & -align;
+    ptr_loc = loc;
+    vset(&ptr_type, VT_LOCAL | VT_LVAL, ptr_loc);
+    vswap();
+    vstore();
+    vtop--;
+
+    /* hi < length (inclusive) or hi <= length (half-open) */
+    gen_slice_cmp_check(hi_loc, slice_tmp, inclusive ? TOK_LT : TOK_LE,
+                        "__slice_range_bounds_error", 0, slice_tmp,
+                        lo_loc, hi_loc, inclusive, file, line);
+    /* lo <= hi */
+    gen_slice_cmp_check(lo_loc, hi_loc, TOK_LE,
+                        "__slice_range_bounds_error", 0, slice_tmp,
+                        lo_loc, hi_loc, inclusive, file, line);
+
+    /* restore the base pointer and the bounds as size_t values */
+    vset(&ptr_type, VT_LOCAL | VT_LVAL, ptr_loc);
+    vset(&size_type, VT_LOCAL | VT_LVAL, lo_loc);
+    vset(&size_type, VT_LOCAL | VT_LVAL, hi_loc);
+}
+
+/* `Emit` the pointer addition of a slice access whose length has
+   already been checked, skipping the allocation-based bound check.  */
+static void gen_slice_ptr_add(void)
+{
+#ifdef CONFIG_TCC_BCHECK
+    int save = no_ptr_bounds_check;
+    no_ptr_bounds_check = 1;
+#endif
+    gen_op('+');
+#ifdef CONFIG_TCC_BCHECK
+    no_ptr_bounds_check = save;
+#endif
+}
+
 /* `Emit` the runtime call for 'a ~= x', with the slice value on top of
    the value stack.  `The` token '~=' is the current one.  */
 static void gen_slice_append(void)
@@ -9434,7 +9614,9 @@ special_math_val:
         } else if (tok == '[') {
             CType base_type, elem_type;
             SValue *base_sv;
-            int base_is_slice;
+            int base_is_slice, slice_check = 0, slice_tmp = 0;
+            const char *check_file = NULL;
+            int check_line = 0;
 
             next();
             base_type = vtop->type;
@@ -9462,6 +9644,11 @@ special_math_val:
                 continue;
             }
             base_is_slice = is_slice_type(&base_type);
+            slice_check = base_is_slice && slice_bounds_checking();
+            if (slice_check) {
+                check_file = tcc_basename(file->filename);
+                check_line = file->line_num;
+            }
             if ((base_type.t & VT_BTYPE) == VT_PTR) {
                 if (cur_scope->fn.safety == FUNC_SAFETY_SAFE)
                     tcc_error("pointer indexing not allowed in @safe scope");
@@ -9510,6 +9697,13 @@ special_math_val:
                 elem_type = *pointed_type(&base_type.ref->next->next->type);
                 /* pointees of a qualified slice are qualified as well */
                 elem_type.t |= base_type.t & (VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
+                if (slice_check) {
+                    /* keep a copy of the slice header so that its
+                       length is still available after the '$' and
+                       index expressions have been evaluated */
+                    slice_tmp = copy_slice_to_temp(&base_type);
+                    vset(&base_type, VT_LOCAL | VT_LVAL, slice_tmp);
+                }
                 slice_to_ptr();
             } else if (base_type.t & (VT_ARRAY | VT_VLA)) {
                 elem_type = base_type.ref->type;
@@ -9533,6 +9727,9 @@ special_math_val:
                 gexpr();
                 skip(']');
                 nb_dollar_ctx--;
+                if (slice_check)
+                    gen_slice_range_check(slice_tmp, inclusive,
+                                          check_file, check_line);
                 /* [base, lo, hi] -> [base + lo, hi - lo] */
                 vpushv(vtop - 1);   /* lo */
                 gen_op('-');        /* hi - lo */
@@ -9541,13 +9738,25 @@ special_math_val:
                     gen_op('+');
                 }
                 vrott(3);           /* [len, base, lo] */
-                gen_op('+');        /* [len, base + lo] */
+                if (slice_check)
+                    gen_slice_ptr_add();
+                else
+                    gen_op('+');    /* [len, base + lo] */
                 vswap();            /* [ptr, len] */
                 gen_slice_value(&elem_type);
                 slice_range_target = 1;
             } else {
-                gen_op('+');
+                if (slice_check) {
+                    gen_slice_index_check(slice_tmp, check_file, check_line);
+                    gen_slice_ptr_add();
+                } else {
+                    gen_op('+');
+                }
                 indir();
+                /* the element's length check replaces the allocation
+                   check of the generic pointer bounds checker */
+                if (slice_check)
+                    vtop->r &= ~VT_MUSTBOUND;
                 skip(']');
                 nb_dollar_ctx--;
             }

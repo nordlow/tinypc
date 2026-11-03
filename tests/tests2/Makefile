@@ -433,3 +433,17 @@ clean :
 464_d_empty_params.test : GEN = $(GEN-TCC)
 465_d_pragma_msg.test : FLAGS += -lang=d
 465_d_pragma_msg.test : GEN = $(GEN-TCC)
+466_d_slice_bounds_check.test : FLAGS += -lang=d
+466_d_slice_bounds_check.test : GEN = $(GEN-TCC)
+467_d_slice_index_bounds_error.test : FLAGS += -lang=d
+467_d_slice_index_bounds_error.test : GEN = $(GEN-TCC)
+468_d_slice_range_bounds_error.test : FLAGS += -lang=d
+468_d_slice_range_bounds_error.test : GEN = $(GEN-TCC)
+469_d_slice_inclusive_range_bounds_error.test : FLAGS += -lang=d
+469_d_slice_inclusive_range_bounds_error.test : GEN = $(GEN-TCC)
+470_d_slice_negative_index_error.test : FLAGS += -lang=d
+470_d_slice_negative_index_error.test : GEN = $(GEN-TCC)
+471_d_slice_bounds_disabled.test : FLAGS += -lang=d -fno-slice-bounds-check
+471_d_slice_bounds_disabled.test : GEN = $(GEN-TCC)
+472_d_slice_reversed_range_error.test : FLAGS += -lang=d
+472_d_slice_reversed_range_error.test : GEN = $(GEN-TCC)

@@ -431,6 +431,16 @@ int *p = s.ptr;
 size_t n = s.length;
 ```
 
+Indexing and slicing a slice are checked against its `.length` at run
+time with `-lang=d`, and also under `-b` in C mode.  An out-of-range
+index or range reports the source location, the offending index or
+range, and the slice length, then exits.  `-fno-slice-bounds-check`
+turns the checks off; `-fslice-bounds-check` forces them on in C mode
+without `-b`.  The `-b` checker validates against the underlying
+allocation instead, so it cannot detect an access past a subslice's
+`.length` that is still inside the allocation.  For element access on
+slices, the `.length` check takes precedence.
+
 Arrays and string literals convert implicitly to slices; slice values
 can be stored in structs, passed to and returned from functions, and
 compared with `__builtin_types_compatible_p`.

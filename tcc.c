@@ -136,6 +136,8 @@ static const char help2[] =
     "  dump-types                    dump types during parsing\n"
     "  dump-decls                    dump declarations during parsing\n"
     "  dump-vstack                   dump vstack state during parsing\n"
+    "  slice-bounds-check            check slice index/range against .length\n"
+    "                                [on with -lang=d, else with -b]\n"
     "  slice-len-mismatch=MODE       slice assign length mismatch: abort [default],\n"
     "                                copy (common prefix), or ignore\n"
     "  scope-depth=N                 max nesting of lexical scopes (1..256)\n"

@@ -1,0 +1,2 @@
+before
+467_d_slice_index_bounds_error.c:11: slice index 50 out of bounds (length 3)
