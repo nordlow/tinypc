@@ -13325,14 +13325,18 @@ static void do_d_alias(void)
    be the opening '{'.  */
 static TCC_TLS int nb_unittest;
 
-static void do_unittest(void)
+static void do_unittest(AttrDef *ad)
 {
     CType type;
     Sym *sym, *sr;
-    AttrDef ad;
+    AttrDef ad_sym;
     char name[64];
 
-    memset(&ad, 0, sizeof ad);
+    memset(&ad_sym, 0, sizeof ad_sym);
+    if (ad) {
+        ad_sym.f.func_pure = ad->f.func_pure;
+        ad_sym.f.func_safety = ad->f.func_safety;
+    }
     snprintf(name, sizeof name, "__unittest_%d", nb_unittest++);
 
     /* build the type of 'static void `__unittest_N`(void)' */
@@ -13343,11 +13347,13 @@ static void do_unittest(void)
     sr->f.func_call = FUNC_CDECL;
     sr->f.func_args = 0;
     sr->f.func_ctor = 1;
+    sr->f.func_pure = ad_sym.f.func_pure;
+    sr->f.func_safety = ad_sym.f.func_safety;
     sr->next = NULL;
     type.t = VT_FUNC | VT_STORAGE_STATIC;
     type.ref = sr;
 
-    sym = external_sym(tok_alloc(name, strlen(name))->tok, &type, 0, &ad);
+    sym = external_sym(tok_alloc(name, strlen(name))->tok, &type, 0, &ad_sym);
     cur_text_section = text_section;
     gen_function(sym);
 }
@@ -14242,13 +14248,17 @@ static int decl(int l)
         if (check_d_manifest_constant(l))
             continue;
         if (tok == TOK_UNITTEST) {
+            AttrDef ad_unittest = {0};
             if (l != VT_CONST)
                 tcc_error("unittest block is only allowed at file scope");
             next();
+            if (tok == '@') {
+                parse_d_attributes(&ad_unittest);
+            }
             if (tok != '{')
                 expect("'{'");
             if (tcc_state->do_unittest)
-                do_unittest();
+                do_unittest(&ad_unittest);
             else
                 skip_or_save_block(NULL);
             continue;
