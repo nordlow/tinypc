@@ -1567,7 +1567,7 @@ it if you do not intend to modify the TPC code.
 
 @section Building TPC
 
-The TPC sources are written mostly in C90 style and use a few widely
+The TPC sources are written in C11 style (`-std=gnu11`) and use a few widely
 supported extensions (see @file{CodingStyle}).  Building TPC requires a
 C11 compiler because the sources use unnamed structure and union
 members; the @file{Makefile} passes @option{-std=gnu11} to the host

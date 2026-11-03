@@ -25,26 +25,8 @@ while (...) and switch (...).
 
     Language
 
-TPC is mostly implemented in C90. Do not use any non-C90 features
-that are not already in use.
-
-C11 is the minimum C standard required to build TPC: the sources use
-unnamed struct and union members, a C11 feature.  The Makefile passes
--std=gnu11 (see CSTD) to the host compiler so that features from later
-C standards are not used by accident.  Do not raise this requirement
-or use newer C standard features without updating this file and the
-build documentation.
-
-Non-C90 features currently in use, as revealed by
-./configure --extra-cflags="-std=c90 -Wpedantic":
-
-- long long (including "LL" constants)
-- inline
-- very long string constants
-- assignment between function pointer and 'void *'
-- "//" comments
-- empty macro arguments (DEF_ASMTEST in i386-tok.h)
-- unnamed struct and union fields (in struct Sym), a C11 feature
+TPC is implemented in C11 (`-std=gnu11`). Do not use any C features
+newer than C11 without updating this file and the build documentation.
 
     Testing
 
