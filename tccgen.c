@@ -5821,13 +5821,11 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
             if (tcc_state->lang_d && tok >= TOK_IDENT) {
                 const char *sstr = get_tok_str(tok, &tokc);
                 if (!strcmp(sstr, "func")) {
-                    ad->f.func_safety = FUNC_SAFETY_SAFE;
                     ad->f.func_pure = FUNC_PURITY_TRUE;
                     next();
                     typespec_found = 1;
                     break;
                 } else if (!strcmp(sstr, "proc")) {
-                    ad->f.func_safety = FUNC_SAFETY_SAFE;
                     next();
                     typespec_found = 1;
                     break;
