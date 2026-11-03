@@ -7,10 +7,10 @@ extended by Per Nordlöw with mostly D language features such as
 slices, dynamic arrays, UFCS, `foreach`, `defer`, `immutable`,
 compile-time `version`/`debug` conditionals, and many other features.
 
-There are plans for syntactic extensions such as
-
-(`$if`), a shorter `static if`.
-
+Key extended language features include:
+- **D-Style Slices (`T[...]`):** Fat pointers with `.length`, range slicing (`lo..hi`, `lo..=hi`), opDollar (`$`), and automatic bounds/range checking.
+- **Compile-Time `$` Family:** `$(...)` value/type tuples, `$if` (static conditional), `$foreach` (static loop iteration), and `$assert` (compile-time assertions).
+- **Reflection:** `$tupleof(T)`, `$fields(T)`, and `$members(T)` for zero-boilerplate struct member inspection and serialization.
 The principal goal of TinyPC (TPC) is to become a compiler of multiple
 languages with modern features found in statically-typed system
 languages such as D, Zig, Rust, and C3—without sacrificing

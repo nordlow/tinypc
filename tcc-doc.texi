@@ -31,7 +31,7 @@ This manual documents version @value{VERSION} of the Tiny Poly Compiler.
 * Introduction::                Introduction to tcc.
 * Invoke::                      Invocation of tcc (command line, options).
 * Clang::                       ANSI C and extensions.
-* asm::                         Assembler syntax.
+* Dext::                        D language extensions and compile-time features.
 * linker::                      Output file generation and supported targets.
 * Bounds::                      Automatic bounds-checking of C code.
 * Libtcc::                      The libtcc library.
@@ -1074,6 +1074,62 @@ control-flow transfer to C labels:
 @item Binary digits can be entered (@code{0b101} instead of
 @code{5}).
 
+@end itemize
+
+@node Dext
+@chapter D Language Extensions and Compile-Time Metaprogramming
+
+TinyPC extends C with a robust set of D-inspired language features and
+compile-time metaprogramming capabilities, enabling high-performance
+system programming with zero-cost abstractions.
+
+@section D-Style Slices and Dynamic Arrays (@code{T[...]})
+
+Slices (@code{T[...]}) in TinyPC are fat pointers consisting of a pointer to
+data and a @code{.length} property.
+
+@itemize
+@item @strong{Range Slicing:} Supports half-open intervals (@code{x[lo..hi]})
+and inclusive upper limits (@code{x[lo..=hi]}).
+@item @strong{OpDollar (@code{$}):} The special identifier @code{$} evaluates
+to the slice length in indexing and slicing expressions (e.g.,
+@code{x[$-1]} or @code{x[0..$]}).
+@item @strong{Bounds and Range Checking:} Enabled via @option{-lang=d}
+(default in D mode) or @option{-b} in C mode, validating slice
+indexing and slicing against @code{.length} at runtime.
+@item @strong{Length Mismatch Policy:} Controlled by
+@option{-fslice-len-mismatch=@var{mode}}, where @var{mode} can be
+@code{abort} (default), @code{copy} (common prefix), or @code{ignore}.
+@end itemize
+
+@section The Compile-Time @code{$} Family
+
+TinyPC provides compile-time metaprogramming constructs prefixed with the
+dollar character (@code{$}):
+
+@itemize
+@item @strong{Tuples (@code{$(...)}}): Compile-time value and type tuples
+supporting destructuring, indexing, and iteration.
+@item @strong{Static If (@code{$if})}: Conditional compilation where only
+the selected branch is parsed, allowing dead branches to contain code that
+would otherwise be invalid for the target.
+@item @strong{Static Foreach (@code{$foreach})}: Compile-time loop
+unrolling and iteration over tuples and reflection nodes.
+@item @strong{Compile-Time Assertions (@code{$assert})}: Static assertions
+evaluated at compile time.
+@end itemize
+
+@section Reflection
+
+TinyPC supports compile-time reflection for structs and types:
+
+@itemize
+@item @strong{@code{$tupleof(T)}}: Member types of struct @code{T} as a
+type tuple (D's @code{T.tupleof}).
+@item @strong{@code{$fields(T)}} and @strong{@code{$members(T)}}:
+Compile-time reflection nodes providing member names, types, offsets,
+sizes, and pointers for zero-boilerplate serialization and graph
+traversal.
 @end itemize
 
 @node asm
