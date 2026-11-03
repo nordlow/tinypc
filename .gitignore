@@ -68,6 +68,8 @@ tests/asm-c-connect
 tests/asm-c-connect-sep
 tests/vla_test
 tests/hello
+tests/libtcc2.so
+tests/tcc2
 tests/tests2/fred.txt
 libtcc.dylib
 .omp/tmp/
