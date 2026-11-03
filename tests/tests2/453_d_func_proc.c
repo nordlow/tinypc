@@ -2,7 +2,7 @@
 func int add(int a, int b) {
     return a + b;
 }
-#elif defined test_proc_safe
+#elif defined test_proc
 proc void do_something() {
     int x = 42;
 }
