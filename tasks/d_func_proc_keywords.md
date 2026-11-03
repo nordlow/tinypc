@@ -37,9 +37,9 @@ with all code operating under `@safe` safety checks by default.
 
 ## Acceptance Criteria
 
-- **P1:** Register `func` and `proc` tokens and parse them as function
+- [x] **P1:** Register `func` and `proc` tokens and parse them as function
   specifiers in `-lang=d` mode.
-- **P2:** Automatically infer and enforce `@safe` by default for both `func`
+- [x] **P2:** Automatically infer and enforce `@safe` by default for both `func`
   and `proc`, and `@pure` semantics for `func`.
-- **Verification:** `./configure && make -j$(nproc) -B && make -j$(nproc) test`
+- [x] **Verification:** `./configure && make -j$(nproc) -B && make -j$(nproc) test`
   passes with new regression tests under `tests/tests2/`.

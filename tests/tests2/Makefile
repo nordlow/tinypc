@@ -260,6 +260,7 @@ endif
 429_d_tuple_value_error.test : GEN = $(GEN-TCC)
 451_complex_keywords.test : FLAGS += -dt
 452_d_keywords.test : FLAGS += -dt -lang=d
+453_d_func_proc.test : FLAGS += -dt -lang=d
 435_d_tuple_destructure.test : FLAGS += -lang=d
 435_d_tuple_destructure.test : GEN = $(GEN-TCC)
 436_d_tuple_destructure_error.test : FLAGS += -dt -lang=d

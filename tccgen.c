@@ -3995,11 +3995,16 @@ static int array_slice_length(CType *type)
 static int is_type_start(int t)
 {
     Sym *s;
+    if (tcc_state->lang_d && t >= TOK_IDENT) {
+        const char *sstr = get_tok_str(t, NULL);
+        if (!strcmp(sstr, "func") || !strcmp(sstr, "proc"))
+            return 1;
+    }
 
-    if (t >= TOK_UIDENT && get_tok_str(t, NULL)[0] == '$')
-        return 0;
+     if (t >= TOK_UIDENT && get_tok_str(t, NULL)[0] == '$')
+         return 0;
 
-    switch (t) {
+     switch (t) {
     case TOK_VOID: case TOK_CHAR: case TOK_SHORT: case TOK_INT:
     case TOK_LONG: case TOK_FLOAT: case TOK_DOUBLE: case TOK_BOOL:
     case TOK_COMPLEX: case TOK_IMAGINARY:
@@ -5813,6 +5818,21 @@ static int parse_btype(CType *type, AttrDef *ad, int ignore_label)
             next();
             break;
         default:
+            if (tcc_state->lang_d && tok >= TOK_IDENT) {
+                const char *sstr = get_tok_str(tok, &tokc);
+                if (!strcmp(sstr, "func")) {
+                    ad->f.func_safety = FUNC_SAFETY_SAFE;
+                    ad->f.func_pure = FUNC_PURITY_TRUE;
+                    next();
+                    typespec_found = 1;
+                    break;
+                } else if (!strcmp(sstr, "proc")) {
+                    ad->f.func_safety = FUNC_SAFETY_SAFE;
+                    next();
+                    typespec_found = 1;
+                    break;
+                }
+            }
             if (typespec_found)
                 goto the_end;
             s = sym_find(tok);
