@@ -106,6 +106,12 @@ ninja -C build sani            # whole suite under ASan/UBSan
 TEST=448 ninja -C build sani-one  # single test under sanitizers
 ```
 
+Code coverage:
+
+```sh
+ninja -C build tcov-test       # run suite with coverage; see build/tcc_c.tcov
+```
+
 ### Make-based equivalents
 
 All of the above have GNU Make equivalents (the Make build remains the
