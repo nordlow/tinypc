@@ -20,10 +20,10 @@ such as `x[$/2]` and `x[$/3]`.
 - [ ] **P3 (Safe `.length` Mutability Restrictions):** In `@safe`
       code, direct modification of a slice's `.length` property (e.g.,
       `x.length = ...` or `x.length += ...`) is a compilation error
-      with descriptive diagnostics.  *Note:* Slices can be safely
-      sub-sliced (split) (typically in recursive algorithms like
-      Quicksort) via the pattern `x[0..$*P/Q]` where `P` and `Q` are
-      integer compile-time expressions with `P <= Q`.
+      with descriptive diagnostics.  *Note:* Slices can be safely and
+      efficiently sub-sliced (split) (typically in recursive
+      algorithms like Quicksort) via the pattern `x[0..$*P/Q]` where
+      `P` and `Q` are integer compile-time expressions with `P <= Q`.
 
 ## Motivation
 
