@@ -101,10 +101,10 @@ Type modifiers, storage qualifiers, and bitfield attributes:
 ```
 
 Proposed renamings:
-- Modifiers: `VT_MOD_UNSIGNED`, `VT_MOD_BITFIELD`, `VT_MOD_CONSTANT`,
+- [ ] Modifiers: `VT_MOD_UNSIGNED`, `VT_MOD_BITFIELD`, `VT_MOD_CONSTANT`,
   `VT_MOD_VOLATILE`, `VT_MOD_RESTRICT`, `VT_MOD_IMMUTABLE`, `VT_MOD_LONG`,
   `VT_MOD_VLA`, `VT_MOD_ARRAY`.
-- Storage: `VT_STO_EXTERN`, `VT_STO_STATIC`, `VT_STO_TYPEDEF`,
+- [ ] Storage: `VT_STO_EXTERN`, `VT_STO_STATIC`, `VT_STO_TYPEDEF`,
   `VT_STO_INLINE`, `VT_STO_TLS`.
 
 Bitfield Shift and Dimension Helpers:

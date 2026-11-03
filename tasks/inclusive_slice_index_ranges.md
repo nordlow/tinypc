@@ -22,11 +22,11 @@ Extend slice indexing, slicing, and range expressions in TinyPC (TPC) from exclu
 ## Design & Implementation Plan
 
 1. **Parser Changes (`tccpp.c`, `tccgen.c`):**
-   - Extend token parsing for range operators to recognize `..=` (`TOK_DOTDOT_EQ`).
-   - Parse slice range expressions with `..=` into slice descriptors or range nodes with an inclusive flag.
+   - [ ] Extend token parsing for range operators to recognize `..=` (`TOK_DOTDOT_EQ`).
+   - [ ] Parse slice range expressions with `..=` into slice descriptors or range nodes with an inclusive flag.
 2. **Code Generation & Bounds Checking (`tccgen.c`, `bcheck.c`):**
-   - Adjust pointer/bounds checking (`-bt`) for inclusive ranges: validate `0 <= lo <= hi < x.length` (or `hi <= x.length - 1`).
-   - Compute slice lengths and pointer arithmetic accordingly (`length = hi - lo + 1`).
+   - [ ] Adjust pointer/bounds checking (`-bt`) for inclusive ranges: validate `0 <= lo <= hi < x.length` (or `hi <= x.length - 1`).
+   - [ ] Compute slice lengths and pointer arithmetic accordingly (`length = hi - lo + 1`).
 
 ## Acceptance Criteria
 

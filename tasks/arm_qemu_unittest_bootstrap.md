@@ -12,19 +12,19 @@ them under `qemu-arm` with pass/fail comparison against the existing
 
 Feasible, but with a few corrections to the original draft:
 
-- **There is no runtime `-target arm` flag.** TinyCC cross-compilers
+- [ ] **There is no runtime `-target arm` flag.** TinyCC cross-compilers
   are separate binaries built at configure time (`./configure
   --enable-cross && make cross-arm`), which produce `arm-tcc` (and
   variants such as `arm-eabi-tcc` / `arm-vfp-tcc`, depending on the
   tree version).
-- **An ARM sysroot is required.** `qemu-user` only emulates the CPU
+- [ ] **An ARM sysroot is required.** `qemu-user` only emulates the CPU
   and syscalls. The compiled binaries still need ARM crt files, libc,
   and a dynamic loader. Arch has no official ARM cross-glibc, so use
   an AUR/ALARM toolchain package (e.g. `arm-linux-gnueabihf-glibc`) or
   a manually extracted Arch Linux ARM rootfs.
-- **`tcc -run` cannot work cross-arch.** The test harness must compile
+- [ ] **`tcc -run` cannot work cross-arch.** The test harness must compile
   to an executable first, then execute it under QEMU.
-- **Binfmt is optional.** Invoking `qemu-arm -L <sysroot> ./test`
+- [ ] **Binfmt is optional.** Invoking `qemu-arm -L <sysroot> ./test`
   explicitly is more reproducible than relying on binfmt registration.
 
 ## Prerequisites
@@ -49,10 +49,10 @@ Feasible, but with a few corrections to the original draft:
    `qemu-arm -L $SYSROOT ./hello`.
 3. **Add a runner.** In `tests/tests2/Makefile` (or an included
    fragment), add a variable-driven mode, e.g. `make test-arm`, that:
-   - compiles each `*.c` with the ARM cross-compiler to an executable,
-   - runs it with `qemu-arm -L $(ARM_SYSROOT)`,
-   - diffs output against the `.expect` file,
-   - honors existing `TESTS=`/`FILTER=` conventions.
+   - [ ] compiles each `*.c` with the ARM cross-compiler to an executable,
+   - [ ] runs it with `qemu-arm -L $(ARM_SYSROOT)`,
+   - [ ] diffs output against the `.expect` file,
+   - [ ] honors existing `TESTS=`/`FILTER=` conventions.
 4. **Handle exclusions.** Create an explicit skip list for tests that
    can't work cross or under emulation: `-run`/`-dt` based tests,
    tests that depend on host paths, `dlopen`, or tcc-in-tcc
@@ -65,29 +65,29 @@ Feasible, but with a few corrections to the original draft:
 
 ## Acceptance Criteria
 
-- `make test-arm ARM_SYSROOT=/path/to/sysroot` runs from a clean
+- [ ] `make test-arm ARM_SYSROOT=/path/to/sysroot` runs from a clean
   checkout after the documented setup.
-- The hello-world smoke test passes.
-- Every test in `tests2/` is either passing or on the documented skip
+- [ ] The hello-world smoke test passes.
+- [ ] Every test in `tests2/` is either passing or on the documented skip
   list. Failures are triaged as either real ARM backend bugs or
   harness issues.
-- Missing tools or sysroot produce a readable error, not a cryptic
+- [ ] Missing tools or sysroot produce a readable error, not a cryptic
   compile failure.
-- No change to the behavior of the existing native `make test`.
+- [ ] No change to the behavior of the existing native `make test`.
 
 ## Out of Scope
 
-- ARM64, RISC-V, and other targets (follow-up, since the same harness
+- [ ] ARM64, RISC-V, and other targets (follow-up, since the same harness
   should generalize).
-- Fixing ARM backend bugs uncovered by the tests (file separately).
-- CI integration.
+- [ ] Fixing ARM backend bugs uncovered by the tests (file separately).
+- [ ] CI integration.
 
 ## Risks and Open Questions
 
-- Which ARM ABI variant (hard-float vs. soft-float) is the primary target?
-- Does the current tree's ARM backend still pass `tcctest.c`? Failures
+- [ ] Which ARM ABI variant (hard-float vs. soft-float) is the primary target?
+- [ ] Does the current tree's ARM backend still pass `tcctest.c`? Failures
   here may predate this task.
-- QEMU user-mode quirks (signals, threads, `/proc`) may cause spurious
+- [ ] QEMU user-mode quirks (signals, threads, `/proc`) may cause spurious
   failures; distinguish these from real bugs.
 
 I can also draft the Makefile fragment for step 3 if you'd like.

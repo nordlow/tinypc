@@ -12,19 +12,19 @@ generator instead of adding an interpreter to the frontend.
 
 ## Goal
 
-- Accept `$run(expr)` in constant expressions and `$run { ... }` as a
+- [ ] Accept `$run(expr)` in constant expressions and `$run { ... }` as a
   file-scope statement in `-lang=d` mode.
-- Compile the payload into a hidden wrapper function with the normal
+- [ ] Compile the payload into a hidden wrapper function with the normal
   backend, so CTFE observes exactly the same ABI, struct layout,
   integer-promotion and overflow behaviour as the eventual program.
-- Execute the wrapper by relocating a *private snapshot* of the
+- [ ] Execute the wrapper by relocating a *private snapshot* of the
   translation unit's sections, calling the wrapper through its symbol
   index, and discarding the snapshot afterwards.
-- Push the result back into the parser as an ordinary constant
+- [ ] Push the result back into the parser as an ordinary constant
   (`VT_CONST` value or a reference to materialised data), so it can
   feed array sizes, `enum` values, initialisers, `static assert`, and
   `$assert`.
-- Report CTFE crashes and timeouts as ordinary compile errors instead
+- [ ] Report CTFE crashes and timeouts as ordinary compile errors instead
   of aborting or hanging the compiler.
 
 Non-goals: an interpreter over the token stream, D's full CTFE purity
@@ -47,9 +47,9 @@ The backend already exists and is fast; tcc's own compile step is a
 few milliseconds, and `tcc_relocate()` already knows how to turn the
 in-memory sections into executable code.  Reusing it means:
 
-- no second semantics to maintain, and no interpreter bugs;
-- CTFE results are bit-identical to what the program would compute;
-- the feature costs the frontend only a parser hook plus a state
+- [ ] no second semantics to maintain, and no interpreter bugs;
+- [ ] CTFE results are bit-identical to what the program would compute;
+- [ ] the feature costs the frontend only a parser hook plus a state
   snapshot, not a new evaluator.
 
 ## Surface syntax
@@ -70,23 +70,23 @@ $run {
 }
 ```
 
-- `$run` is a *contextual* keyword, not a `tcctok.h` keyword.  It is
+- [ ] `$run` is a *contextual* keyword, not a `tcctok.h` keyword.  It is
   matched textually, the way `$assert` is (`tccgen.c:10401`).  It only
   has special meaning in D mode and only when followed by `(` or `{`,
   so existing identifiers named `$run` keep working.
-- `$run` is one member of the `$` compile-time family (`$(...)`,
+- [ ] `$run` is one member of the `$` compile-time family (`$(...)`,
   `$if`, `$foreach`, `$assert`).  The shared lexing rule -- `$` is
   special only before `(` (or `{` for `$run`) -- is specified in
   `tasks/support_tuples.md`, including the rule that `$if` opens no
   scope of its own (only its explicit braces do).
-- The statement form is a block, so `$run { ... }` needs no trailing
+- [ ] The statement form is a block, so `$run { ... }` needs no trailing
   `;`, but one is accepted and ignored.
-- `#run` as an alias is listed under M4: `#` starts a preprocessor
+- [ ] `#run` as an alias is listed under M4: `#` starts a preprocessor
   directive in `tccpp.c`, so the alias needs a new directive entry
   rather than a parser hook.  `$run` is the primary spelling.
-- M1 restricts both forms to file scope; block scope needs the
+- [ ] M1 restricts both forms to file scope; block scope needs the
   `gen_function()` refactor described under M3.
-- **Relationship with `$(...)`:** `$(...)` is reserved for lightweight
+- [ ] **Relationship with `$(...)`:** `$(...)` is reserved for lightweight
   compile-time constant folding and literal tuple construction, whereas
   `$run(...)` explicitly triggers full `libtcc` compilation, relocation, and
   execution. While `$(...)` could theoretically attempt interpretation or
@@ -112,13 +112,13 @@ saving it first.
 
 Consequences to document:
 
-- The saved tokens are already macro-expanded, so replaying them never
+- [ ] The saved tokens are already macro-expanded, so replaying them never
   re-expands a macro.
-- Replayed tokens carry the line number of the `$run` occurrence, not
+- [ ] Replayed tokens carry the line number of the `$run` occurrence, not
   of the original payload.  Diagnostics inside CTFE code therefore
   point at the `$run` site; acceptable, and worth a note in the
   README.
-- Token replay goes through `begin_macro(str, 1)` / `end_macro()`
+- [ ] Token replay goes through `begin_macro(str, 1)` / `end_macro()`
   (`tccpp.c:1093`, `1107`), which `gen_function()`'s trailing
   `next()` needs in order to start reading the body.
 
@@ -155,13 +155,13 @@ For `$run` the same steps produce:
 
 Three differences from `do_unittest()` matter:
 
-- `sr->f.func_ctor` must stay 0.  `do_unittest()` sets it to 1 so the
+- [ ] `sr->f.func_ctor` must stay 0.  `do_unittest()` sets it to 1 so the
   test lands in `.init_array` (`tccgen.c:10228`); a CTFE wrapper in
   `.init_array` would run at program start, which is exactly wrong.
-- The wrapper name is fresh (`TCC_TLS int nb_ctfe`, mirroring
+- [ ] The wrapper name is fresh (`TCC_TLS int nb_ctfe`, mirroring
   `nb_unittest` at `tccgen.c:10767`) so repeated `$run`s do not
   collide, and the symbol stays `static` (STB_LOCAL).
-- Debug info must be suppressed for the wrapper: `gen_function()`
+- [ ] Debug info must be suppressed for the wrapper: `gen_function()`
   calls `tcc_debug_funcstart()` (`tccgen.c:10233`), which would emit
   DWARF for a function that is dead code.  Save `debug_modes` and
   clear it around the synthesis.
@@ -201,17 +201,17 @@ around every `$run`.  This struct is also 80% of what M3 needs.
 Relocation is destructive and single-shot, so it cannot be applied to
 the live state:
 
-- `relocate_section()` writes through `ptr = s->data + rel->r_offset`
+- [ ] `relocate_section()` writes through `ptr = s->data + rel->r_offset`
   (`tccelf.c:1156`).
-- `relocate_sections()` rewrites the relocation entries themselves:
+- [ ] `relocate_sections()` rewrites the relocation entries themselves:
   `rel->r_offset += s->sh_addr` (`tccelf.c:1221`), so a second
   relocation of the same section double-adds.
-- `relocate_syms()` rewrites `st_value` in place
+- [ ] `relocate_syms()` rewrites `st_value` in place
   (`tccelf.c:1135`).
-- `tcc_relocate_ex()` reaches `cleanup_symbols()` /
+- [ ] `tcc_relocate_ex()` reaches `cleanup_symbols()` /
   `cleanup_sections()` at `copy == 3` (`tccrun.c:444`-`450`), which
   drops STB_LOCAL symbols and frees every section but the symtab.
-- `tcc_relocate()` refuses to run twice (`tccrun.c:158`).
+- [ ] `tcc_relocate()` refuses to run twice (`tccrun.c:158`).
 
 So each `$run` works on a deep clone:
 
@@ -268,20 +268,20 @@ The call itself reuses the `-run` crash plumbing: `tcc_setjmp()`
 `sig_error()` (`tccrun.c:1321`), which calls `rt_error()`
 (`tccrun.c:1204`) and longjmps out.
 
-- Register the clone with `st_link()` (`tccrun.c:559`) before the
+- [ ] Register the clone with `st_link()` (`tccrun.c:559`) before the
   call so `rt_find_state()` can map a faulting PC back to the clone's
   image, and `st_unlink()` (`tccrun.c:580`) afterwards.  Otherwise
   the backtrace resolver either misses the frame or attributes it to
   the parent state.
-- Inject an `exit` interceptor into the clone with
+- [ ] Inject an `exit` interceptor into the clone with
   `tcc_add_symbol(clone, "exit", ctfe_exit_stub)` so a payload that
   calls `exit()` becomes a compile error instead of terminating the
   compiler.  The same hook covers `abort()` (already SIGABRT) and,
   later, `fork()`.
-- A `setjmp` return of non-zero means the payload died; report
+- [ ] A `setjmp` return of non-zero means the payload died; report
   `"$run: <reason>"` with `tcc_error_noabort()` so `-dt` can collect
   several failures, and abandon that payload.
-- Free the clone: unprotect the pages the way `tcc_run_free()` does
+- [ ] Free the clone: unprotect the pages the way `tcc_run_free()` does
   (`tccrun.c:207`), `free_section()` each cloned section, free
   `sym_attrs`, free the shell.  Never call `tcc_delete()` on it --
   that would `tccelf_delete()` shared pointers and `dlclose()` the
@@ -299,11 +299,11 @@ The call itself reuses the `-run` crash plumbing: `tcc_setjmp()`
 
 Two semantic points the implementation must pin down:
 
-- **Pointers must not escape the snapshot.**  The returned address
+- [ ] **Pointers must not escape the snapshot.**  The returned address
   points into memory that is freed at the end of the `$run`.  Until
   provenance mapping exists, a pointer result is a hard error:
   `"$run result may not be a pointer"`.
-- **Writes to globals land in the clone.**  `$run { counter = 7; }`
+- [ ] **Writes to globals land in the clone.**  `$run { counter = 7; }`
   modifies the clone's `.data`, and the clone is thrown away, so the
   statement form is only useful for `$assert`-style checking and for
   compile-time diagnostics in M1.  Making it useful needs a
@@ -318,74 +318,74 @@ Two semantic points the implementation must pin down:
 
 ### 1. Parser hooks (`tccgen.c`)
 
-- **Declarations**: add `static int check_d_ctfe_run(int l);` next to
+- [ ] **Declarations**: add `static int check_d_ctfe_run(int l);` next to
   the other D helpers (`tccgen.c:181`-`185`) and call it from
   `decl()` after `check_d_static_assert()` (`tccgen.c:11204`).  It
   must reject `l != VT_CONST` with `"$run is only allowed at file
   scope"`, mirroring the `unittest` check at `tccgen.c:11212`.
-- **Expressions**: hook the `tok_identifier:` label in `unary()`
+- [ ] **Expressions**: hook the `tok_identifier:` label in `unary()`
   (`tccgen.c:7011`), after `t = tok; next();` and before
   `sym_find(t)`.  Trigger on `lang_d && t >= TOK_UIDENT &&
   !strcmp(get_tok_str(t, &tokc), "$run") && tok == '('`.  Guard with
   `func_ind >= 0` to reject block scope in M1.
-- **Statements** (M3): hook `block()` right after `next()`
+- [ ] **Statements** (M3): hook `block()` right after `next()`
   (`tccgen.c:8686`), in the same shape as the `scope(exit)` case at
   `tccgen.c:8826`-`8846`.
-- `$run` must *not* be added to `tcctok.h`; keeping it a plain
+- [ ] `$run` must *not* be added to `tcctok.h`; keeping it a plain
   identifier is what allows the contextual behaviour and avoids
   breaking `-lang=c` sources that use `$` in identifiers
   (`dollars_in_identifiers` defaults to 1, `libtcc.c:881`).
 
 ### 2. Wrapper synthesis (`tccgen.c`)
 
-- `static Sym *do_ctfe_wrapper(CType *ret, TokenString *body, int
+- [ ] `static Sym *do_ctfe_wrapper(CType *ret, TokenString *body, int
   with_out_param)` -- the `do_unittest()` body generalised, returning
   the symbol so the driver can read its `->c` index.
-- `struct ctfe_parse_ctx` plus `ctfe_save_parse()` /
+- [ ] `struct ctfe_parse_ctx` plus `ctfe_save_parse()` /
   `ctfe_restore_parse()`.
-- A `TCC_TLS int nb_ctfe` counter for wrapper names.
-- Suppress debug and coverage emission around the synthesis
+- [ ] A `TCC_TLS int nb_ctfe` counter for wrapper names.
+- [ ] Suppress debug and coverage emission around the synthesis
   (`debug_modes = 0`, save/restore `tcc_state->test_coverage`).
-- **Dead-code residue**: the wrapper stays in the parent's `.text`
+- [ ] **Dead-code residue**: the wrapper stays in the parent's `.text`
   and is emitted into every object file.  M1 accepts this (it is a
   dead `static` function, a few dozen bytes).  Trimming options, in
   order of increasing risk, are listed under *Open questions*.
 
 ### 3. Snapshot and clone (`tccrun.c`, `tccelf.c`)
 
-- `static TCCState *tcc_snapshot_new(TCCState *s1);`
-- `static void tcc_snapshot_free(TCCState *s2);`
-- Both live in `tccrun.c` next to `rt_mem()` because they only exist
+- [ ] `static TCCState *tcc_snapshot_new(TCCState *s1);`
+- [ ] `static void tcc_snapshot_free(TCCState *s2);`
+- [ ] Both live in `tccrun.c` next to `rt_mem()` because they only exist
   for `TCC_IS_NATIVE` builds; declare them in the internal section of
   `tcc.h` (not in `libtcc.h`, which is the public ABI).
-- `Section` has a `s1` back-pointer (`tcc.h:596`) that must be
+- [ ] `Section` has a `s1` back-pointer (`tcc.h:596`) that must be
   repointed at the clone; `new_section()` (`tccelf.c:229`) does this
   for fresh sections and is the model for the copy loop.
-- `sym_attrs` (`tcc.h:982`) is mutated by `build_got_entries()` and
+- [ ] `sym_attrs` (`tcc.h:982`) is mutated by `build_got_entries()` and
   `relocate_syms()`, so it must be cloned as an array, not shared.
 
 ### 4. Relocation driver (`tccrun.c`)
 
-- `static int tcc_relocate_snapshot(TCCState *s2);` -- a copy of
+- [ ] `static int tcc_relocate_snapshot(TCCState *s2);` -- a copy of
   `tcc_relocate_ex()` (`tccrun.c:330`) with a `snapshot` flag that
   (a) skips `tcc_add_runtime()` / `resolve_common_syms()` /
   `build_got_entries()`, (b) skips `cleanup_symbols()` /
   `cleanup_sections()` at `copy == 3`, and (c) returns the relocated
   size.
-- Replace the TLS error at `tccrun.c:389` with a CTFE-aware message
+- [ ] Replace the TLS error at `tccrun.c:389` with a CTFE-aware message
   when in snapshot mode: `"$run: thread-local storage is not
   supported"`.
-- `st_link()` / `st_unlink()` around the call, so crash reporting
+- [ ] `st_link()` / `st_unlink()` around the call, so crash reporting
   resolves frames in the snapshot image.
 
 ### 5. Result materialisation (`tccgen.c`)
 
-- Scalars: `vpushi()` for integers, `vsetc()` with `VT_CONST` and the
+- [ ] Scalars: `vpushi()` for integers, `vsetc()` with `VT_CONST` and the
   right `CValue` member for floating types.
-- Aggregates (M2): allocate a hidden rodata object with
+- [ ] Aggregates (M2): allocate a hidden rodata object with
   `section_add()` and `get_sym_ref()`, then `vpushsym()` -- the same
   path string literals and compound literals already use.
-- Provenance mapping (M2): given a returned address, find the clone
+- [ ] Provenance mapping (M2): given a returned address, find the clone
   section containing it, compute `offset`, look for a parent symbol
   whose section and range cover `offset`, and re-emit
   `parent_sym + (offset - parent_offset)`.  Anything else is an
@@ -393,21 +393,21 @@ Two semantic points the implementation must pin down:
 
 ### 6. Options, diagnostics, documentation
 
-- `-fno-ctfe` / `-fctfe=off`: make `$run` an error even in
+- [ ] `-fno-ctfe` / `-fctfe=off`: make `$run` an error even in
   `-lang=d`, for hermetic builds.  Wire it like the other `TCCState`
   booleans (`tcc.h` flags block, parsed in `tcc_parse_args`).
-- `-fctfe-timeout=<seconds>` (M4): `alarm()`/`SIGALRM` or a watchdog
+- [ ] `-fctfe-timeout=<seconds>` (M4): `alarm()`/`SIGALRM` or a watchdog
   thread that longjmps out of the payload.
-- `-Wctfe` (M4): warn when a `$run` payload is not `@pure`/`@det`
+- [ ] `-Wctfe` (M4): warn when a `$run` payload is not `@pure`/`@det`
   (see `deterministic_attribute.md`) or when CTFE is used in a build
   that also produces `-c` output, since the result then depends on
   the host.
-- `version(CTFE)` and a `__ctfe` macro that is 1 while a payload is
+- [ ] `version(CTFE)` and a `__ctfe` macro that is 1 while a payload is
   being compiled, so shared code can branch
   (`version(ctfe) { ... }` in the `check_d_conditional()` style at
   `tccgen.c:11084`).  The wrapper is dead code, so the runtime branch
   never executes.
-- README: a new subsection under "D-style language extensions"
+- [ ] README: a new subsection under "D-style language extensions"
   (`README.md:234`), next to `unittest` and `$assert`, plus a
   cross-reference from the compile-time reflection proposal in
   `TODO.md:151`-`186`.
@@ -511,48 +511,48 @@ multi-snippet error tests):
 
 Additional coverage:
 
-- A `tests/libtcc_test.c` case that compiles a string containing
+- [ ] A `tests/libtcc_test.c` case that compiles a string containing
   `$run` through the library API and checks the resulting constant,
   to prove the feature does not depend on the `tcc` driver.
-- `make -j$(nproc) test` must pass with `-lang=c` sources that use
+- [ ] `make -j$(nproc) test` must pass with `-lang=c` sources that use
   `$run` as an ordinary identifier (no regression in
   `-fdollars-in-identifiers` handling).
-- The PGO benchmark must not regress: `make pgo PGO_CC=clang` and
+- [ ] The PGO benchmark must not regress: `make pgo PGO_CC=clang` and
   compare Mlines/s and Valgrind `I refs` with `bench/pgo-history.tsv`.
 
 ## Risks and limitations
 
-- **`build_got_entries()` re-entrancy.**  It rewrites `r_info` and
+- [ ] **`build_got_entries()` re-entrancy.**  It rewrites `r_info` and
   adds GOT/PLT entries; if it is not idempotent, the second call (the
   real link after a `$run`) would corrupt relocations.  Mitigation:
   the `got_built` flag, plus a test that mixes `$run` with `-run` and
   with `-o` in one TU.
-- **`tcc_add_runtime()` re-entrancy.**  Adding `libtcc1.a` twice
+- [ ] **`tcc_add_runtime()` re-entrancy.**  Adding `libtcc1.a` twice
   duplicates symbols; the flag is mandatory, not an optimisation.
-- **Host privileges.**  A payload runs with the compiler's
+- [ ] **Host privileges.**  A payload runs with the compiler's
   privileges: it can open files, read the environment, `fork()`, or
   `exit()`.  `exit`/`abort` are intercepted; the rest is documented
   as "`$run` is a compile-time side-effecting construct", the same
   stance Jai and C++26 `constexpr` callbacks take.  `@pure`/`@det`
   (see `deterministic_attribute.md`) is the recommended way to keep
   payloads reproducible.
-- **Determinism.**  A payload that reads the clock, the environment
+- [ ] **Determinism.**  A payload that reads the clock, the environment
   or an address makes the build non-reproducible.  `-Wctfe` (M4) is
   the diagnostic; caching (M4) must be off by default for
   non-`@det` payloads.
-- **`long double` ABI.**  Reading an x87 80-bit return value from
+- [ ] **`long double` ABI.**  Reading an x87 80-bit return value from
   generated code into the compiler process assumes host and target
   agree.  Gate on `TCC_IS_NATIVE` and reject `long double` results on
   targets where tcc's representation differs from the host's.
-- **Debug info and dumps.**  The wrapper must not appear in DWARF or
+- [ ] **Debug info and dumps.**  The wrapper must not appear in DWARF or
   in `-fdump-decls` output; suppress `debug_modes` and skip
   `psyms()` for CTFE symbols.
-- **`.text` growth.**  Every `$run` leaves a dead wrapper behind.
+- [ ] **`.text` growth.**  Every `$run` leaves a dead wrapper behind.
   For a compiler that advertises tiny output this is a real cost, and
   M4 should either trim it or compile the wrapper directly into the
   snapshot (which requires the parser to run against the clone, with
   the symbol-transaction rollback described under *Alternatives*).
-- **Hangs.**  An infinite loop in a payload hangs the compiler, so
+- [ ] **Hangs.**  An infinite loop in a payload hangs the compiler, so
   `-fctfe-timeout` is not a nicety.  Until M4 lands, document the
   risk and keep the `setjmp` path ready for the timeout signal.
 
@@ -576,48 +576,48 @@ Additional coverage:
 
 ## Alternatives considered
 
-- **Interpreter over the token stream / AST.**  No ABI drift, but it
+- [ ] **Interpreter over the token stream / AST.**  No ABI drift, but it
   needs a second semantics for every operator, struct layout and
   calling convention, and it cannot reuse `libtcc1` helpers.  This is
   the option the task explicitly rejects.
-- **Compile the payload into a fresh `TCCState`.**  Would avoid the
+- [ ] **Compile the payload into a fresh `TCCState`.**  Would avoid the
   dead-code residue, but the payload's symbols live in the parent's
   symtab and `table_ident`; compiling against a clone means either
   re-resolving every name or rolling the shared symbol tables back
   after the wrapper is generated.  Worth revisiting in M4.
-- **Relocate the parent in place and restore afterwards.**  Cheaper
+- [ ] **Relocate the parent in place and restore afterwards.**  Cheaper
   than a clone, but every mutated field must be restored by hand:
   section `data`, `sh_addr`, `data_offset`, relocation `r_offset`,
   symtab `st_value`, `sym_attrs`, `qrel`, plus the freed sections at
   `copy == 3`.  One missed field corrupts the output silently, which
   is a bad trade for a compiler whose main selling point is
   correctness on small inputs.
-- **Defer all `$run`s to the end of the TU** (the
+- [ ] **Defer all `$run`s to the end of the TU** (the
   `gen_inline_functions()` pattern at `tccgen.c:10283`).  Impossible
   for the expression form, because array bounds and `enum` values
   need the constant during parsing.
-- **Shell out to a second `tcc -run` process.**  Simple and fully
+- [ ] **Shell out to a second `tcc -run` process.**  Simple and fully
   isolated, but it loses the current TU's types and globals, needs a
   temporary directory and a serialisation format, and makes every
   `$run` cost a process spawn.
 
 ## Acceptance criteria
 
-- `-lang=d` accepts `$run(expr)` in constant expressions and
+- [ ] `-lang=d` accepts `$run(expr)` in constant expressions and
   `$run { ... }` at file scope; `-lang=c` does not.
-- `$run` of an integer, `_Bool` or floating expression yields a value
+- [ ] `$run` of an integer, `_Bool` or floating expression yields a value
   identical to the same code run at program start.
-- An array bound, `enum` value, `static assert` and `$assert` can all
+- [ ] An array bound, `enum` value, `static assert` and `$assert` can all
   consume a `$run` result.
-- Two `$run`s in one TU both work, and a `$run` followed by `-run` or
+- [ ] Two `$run`s in one TU both work, and a `$run` followed by `-run` or
   `-o` produces correct output.
-- A payload that divides by zero, dereferences NULL, calls `exit()`
+- [ ] A payload that divides by zero, dereferences NULL, calls `exit()`
   or loops past the timeout produces a compile error naming the
   `$run` site, and the compiler exits with a nonzero status instead
   of crashing or hanging.
-- Pointer and aggregate results are rejected with an actionable
+- [ ] Pointer and aggregate results are rejected with an actionable
   message in M1 and supported in M2.
-- `-fno-ctfe` turns every `$run` into an error.
-- `./configure && make -j$(nproc) -B && make -j$(nproc) test` passes,
+- [ ] `-fno-ctfe` turns every `$run` into an error.
+- [ ] `./configure && make -j$(nproc) -B && make -j$(nproc) test` passes,
   and `make pgo PGO_CC=clang` shows no regression in Mlines/s or
   Valgrind instruction count against `bench/pgo-history.tsv`.

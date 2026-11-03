@@ -14,7 +14,7 @@ mode, eliminating the need for repetitive `#ifdef DEBUG` preprocessor boilerplat
 ## Semantics & Syntax
 
 1. **`debug` Conditional Blocks:**
-   - Supported in standard C mode:
+   - [ ] Supported in standard C mode:
      ```c
      debug {
          /* executed only when debugging is enabled */
@@ -22,20 +22,20 @@ mode, eliminating the need for repetitive `#ifdef DEBUG` preprocessor boilerplat
      }
      ```
 2. **`@debug` Attribute / Statement:**
-   - Functions or statements annotated with `@debug` compile conditionally based
+   - [ ] Functions or statements annotated with `@debug` compile conditionally based
      on debug flags.
 
 ## Implementation Details (`tccpp.c`, `tccgen.c`)
 
 1. **Unconditional Keyword Recognition:**
-   - Remove the `lang_d` gating check on `debug` and `@debug`, making them
+   - [ ] Remove the `lang_d` gating check on `debug` and `@debug`, making them
      first-class syntax tokens available in all language modes.
 2. **Conditional Compilation Logic:**
-   - Reuse TinyPC's existing `debug(...)` block parser and conditional skipping
-   - machinery (`check_d_conditional()`, `tccgen.c`) in C mode.
+   - [ ] Reuse TinyPC's existing `debug(...)` block parser and conditional skipping
+   - [ ] machinery (`check_d_conditional()`, `tccgen.c`) in C mode.
 
 ## Acceptance Criteria
 
-- **P1:** Parse and evaluate `debug` blocks and `@debug` in C mode (`-lang=c`).
-- **Verification:** `./configure && make -j$(nproc) -B && make -j$(nproc) test`
+- [ ] **P1:** Parse and evaluate `debug` blocks and `@debug` in C mode (`-lang=c`).
+- [ ] **Verification:** `./configure && make -j$(nproc) -B && make -j$(nproc) test`
   passes with regression tests under `tests/tests2/`.

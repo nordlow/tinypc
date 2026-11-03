@@ -11,8 +11,8 @@ Rust), managing object aliasing and mutation is critical for preventing
 data races and undefined behavior without heavy locking overhead. 
 
 Reference capabilities restrict how references can be aliased and shared:
-- **Write-Isolation:** Ensuring an object has a single exclusive owner.
-- **Move-Only Semantics:** Transferring ownership across scopes or tasks
+- [ ] **Write-Isolation:** Ensuring an object has a single exclusive owner.
+- [ ] **Move-Only Semantics:** Transferring ownership across scopes or tasks
   without allowing duplicate mutable aliases.
 
 ---
@@ -52,12 +52,12 @@ depending on community feedback and alignment with D/C language idioms.
 ## Implementation Plan
 
 1. **Attribute & Token Registration (`tcc.h`, `tcctok.h`):**
-   - Register `@unique` (and optional aliases `@isolated` / `@owned`).
-   - Add capability flag fields to `Sym`, `CType`, and `AttrDef`.
+   - [ ] Register `@unique` (and optional aliases `@isolated` / `@owned`).
+   - [ ] Add capability flag fields to `Sym`, `CType`, and `AttrDef`.
 2. **Type Checking & Assignment Rules (`tccgen.c`):**
-   - Enforce move semantics on assignment and function argument passing for
+   - [ ] Enforce move semantics on assignment and function argument passing for
      `@unique` objects.
-   - Disallow duplicating or re-using a moved `@unique` variable.
+   - [ ] Disallow duplicating or re-using a moved `@unique` variable.
 3. **Regression Tests:**
-   - Add test cases under `tests/tests2/` verifying unique assignment,
+   - [ ] Add test cases under `tests/tests2/` verifying unique assignment,
      ownership transfer, and alias restriction errors.

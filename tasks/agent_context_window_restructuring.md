@@ -13,14 +13,14 @@ reducing the performance of the compiler.
 The compiler implementation is organized as C fragments that are merged
 or compiled depending on the `ONE_SOURCE` configuration:
 
-- `tcc.c` includes fragments (`tccpp.c`, `tccgen.c`, `tccdbg.c`,
+- [ ] `tcc.c` includes fragments (`tccpp.c`, `tccgen.c`, `tccdbg.c`,
   `tccasm.c`, `tccelf.c`, `tccrun.c`) plus per-target
   (`*-gen.c`, `*-link.c`, `*-asm.c`) when `ONE_SOURCE=1`; with
   `ONE_SOURCE=0` the same implementations compile as separate objects
   with cross-TU externs declared across `tcc.h` sections.
-- `tccgen.c` is a monolithic compiler core: 11,497 lines / ~347 KB
+- [ ] `tccgen.c` is a monolithic compiler core: 11,497 lines / ~347 KB
   (~87k tokens).
-- Reading the full backend-agnostic compiler (`tcc.c`, `tccpp.c`,
+- [ ] Reading the full backend-agnostic compiler (`tcc.c`, `tccpp.c`,
   `tccgen.c`, `tccdbg.c`, `tccasm.c`, `tccelf.c`, `tccrun.c`, `tcc.h`,
   `elf.h`, `dwarf.h`) is roughly 250k tokens — most of a large agent
   context window before task-specific context is added.
@@ -56,15 +56,15 @@ duplicated `*-gen.c` files into one shared internal header/fragment.
 
 ### Proposal P4 — Test-suite and hygiene cleanup
 
-- Keep `tests/tests2/` canonical; move legacy `tests/tcctest.c` family
+- [ ] Keep `tests/tests2/` canonical; move legacy `tests/tcctest.c` family
   into a clearly separated legacy path.
-- Ignore generated artifacts inside `tests/tests2/` (`*.exe *.o *.so
+- [ ] Ignore generated artifacts inside `tests/tests2/` (`*.exe *.o *.so
   *.tcov *.output *.log`).
-- Resolve naming anomalies (`104+_inline.c`, `120+_alias.c`).
+- [ ] Resolve naming anomalies (`104+_inline.c`, `120+_alias.c`).
 
 ### Proposal P5 — Agent navigation aids
 
-- Add a module map (`docs/architecture.md` or AGENTS.md section) listing
+- [ ] Add a module map (`docs/architecture.md` or AGENTS.md section) listing
   each compiler file/fragment → responsibility → key entry points.
 
 ### Suggested rollout
@@ -77,18 +77,18 @@ duplicated `*-gen.c` files into one shared internal header/fragment.
 
 ### Performance guardrails
 
-- `./configure && make -j$(nproc) -B && make -j$(nproc) test`
-- `make pgo PGO_CC=clang`; `make pgo-bench` → report Mlines/s + valgrind
+- [ ] `./configure && make -j$(nproc) -B && make -j$(nproc) test`
+- [ ] `make pgo PGO_CC=clang`; `make pgo-bench` → report Mlines/s + valgrind
   I refs.
-- Baseline on this host: 4.35 Mlines/s, 249,388,455 I refs.
-- `make pgo-record PGO_HISTORY_RANGE=HEAD^..HEAD`.
+- [ ] Baseline on this host: 4.35 Mlines/s, 249,388,455 I refs.
+- [ ] `make pgo-record PGO_HISTORY_RANGE=HEAD^..HEAD`.
 
 ### Verification performed so far
 
-- `make -j$(nproc) test`: completes but shows pre-existing failures.
-- `make pgo-bench`: 4.35 Mlines/s, 249,388,455 I refs.
+- [ ] `make -j$(nproc) test`: completes but shows pre-existing failures.
+- [ ] `make pgo-bench`: 4.35 Mlines/s, 249,388,455 I refs.
 
 ## Related task
 
-- `refactor_vstack_logic.md` — refactor stack-based value operations
+- [ ] `refactor_vstack_logic.md` — refactor stack-based value operations
   (`vstack`/`vtop`) in `tccgen.c`; related to Proposal P1.

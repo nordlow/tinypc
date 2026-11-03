@@ -51,17 +51,17 @@ and the following token (`(` for `$(`, `$if` and `$foreach`; `{` for
 
 Consequences:
 
-- **No lexer change.**  `tccpp.c:2696` already yields the identifier
+- [ ] **No lexer change.**  `tccpp.c:2696` already yields the identifier
   `$` when `$` is followed by `(`, because `(` is not an identifier
   character.
-- **No identifier regression.**  `int $if;`, `int $x;` and a function
+- [ ] **No identifier regression.**  `int $if;`, `int $x;` and a function
   named `$` remain valid; no `$`-word becomes a reserved word.
-- **Uniform spelling.**  Compile-time constructs are `$(...)` and
+- [ ] **Uniform spelling.**  Compile-time constructs are `$(...)` and
   `$word(...)`, never a bare `$EXPR`.
-- **Separate value spellings.**  `$(...)` builds at compile time and
+- [ ] **Separate value spellings.**  `$(...)` builds at compile time and
   `(...)` builds at run time.  Neither is sugar for the other, and
   `$(...)` is never accepted with run-time elements.
-- **No extra scope.**  `$if` itself opens no scope, unlike C's `if`
+- [ ] **No extra scope.**  `$if` itself opens no scope, unlike C's `if`
   with a braced body: a braceless `$if` branch declares into the
   enclosing scope, and only explicit braces create a block (see D9).
 
@@ -80,23 +80,23 @@ opDollar rule.
 
 ## Goal
 
-- **P1:** parse `(T1, T2, ..., Tn)` as a type in declarations,
+- [ ] **P1:** parse `(T1, T2, ..., Tn)` as a type in declarations,
   typedefs, `alias`, fields, parameters and return types; give it a
   deterministic, struct-compatible layout, initializer support,
   element access `t[i]`, and struct-compatible assignment and
   calling convention.
-- **P2:** parse `$(e1, e2, ..., en)` as a tuple whose elements must
+- [ ] **P2:** parse `$(e1, e2, ..., en)` as a tuple whose elements must
   all be compile-time constants, and allow constant indexing,
   `sizeof`, `typeof`, `_Generic`, `static assert` and `$assert` to
   consume it.  `$(e)` is the compile-time value of `e`; `$(e,)` is a
   compile-time 1-tuple.
-- **P3:** parse `(e1, e2, ...)` as a run-time tuple literal where the
+- [ ] **P3:** parse `(e1, e2, ...)` as a run-time tuple literal where the
   expected type is already a tuple, and allow tuple-typed variables
   and temporaries, tuple arguments and returns, and destructuring
   `auto (a, b) = expr;`.
-- Keep every valid C and D program meaning exactly what it means
+- [ ] Keep every valid C and D program meaning exactly what it means
   today, in particular comma expressions and opDollar (`a[$]`).
-- Reuse the existing struct machinery for layout, assignment, ABI,
+- [ ] Reuse the existing struct machinery for layout, assignment, ABI,
   initializers and debug info instead of adding a parallel type kind.
 
 Non-goals: tuple arithmetic, tuple comparison in P1/P2 (see M5),
@@ -111,18 +111,18 @@ task only fixes the tuple syntax they share.
 
 ## Motivation
 
-- **Multiple return values.**  Today a function returning two values
+- [ ] **Multiple return values.**  Today a function returning two values
   must use an out-parameter, a global, or a struct with a tag.  A
   tuple makes `(int, char) f(void)` and `auto (i, c) = f();` possible
   without naming a helper struct.
-- **Reflection.**  `TODO.md:151` proposes `$fields(T)` returning a
+- [ ] **Reflection.**  `TODO.md:151` proposes `$fields(T)` returning a
   tuple of reflection nodes and `$for`/`$foreach` over them.  Without
   a tuple type those results have to be encoded as arrays of
   homogeneous nodes, which loses per-field types.
-- **D compatibility.**  D's `std.typecons.Tuple` is a library type
+- [ ] **D compatibility.**  D's `std.typecons.Tuple` is a library type
   built on templates.  tcc has no templates, so a built-in tuple is
   the shortest path to the same ergonomics.
-- **Slices are the precedent.**  The fork already represents a D
+- [ ] **Slices are the precedent.**  The fork already represents a D
   slice as an anonymous `VT_STRUCT` with `SymAttr.is_slice`
   (`make_slice_type()`, `tccgen.c:5564`; `is_slice_type()`,
   `tccgen.c:3773`).  Tuples should follow that path rather than the
@@ -146,23 +146,23 @@ compile-time constructor.
 
 ## Decision record
 
-- **D1 -- priority order.**  P1 type tuples, P2 compile-time value
+- [ ] **D1 -- priority order.**  P1 type tuples, P2 compile-time value
   tuples, P3 run-time value tuples.  Each milestone is independently
   shippable.
-- **D2 -- representation.**  A tuple is an anonymous `VT_STRUCT` with
+- [ ] **D2 -- representation.**  A tuple is an anonymous `VT_STRUCT` with
   a new `SymAttr.is_tuple` bit and positional anonymous fields, not a
   new `VT_*` basic type.  `VT_BTYPE` is a saturated 4-bit field
   (`tcc.h:1118`; all 16 values 0..15 are taken, and the next bit,
   `0x0010`, is `VT_UNSIGNED`), so a new basic type means renumbering
   every type flag and auditing every backend switch.  See
   *Internal representation decision*.
-- **D3 -- identity.**  Tuple types are structural and anonymous.  No
+- [ ] **D3 -- identity.**  Tuple types are structural and anonymous.  No
   tag name is generated from the element types; `compare_types()`
   compares element-wise, and an optional hash-consing table keyed by
   element type identity canonicalises repeated occurrences.  A
   printable spelling `(int, char)` is synthesised by `type_to_str()`
   on demand.
-- **D4 -- language modes.**  Type tuples and run-time tuple literals
+- [ ] **D4 -- language modes.**  Type tuples and run-time tuple literals
   are enabled in all modes: `(T1, T2)` was invalid C before, so no
   valid C program changes meaning, and `(...)` is only read as a
   tuple where the expected type is already a tuple -- a type that can
@@ -172,7 +172,7 @@ compile-time constructor.
   `$`-word only specialises when `(` follows, so `$x` and `$T` stay
   identifiers and `$if`/`$foreach` remain usable as names.  See *The
   `$` compile-time family* and *Language mode decision*.
-- **D5 -- separate spellings.**  `$` marks compile time, so
+- [ ] **D5 -- separate spellings.**  `$` marks compile time, so
   `$(...)` builds a tuple of compile-time constants and `(...)`
   builds a run-time tuple.  The two are not aliases: an element of
   `$(...)` must be a compile-time constant, and `(...)` is not
@@ -181,7 +181,7 @@ compile-time constructor.
   `$run { ... }`.  A bare `$EXPR` is not adopted either: `$` is an
   identifier character, so it needs a lexer mode and collides with
   opDollar.
-- **D6 -- the `(...)` context rule.**  `(...)` is a value tuple only
+- [ ] **D6 -- the `(...)` context rule.**  `(...)` is a value tuple only
   in a context that already expects a tuple (initializer,
   assignment, argument, return, cast operand, destructuring
   pattern).  Everywhere else it stays a comma expression.  This
@@ -189,13 +189,13 @@ compile-time constructor.
   type in those contexts is a tuple, and a tuple type cannot appear
   in code that predates this feature.  The rule is therefore safe in
   `-lang=c` as well, not only in `-lang=d`.
-- **D7 -- arity spelling.**  A 1-tuple always needs a trailing
+- [ ] **D7 -- arity spelling.**  A 1-tuple always needs a trailing
   comma: `(T,)` is a 1-tuple type and `(T)` stays a parenthesised
   type/cast; `$(e,)` and `(e,)` are 1-tuples and `$(e)`/`(e)` are
   the value of `e`.  This matches Python and Swift and keeps the
   compile-time and run-time spellings in agreement about arity.
   `()` is an error in M1 (a unit type can be added later).
-- **D8 -- M1 parsing probe and field naming.**  The hook lives inside
+- [ ] **D8 -- M1 parsing probe and field naming.**  The hook lives inside
   `parse_btype()`'s specifier loop (`tok == '(' && !typespec_found`),
   so `typedef (int, char) P;`, `(int, char) x;` and
   `sizeof((int, char))` all take the same path; `unary()` only builds
@@ -231,7 +231,7 @@ compile-time constructor.
   `table_ident` lookup; `$` is an identifier character, so these
   names are not spellable from source.
 
-- **D9 -- `$if` and scope.**  `$if` introduces no scope of its own.
+- [ ] **D9 -- `$if` and scope.**  `$if` introduces no scope of its own.
   A braceless branch is a declaration or statement in the enclosing
   scope: `$if (1) int x = 1;` leaves `x` visible after the `$if`, and
   declaring the same name again is an ordinary redeclaration.  A
@@ -267,27 +267,27 @@ _Alignof(Pair);
 
 Rules:
 
-- An element is a full type expression: `(int *, char[3])`,
+- [ ] An element is a full type expression: `(int *, char[3])`,
   `(const int, char)`, `((int, char), int)`.
-- `void`, function types, VLAs, incomplete types and storage classes
+- [ ] `void`, function types, VLAs, incomplete types and storage classes
   (`static`, `extern`, `typedef`, `inline`, `_Thread_local`) are
   rejected as elements, mirroring the checks in `struct_decl()`
   (`tccgen.c:5049`-`5060`).  `struct_layout()` does not reject them
   on its own (`type_size(VT_VOID)` returns 1), so the tuple parser
   must validate each element before calling `make_tuple_type()`.
-- Element qualifiers are part of the type:
+- [ ] Element qualifiers are part of the type:
   `(const int, char)` and `(int, char)` are different types under
   `compare_types(..., unqualified=0)` and the same under
   `unqualified=1`.
-- Type identity is structural.  `typedef (int, char) A;` and
+- [ ] Type identity is structural.  `typedef (int, char) A;` and
   `typedef (int, char) B;` name the same type.
-- `t[i]` is the only element accessor.  `i` must be an integer
+- [ ] `t[i]` is the only element accessor.  `i` must be an integer
   constant expression in M1; M5 may add run-time indices for tuples
   whose elements are all laid out contiguously and identically sized
   (a rare case, so probably not worth it).
-- `t[i]` is an lvalue when `t` is an lvalue, and a value otherwise,
+- [ ] `t[i]` is an lvalue when `t` is an lvalue, and a value otherwise,
   following the `.` field-access path (`tccgen.c:7395`-`7418`).
-- There is no tuple arithmetic, comparison or cast in M1.  Casting to
+- [ ] There is no tuple arithmetic, comparison or cast in M1.  Casting to
   a tuple type is an error until M3's element-wise cast.
 
 `(int, char)` in a *type* position is unambiguous because C has no
@@ -320,34 +320,34 @@ static Pair p = $(1, 2);            /* M2: constant tuple */
 
 Rules:
 
-- `$` is special only immediately before `(`; see *The `$`
+- [ ] `$` is special only immediately before `(`; see *The `$`
   compile-time family*.  `$(` is recognised only in `-lang=d` and
   only when the identifier is exactly `$` and the next token is `(`.
   A function or variable named `$` keeps working in C mode.
-- `$(e)` with a single element and no trailing comma is the
+- [ ] `$(e)` with a single element and no trailing comma is the
   compile-time value of `e`, not a tuple.  `$(e,)` is a 1-tuple, and
   `$(e1, e2, ...)` is a tuple of two or more elements.  This is the
   same arity rule as `(...)` (see D7).
-- Elements are parsed with `expr_eq()`, so an element may itself be a
+- [ ] Elements are parsed with `expr_eq()`, so an element may itself be a
   fixed expression such as a cast, a conditional, or a nested
   `$(...)`.
-- Every element must fold to `VT_CONST`, in every context, not only
+- [ ] Every element must fold to `VT_CONST`, in every context, not only
   inside a constant context (`CONST_WANTED`,
   `tccgen.c:8075`/`8096`).  A run-time value is an error:
   `$`: element 1 is not a compile-time constant.  This is what
   makes `$(...)` a compile-time constructor rather than a spelling
   of `(...)`.
-- M2 restricts elements to scalars with a `CValue` representation
+- [ ] M2 restricts elements to scalars with a `CValue` representation
   (integers, `_Bool`, enums, `float`, `double`, `long double`, null
   pointers) and to nested constant `$(...)` tuples.  Other aggregates,
   arrays, functions, string literals and address constants are
   rejected until M5.  `$run` (separate task) later widens the set of
   expressions that count as compile-time constant.
-- The tuple type is the tuple of the element types, so `$(1, 2.0)`
+- [ ] The tuple type is the tuple of the element types, so `$(1, 2.0)`
   has type `(int, double)`, not `(double, double)`.  Element-wise
   conversion happens only when the tuple is assigned to a tuple type
   (M3).
-- Empty `$()` is rejected in M2.  `$if` and `$foreach` consume these
+- [ ] Empty `$()` is rejected in M2.  `$if` and `$foreach` consume these
   values; they are specified with the reflection task and land in M2
   and M4 respectively (see *Milestones*).
 
@@ -373,12 +373,12 @@ int z = t[1];
 
 Rules:
 
-- `(...)` is a tuple only in a tuple-expected context: an initializer
+- [ ] `(...)` is a tuple only in a tuple-expected context: an initializer
   for a tuple-typed object, the right side of an assignment to one,
   an argument for a tuple parameter, a `return` from a tuple-returning
   function, a cast operand, a destructuring initializer, or the right
   side of a destructuring assignment.
-- Everywhere else `(a, b)` remains a comma expression:
+- [ ] Everywhere else `(a, b)` remains a comma expression:
 
   ```c
   int z = (a, b);               /* comma expression, z = b */
@@ -387,28 +387,28 @@ Rules:
   for (i = 0, j = 0; ...)       /* unaffected: gexpr(), not a paren */
   ```
 
-- The rule is safe because in each tuple-expected context the comma
+- [ ] The rule is safe because in each tuple-expected context the comma
   expression would be a type error today.  A valid program cannot
   silently change meaning, in C or in D.
-- A compile-time `$(...)` tuple is a constant and is accepted in
+- [ ] A compile-time `$(...)` tuple is a constant and is accepted in
   every run-time tuple context, e.g. `(int, int) t = $(1, 2);`.
-- There is no inferred-type tuple local: `auto t = (a, b);` stays
+- [ ] There is no inferred-type tuple local: `auto t = (a, b);` stays
   `int t = b`.  Name the type (`(int, int) t = (x, y);`) or
   destructure (`auto (a, b) = (x, y);`).  `$(...)` is not a
   workaround, because it requires constant elements.
-- Arity matches M2: `(x)` is a parenthesised expression, `(x,)` a
+- [ ] Arity matches M2: `(x)` is a parenthesised expression, `(x,)` a
   1-tuple, `(x, y)` a 2-tuple.
-- The literal materialises as a struct rvalue.  Assignment,
+- [ ] The literal materialises as a struct rvalue.  Assignment,
   initialisation, argument passing and return use the existing
   struct paths (`vstore()` at `tccgen.c:4029`,
   `gfunc_call()`/`gfunc_return()` at `tccgen.c:8131`).
-- The ABI is exactly the struct ABI.  On x86-64, a tuple of up to two
+- [ ] The ABI is exactly the struct ABI.  On x86-64, a tuple of up to two
   eightbytes is returned in registers via `gfunc_sret()`
   (`x86_64-gen.c:753`); a larger tuple uses the hidden return
   pointer.  No new ABI is introduced.
-- `(int, char){a, b}` is the explicit brace-initializer spelling,
+- [ ] `(int, char){a, b}` is the explicit brace-initializer spelling,
   available from M1.
-- The value of a tuple is copied, not aliased.  `t[0]` on a
+- [ ] The value of a tuple is copied, not aliased.  `t[0]` on a
   non-lvalue tuple spills it to a temporary first, like a struct
   member access on an rvalue.
 
@@ -428,22 +428,22 @@ struct S s;
 (a,) = (42,);               /* one-element pattern               */
 ```
 
-- Each destination is parsed as an expression and must be an lvalue
+- [ ] Each destination is parsed as an expression and must be an lvalue
   (an array destination is copied element-wise, like a struct field).
-- All destinations are kept on the value stack while the right side is
+- [ ] All destinations are kept on the value stack while the right side is
   evaluated into a tuple temporary.  Only then are the stores
   performed, so `(a, b) = (b, a)` swaps rather than duplicating `b`.
-- The expected tuple type is built from the destination types, so the
+- [ ] The expected tuple type is built from the destination types, so the
   right side may be a tuple literal, a `$(...)` constant, a function
   result, tuple variable, or field/index/dereference.  Element
   conversions follow the ordinary tuple initializer rules.
-- The value of the assignment expression is the right-side tuple, so
+- [ ] The value of the assignment expression is the right-side tuple, so
   `((a, b) = (3, 4))[1]` is `4`.
-- The parser only commits to the pattern when the parenthesised group
+- [ ] The parser only commits to the pattern when the parenthesised group
   has a top-level comma and is immediately followed by `=`.  Every
   other group, including `(a, b)` in a statement or argument, is
   replayed unchanged as a comma expression.
-- Diagnostics: a non-lvalue destination is rejected by name; too many
+- [ ] Diagnostics: a non-lvalue destination is rejected by name; too many
   or too few tuple-literal elements and non-tuple right sides report
   the tuple arity or the `cannot convert 'T' to '(T1, T2)'` error.
 
@@ -474,21 +474,21 @@ static (struct S, int) mks(void)
 ### Rejected spellings
 
 
-- **`$EXPR`** -- a unary `$` operator needs `$` removed from the
+- [ ] **`$EXPR`** -- a unary `$` operator needs `$` removed from the
   identifier character set, which re-lexes `$if`, `$x` and `$T`,
   breaks the textual `$assert` match, and collides with opDollar.
   `$(EXPR)` is the same operation with two more characters.
-- **`${...}`** -- braces already mean a block, an initializer, a
+- [ ] **`${...}`** -- braces already mean a block, an initializer, a
   statement expression and the `$run { ... }` form.  `${1, 2}` would
   need brace matching and would read like a shell expansion.  `$(...)`
   mirrors the `(...)` run-time spelling and reuses the existing `$`
   sigil.
-- **`tuple(...)`** -- reads like a function call and needs a builtin
+- [ ] **`tuple(...)`** -- reads like a function call and needs a builtin
   declaration or a reserved identifier.  It is a possible fallback
   spelling for C mode, but not the primary one.
-- **`#(...)`** -- `#` starts a preprocessor directive; it would need a
+- [ ] **`#(...)`** -- `#` starts a preprocessor directive; it would need a
   new preprocessor rule.
-- **`(...)` everywhere** -- breaks comma expressions in both C and D.
+- [ ] **`(...)` everywhere** -- breaks comma expressions in both C and D.
 
 ## Comma expressions and parsing hazards
 
@@ -518,10 +518,10 @@ and why compile-time tuples carry the `$` marker.
 cast/parenthesised type from an expression by calling
 `parse_btype()`:
 
-- If `parse_btype()` succeeds, the group starts with a type.  If the
+- [ ] If `parse_btype()` succeeds, the group starts with a type.  If the
   next token is `,`, it is a tuple type (new); if it is `)`, it is the
   existing cast/parenthesised type.
-- If `parse_btype()` fails, the existing `gexpr()` path parses the
+- [ ] If `parse_btype()` fails, the existing `gexpr()` path parses the
   group as an expression, so `(a, b)` remains a comma expression.
 
 No backtracking is needed in `unary()`, because `parse_btype()`
@@ -733,18 +733,18 @@ static Sym *make_tuple_type(CType *elems, int n)
 
 Why this works with almost no new code:
 
-- `struct_layout()` (`tccgen.c:4619`) computes size, alignment and
+- [ ] `struct_layout()` (`tccgen.c:4619`) computes size, alignment and
   each field's offset (`f->c = offset`, `tccgen.c:4768`).
-- `type_size()` (`tccgen.c:3695`) returns `s->c`/`s->r` for any
+- [ ] `type_size()` (`tccgen.c:3695`) returns `s->c`/`s->r` for any
   `VT_STRUCT`.
-- `vstore()` (`tccgen.c:4029`) already memcpy's struct values.
-- `verify_assign_cast()` (`tccgen.c:3929`) already compares struct
+- [ ] `vstore()` (`tccgen.c:4029`) already memcpy's struct values.
+- [ ] `verify_assign_cast()` (`tccgen.c:3929`) already compares struct
   types through `compare_types()`.
-- `decl_initializer()` and `init_putv()` (`tccgen.c:9624`) already
+- [ ] `decl_initializer()` and `init_putv()` (`tccgen.c:9624`) already
   handle struct initializers and target-correct rodata bytes.
-- `gfunc_call()`/`gfunc_return()` already implement the struct ABI,
+- [ ] `gfunc_call()`/`gfunc_return()` already implement the struct ABI,
   including `gfunc_sret()` per target.
-- `find_field()` (`tccgen.c:4545`) and the `.` postfix
+- [ ] `find_field()` (`tccgen.c:4545`) and the `.` postfix
   (`tccgen.c:7395`) already do offset-based field access; tuple
   access is the same operation with a numeric index.
 
@@ -770,14 +770,14 @@ silently turns a tuple into a plain struct.  A flag on the `Sym` that
 Do **not** generate a struct tag name from the element types, for
 example `__tuple_int_char`.  Problems:
 
-- A name must encode qualifiers, pointers, arrays, nested tuples and
+- [ ] A name must encode qualifiers, pointers, arrays, nested tuples and
   anonymous struct element types.  There is no finite, stable
   spelling for `((int, char) *, struct { int x; })`.
-- Two distinct anonymous structs with the same spelling would
+- [ ] Two distinct anonymous structs with the same spelling would
   collide, and scoped tags would need scope-qualified names.
-- `struct_find()` is keyed by token id; generating tokens for every
+- [ ] `struct_find()` is keyed by token id; generating tokens for every
   tuple type grows `table_ident` and slows the lexer.
-- A generated name is not needed: `type_to_str()` can print
+- [ ] A generated name is not needed: `type_to_str()` can print
   `(int, char)` on demand, and debug info can synthesise a name at
   emission time.
 
@@ -804,21 +804,21 @@ intern by a string name.
 
 ### Layout, ABI, initializers, debug
 
-- **Layout:** the target's normal struct layout, including `pragma
+- [ ] **Layout:** the target's normal struct layout, including `pragma
   pack` and `__attribute__((packed))` if the tuple type ever acquires
   attributes.  In M1 tuples have no attributes and use the default
   ABI layout.  Document that the layout is *not* specified beyond
   "same as the equivalent struct", so users who need a wire format
   should use an explicit struct.
-- **ABI:** identical to the equivalent struct.  This is a feature:
+- [ ] **ABI:** identical to the equivalent struct.  This is a feature:
   a tuple can be passed to a function compiled by gcc if the
   equivalent struct type is declared there.  It also means the
   layout is platform-dependent, which is fine for a compiler that
   already exposes struct layout.
-- **Initializers:** `Pair p = {1, 'a'};` uses the struct initializer
+- [ ] **Initializers:** `Pair p = {1, 'a'};` uses the struct initializer
   path.  A `$(...)` literal is a struct value and is copied with
   `vstore()`.
-- **Debug info:** mark tuple structs `a.nodebug = 1` in M1.
+- [ ] **Debug info:** mark tuple structs `a.nodebug = 1` in M1.
   `STRUCT_NODEBUG()` (`tccdbg.c:1747`) then suppresses the anonymous
   struct, avoiding `<anonymous>` field names in DWARF/stabs.  M5 can
   emit a proper tuple type with synthesised field names (`$0`, `$1`,
@@ -829,13 +829,13 @@ intern by a string name.
 The concern is that value tuple literals need "transitive type
 inference" of their elements.  The precise answer:
 
-- **Type tuples** `(T1, ..., Tn)` contain *types*, not expressions.
+- [ ] **Type tuples** `(T1, ..., Tn)` contain *types*, not expressions.
   Each element is parsed by `parse_btype()`/`type_decl()` once.  There
   is no value inference, no constant folding and no code generation.
   Cost: O(n) type parses, n field symbols, one `struct_layout()`
   pass.  Nested tuples cost the size of the type tree, which is
   linear in the source.
-- **Compile-time tuples** `$(e1, ..., en)` contain constant
+- [ ] **Compile-time tuples** `$(e1, ..., en)` contain constant
   expressions.  Each `ei` is typed and folded once by the existing
   expression parser; that is the same work as writing the elements as
   separate expressions.  The *new* cost is that all n element values
@@ -843,21 +843,21 @@ inference" of their elements.  The precise answer:
   must be built and laid out.  Cost: O(n) `CValue`s, O(n) `CType`
   copies, one `struct_layout()` pass, and one rodata blob of the
   tuple size.
-- **Constant folding** happens inside each element parse, so
+- [ ] **Constant folding** happens inside each element parse, so
   `$(1 + 2, 4)` costs no more than `1 + 2` and `4` written
   separately.
-- **Comparison:** structural `compare_types()` is O(n) per
+- [ ] **Comparison:** structural `compare_types()` is O(n) per
   comparison.  Without interning, m comparisons of the same tuple
   type cost O(m*n).  Interning reduces that to O(1) after the first
   construction.  This is the only place where tuple types can become
   superlinear, and only in pathological code.
-- **Parser lookahead:** the type-tuple hook scans and replays a
+- [ ] **Parser lookahead:** the type-tuple hook scans and replays a
   parenthesised group only when `parse_btype()` is called with `(`
   in front of it.  In `decl()` that means statements beginning with
   `(`; in committed type positions it means a tuple type or invalid
   syntax.  The scan is bounded by the group size, and a group is
   scanned once, not once per element.
-- **Code generation:** run-time tuples use the struct copy path, so
+- [ ] **Code generation:** run-time tuples use the struct copy path, so
   the generated code is the same as for an equivalent struct.  A
   run-time tuple literal with n elements costs n stores into a
   temporary plus the normal copy at the use site.  A compile-time
@@ -880,9 +880,9 @@ same order as the struct initializer it replaces.
 
 ### 1. Type system and representation (`tcc.h`, `tccgen.c`)
 
-- `struct SymAttr` (`tcc.h:521`): add `is_tuple:1` next to
+- [ ] `struct SymAttr` (`tcc.h:521`): add `is_tuple:1` next to
   `is_slice` (`tcc.h:533`).
-- `is_tuple_type()`: mirror `is_slice_type()` (`tccgen.c:3773`):
+- [ ] `is_tuple_type()`: mirror `is_slice_type()` (`tccgen.c:3773`):
 
   ```c
   static int is_tuple_type(CType *type)
@@ -892,32 +892,32 @@ same order as the struct initializer it replaces.
   }
   ```
 
-- `make_tuple_type()`: new, modelled on `make_slice_type()`
+- [ ] `make_tuple_type()`: new, modelled on `make_slice_type()`
   (`tccgen.c:5564`).  Allocate the struct and field symbols on
   `global_stack` so a tuple type created inside a function does not
   dangle when the scope is popped (a function-scope tuple type can
   escape through `auto` inference or a return type).  `sym_push2()`
   is at `tccgen.c:723`.
-- `tuple_arity()` and `tuple_field()`: walk `type->ref->next` and
+- [ ] `tuple_arity()` and `tuple_field()`: walk `type->ref->next` and
   return the nth field plus its offset (`f->c`, set by
   `struct_layout()` at `tccgen.c:4768`).  Bound-check the index.
-- `compare_types()` (`tccgen.c:2947`): add the structural tuple
+- [ ] `compare_types()` (`tccgen.c:2947`): add the structural tuple
   branch after the slice branch (`tccgen.c:2995`).
-- `type_to_str()` (`tccgen.c:2730`): in `case VT_STRUCT:`
+- [ ] `type_to_str()` (`tccgen.c:2730`): in `case VT_STRUCT:`
   (`tccgen.c:2807`), print `(T1, T2)` for tuples before the slice
   branch.  Recursively call `type_to_str()` with a NULL `varstr` for
   each element.
-- `type_size()` (`tccgen.c:3695`): no change; the `VT_STRUCT` branch
+- [ ] `type_size()` (`tccgen.c:3695`): no change; the `VT_STRUCT` branch
   already returns `s->c`/`s->r`.
 
 ### 2. Parsing type tuples (`tccgen.c`)
 
-- `parse_btype()` (`tccgen.c:5160`): after the initial `type->ref =
+- [ ] `parse_btype()` (`tccgen.c:5160`): after the initial `type->ref =
   NULL` and `memset(ad, ...)`, if `tok == '('`, call
   `parse_tuple_type_opt()`.  On success, set `type` and return 1 (the
   attributes are already zero).  On failure, the helper restores the
   token stream and `parse_btype()` continues as before.
-- `parse_tuple_type_opt()`: scan the balanced group (tracking `()`,
+- [ ] `parse_tuple_type_opt()`: scan the balanced group (tracking `()`,
   `[]` and `{}`) into a `TokenString`; if it has no top-level comma
   or its first token cannot start a type, replay and return 0.
   Otherwise parse the tuple type from the replay and return 1.  The
@@ -925,28 +925,28 @@ same order as the struct initializer it replaces.
   is the same one `decl()` uses for `auto` inference
   (`tccgen.c:11549`-`11580`) and `unget_tok()` uses for one token
   (`tccpp.c:3589`).
-- `parse_tuple_type_rest()`: called with `tok == ','` after the first
+- [ ] `parse_tuple_type_rest()`: called with `tok == ','` after the first
   element has already been parsed by `unary()`'s `case '(':` path.
   Parses the remaining `, T` elements and the closing `)`, then
   builds the type with `make_tuple_type()`.
-- `unary()` `case '(':` (`tccgen.c:6678`): after the attribute block
+- [ ] `unary()` `case '(':` (`tccgen.c:6678`): after the attribute block
   and `parse_btype()`/`type_decl()`, if `tok == ','`, call
   `parse_tuple_type_rest()`.  The existing compound-literal, cast and
   `TOK_SOTYPE` branches then work unchanged.
-- `parse_expr_type()` (`tccgen.c:6306`): `typeof((int, char))` works
+- [ ] `parse_expr_type()` (`tccgen.c:6306`): `typeof((int, char))` works
   through the `parse_btype()` hook because the tuple's `(` is still
   current when `parse_btype()` is called.
-- `parse_type()` (`tccgen.c:6320`): works through the same hook.
-- `post_type()` (`tccgen.c:5786`): parameter types starting with `(`
+- [ ] `parse_type()` (`tccgen.c:6320`): works through the same hook.
+- [ ] `post_type()` (`tccgen.c:5786`): parameter types starting with `(`
   reach `parse_btype()` at `tccgen.c:5809`, so
   `void f((int, char) p)` works without a change.
-- `type_decl()` (`tccgen.c:6134`): no change; pointers, arrays and
+- [ ] `type_decl()` (`tccgen.c:6134`): no change; pointers, arrays and
   declarator names apply to a tuple type exactly as to a struct.
-- `struct_decl()` (`tccgen.c:4879`): field types reach
+- [ ] `struct_decl()` (`tccgen.c:4879`): field types reach
   `parse_btype()` at `tccgen.c:5017`, so `struct S { (int, char) f; };`
   works without a change.
-- `do_d_alias()` (`tccgen.c:10996`): works through the same hook.
-- `decl()` (`tccgen.c:11444`): tuple-typed declarations work through
+- [ ] `do_d_alias()` (`tccgen.c:10996`): works through the same hook.
+- [ ] `decl()` (`tccgen.c:11444`): tuple-typed declarations work through
   the hook at `tccgen.c:11480`.  The speculative path must replay the
   group on failure (see *Comma expressions*).
 
@@ -954,64 +954,64 @@ same order as the struct initializer it replaces.
 
 Two entry points, one per spelling.
 
-- `$(...)` -- compile-time, constant only.
-  - `unary()` `tok_identifier:` (`tccgen.c:7136`): before `sym_find()`
+- [ ] `$(...)` -- compile-time, constant only.
+  - [ ] `unary()` `tok_identifier:` (`tccgen.c:7136`): before `sym_find()`
     and the implicit-function fallback, detect
     `lang_d && t >= TOK_UIDENT && !strcmp(get_tok_str(t, NULL), "$")
     && tok == '('`, and call `parse_dollar_tuple()`.  This check must
     come before the `nb_dollar_ctx` branch (`tccgen.c:7144`) so
     `a[$(1, 2)[0]]` is a tuple, while `a[$]` and `a[$-1]` stay
     opDollar.
-  - `parse_dollar_tuple()`: consume `(`, parse comma-separated
+  - [ ] `parse_dollar_tuple()`: consume `(`, parse comma-separated
     `expr_eq()` elements, `)`.  With exactly one element and no
     trailing comma, push the element value unchanged (M2) instead of
     building a tuple type.  Otherwise record each element's `CType`
     and `SValue`; require `VT_CONST` for every element (in every
     context), store the `CValue`s in the side table, emit a rodata
     blob and push a `VT_CONST|VT_SYM` reference.
-  - A non-constant element is diagnosed at the element: `$`: element
+  - [ ] A non-constant element is diagnosed at the element: `$`: element
     %d is not a compile-time constant.  There is no fallback to a
     run-time tuple; the spelling is the contract.
-- `(...)` -- run-time, context-directed.
-  - Add a `CType *tuple_expect` (or a small depth-counted flag) set
+- [ ] `(...)` -- run-time, context-directed.
+  - [ ] Add a `CType *tuple_expect` (or a small depth-counted flag) set
     by the tuple-expected sites: `decl_initializer_alloc()`
     (`tccgen.c:10086`) and `decl_initializer()`, `gen_assign_cast()`
     (`tccgen.c:4021`), `gfunc_param_typed()` (`tccgen.c:6263`),
     `gfunc_return()`'s caller (`tccgen.c:8131`), the cast path in
     `unary()` (`tccgen.c:6727`), and the destructuring path in
     `decl()` (M4).
-  - In `unary()`'s `case '(':` (`tccgen.c:6678`), after
+  - [ ] In `unary()`'s `case '(':` (`tccgen.c:6678`), after
     `parse_btype()` fails: if the flag is set, parse the
     comma-separated element list with `expr_eq()` into a tuple value
     of the expected type; otherwise take the existing
     parenthesised-expression path.
-  - Clear the flag on entry to `unary()` before descending into
+  - [ ] Clear the flag on entry to `unary()` before descending into
     operands, so only the outermost parenthesised group of an
     expected expression is eligible.  Restore it on return.  This is
     what keeps `x + (a, b)`, `f((a, b), c)` and nested comma
     expressions unchanged.
-  - Type-check the elements against the expected tuple type and
+  - [ ] Type-check the elements against the expected tuple type and
     convert each with `gen_assign_cast()`; then build a struct
     temporary exactly as an equivalent `{...}` initializer would.
-- `$if`/`$foreach` (M2/M4): handled like the D `version`/`debug`
+- [ ] `$if`/`$foreach` (M2/M4): handled like the D `version`/`debug`
   conditional rather than by rewriting to `TOK_IF`, because the
   branch that is not taken must never be parsed: a `$if` exists to
   keep code that is invalid for the current target out of the
   compiler.
-  - `check_d_dollar_if()` is called from `decl()` and from
+  - [ ] `check_d_dollar_if()` is called from `decl()` and from
     `block()` right next to `check_d_conditional()`.  It consumes
     `$if`, requires `(`, evaluates the condition with
     `expr_const()` (so a non-constant condition is "constant
     expression expected"), rejects a `:` declaration form, and
     calls `d_conditional_body()`.
-  - `d_conditional_body()` is the branch scan/replay that was
+  - [ ] `d_conditional_body()` is the branch scan/replay that was
     factored out of `check_d_conditional()`: it saves both branches
     as `TokenString`s with `d_scan_body()`, frees the one not
     selected, and replays the selected one through
     `begin_macro()`/`decl()`/`block()`.
-  - `d_scan_body()` must recognise `$if` next to `TOK_IF` so a
+  - [ ] `d_scan_body()` must recognise `$if` next to `TOK_IF` so a
     skipped branch that contains a nested `$if` still balances.
-  - `$if` opens no scope of its own (D9): the selected branch is
+  - [ ] `$if` opens no scope of its own (D9): the selected branch is
     replayed into the enclosing scope, so a braceless
     `$if (1) int x = 1;` makes `x` visible after the statement,
     while `$if (1) { int x = 1; }` is an ordinary block inside a
@@ -1019,20 +1019,20 @@ Two entry points, one per spelling.
     `d_scan_body(file_scope = 1)` flattens into module scope.
     Tests `428` (visible after) and `429` (not visible out of
     braces, redeclaration) pin both halves.
-  - `$foreach` iterates a constant tuple and replays its body once
+  - [ ] `$foreach` iterates a constant tuple and replays its body once
     per element (M4).  Both are shared with the reflection task; the
     token-replay machinery they need is the same one
     `tasks/compile_time_function_execution.md` specifies for
     `$run`.
-- `tccpp.c` needs no change: `$` is already an identifier character
+- [ ] `tccpp.c` needs no change: `$` is already an identifier character
   (`tccpp.c:2696`, `3710`), and `$(` tokenises as the identifier `$`
   followed by `(`.
-- `tcctok.h` needs no new keyword; keeping `$` contextual is what
+- [ ] `tcctok.h` needs no new keyword; keeping `$` contextual is what
   preserves C-mode compatibility.
 
 ### 4. Element access (`tccgen.c`)
 
-- `[` postfix (`tccgen.c:7421`): add a tuple branch before the
+- [ ] `[` postfix (`tccgen.c:7421`): add a tuple branch before the
   array/slice/pointer branch:
 
   ```c
@@ -1044,25 +1044,25 @@ Two entry points, one per spelling.
   }
   ```
 
-- Reuse the `.` postfix sequence at `tccgen.c:7401`-`7418`:
+- [ ] Reuse the `.` postfix sequence at `tccgen.c:7401`-`7418`:
   `gaddrof()`, add `cumofs`, set `vtop->type = f->type`, set
   `VT_LVAL` (unless the field is an array), and keep the `-b`
   `VT_MUSTBOUND` handling.
-- For a compile-time tuple constant, the side table returns the
+- [ ] For a compile-time tuple constant, the side table returns the
   element `CValue` and type directly, so `$(1, 2)[0]` works in
   `enum`, array bounds, `static assert` and `$assert` without
   codegen.
-- `.sizeof` on a tuple already works through the D `.sizeof` path at
+- [ ] `.sizeof` on a tuple already works through the D `.sizeof` path at
   `tccgen.c:7214`; no change.
 
 ### 5. Code generation (`tccgen.c`, backends)
 
-- `vstore()` (`tccgen.c:4029`): no change; the `VT_STRUCT` branch
+- [ ] `vstore()` (`tccgen.c:4029`): no change; the `VT_STRUCT` branch
   memcpy's tuple values.
-- `verify_assign_cast()` (`tccgen.c:3929`): no change; the
+- [ ] `verify_assign_cast()` (`tccgen.c:3929`): no change; the
   `VT_STRUCT` branch uses `is_compatible_unqualified_types()`, which
   becomes structural for tuples through `compare_types()`.
-- `gen_cast()` (`tccgen.c:3456`): M1 must reject casts involving a
+- [ ] `gen_cast()` (`tccgen.c:3456`): M1 must reject casts involving a
   tuple type explicitly.  `gen_cast()` alone does not catch a
   struct-to-struct cast: `sbt == dbt == VT_STRUCT`, so the
   `sbt != dbt` block at `tccgen.c:3478` is skipped and the cast is
@@ -1074,11 +1074,11 @@ Two entry points, one per spelling.
   M3 adds `gen_tuple_cast()` in `gen_assign_cast()`
   (`tccgen.c:4021`) and in the same cast path to convert element-wise
   before the struct copy.
-- `gfunc_param_typed()` (`tccgen.c:6263`): no change; it calls
+- [ ] `gfunc_param_typed()` (`tccgen.c:6263`): no change; it calls
   `gen_assign_cast()`.
-- `gfunc_return()` (`tccgen.c:8131`): no change; the `VT_STRUCT`
+- [ ] `gfunc_return()` (`tccgen.c:8131`): no change; the `VT_STRUCT`
   branch handles tuple returns, including the hidden return pointer.
-- Backends: no change.  `gfunc_sret()` per target already classifies
+- [ ] Backends: no change.  `gfunc_sret()` per target already classifies
   struct returns; tuples are structs.
 
 ### 6. Constant tuples and the side table (`tccgen.c`)
@@ -1099,7 +1099,7 @@ static TCC_TLS struct TupleConst *tuple_consts;
 static TCC_TLS int nb_tuple_consts;
 ```
 
-- Key the table by the `Sym *` that owns the blob.  Do not use
+- [ ] Key the table by the `Sym *` that owns the blob.  Do not use
   `get_sym_ref()` (`tccgen.c:1282`) as is: it calls `sym_push()`,
   which pushes onto `local_stack` inside a function, so a later
   `sym_pop()` at the end of the enclosing block would free the key
@@ -1107,24 +1107,24 @@ static TCC_TLS int nb_tuple_consts;
   therefore does the `get_sym_ref()` work explicitly with
   `sym_push2(&global_stack, anon_sym++, ...)`, `put_extern_sym()` and
   `VT_STORAGE_STATIC`.
-- Reset the table per translation unit at the start of
+- [ ] Reset the table per translation unit at the start of
   `tccgen_compile()` next to the `anon_sym` reset (`tccgen.c:450`);
   free the previous table's storage there before clearing it.
-- Emit the blob with `init_putv()` (`tccgen.c:9624`) at each field
+- [ ] Emit the blob with `init_putv()` (`tccgen.c:9624`) at each field
   offset rather than memcpy'ing `CValue` bytes, so target byte order,
   relocations and `long double` representation are correct when
   cross-compiling.
-- M2 records only elements that are plain `VT_CONST` (no `VT_SYM`).
+- [ ] M2 records only elements that are plain `VT_CONST` (no `VT_SYM`).
   A string literal or address constant is therefore rejected as a
   `$(...)` element in M2, with the "not a compile-time constant"
   diagnostic from *Compile-time value tuples*; the side table cannot
   represent the relocation it would need.  M5 extends the table with
   a symbol and addend per element.
-- A nested constant tuple is recorded as a nested `TupleConst`.
+- [ ] A nested constant tuple is recorded as a nested `TupleConst`.
   The outer blob copies the nested tuple's bytes at the field
   offset, and the side table keeps the nested entry so constant
   indexing can descend into it.
-- Do not replay the element tokens on each index.  Replaying would
+- [ ] Do not replay the element tokens on each index.  Replaying would
   re-evaluate side effects and cost O(n) per index; the table makes
   indexing independent of the arity.  Lookup is a linear scan over
   `tuple_consts`, which is fine because the table only holds the
@@ -1134,22 +1134,22 @@ static TCC_TLS int nb_tuple_consts;
 
 ### 7. Destructuring (M4, `tccgen.c`)
 
-- `decl()` after `parse_btype()` (`tccgen.c:11480`): if the type has
+- [ ] `decl()` after `parse_btype()` (`tccgen.c:11480`): if the type has
   `VT_AUTO` (`has_auto_type()`, `tccgen.c:6113`) and `tok == '('`,
   parse a tuple pattern `(name1, name2, ...)` instead of a normal
   declarator.
-- Save and replay the initializer exactly as the existing `auto`
+- [ ] Save and replay the initializer exactly as the existing `auto`
   path does (`tccgen.c:11544`-`11580`): `expr_type()` deduces the
   initializer type, then `subst_auto_type()` would install it.  For a
   tuple pattern, require the deduced type to be a tuple of the same
   arity, allocate one local per name with the element type, and store
   each field.
-- If the initializer is a compile-time tuple constant, the fields are
+- [ ] If the initializer is a compile-time tuple constant, the fields are
   available from the side table, so the names can be bound as
   manifest constants instead of locals (M5; useful for reflection).
-- The initializer must be evaluated exactly once.  Reuse the
+- [ ] The initializer must be evaluated exactly once.  Reuse the
   `init_str` save/replay so side effects are not duplicated.
-- Destructuring assignment is the expression-level counterpart:
+- [ ] Destructuring assignment is the expression-level counterpart:
   `expr_eq()` calls `try_tuple_assign()` when a group starts with
   `(`.  `scan_paren_group()` checks for a top-level comma and the
   lookahead token checks for `=`; on success the pattern is replayed,
@@ -1162,35 +1162,35 @@ static TCC_TLS int nb_tuple_consts;
 
 ### 8. Diagnostics, dumps, debug info (`tccgen.c`, `tccdbg.c`)
 
-- `type_to_str()` (`tccgen.c:2730`): print `(int, char)`; use it in
+- [ ] `type_to_str()` (`tccgen.c:2730`): print `(int, char)`; use it in
   `cast_error()`, `type_incompatibility_error()` and `-fdump-decls`.
-- Index diagnostics: `"tuple index %d out of range for type
+- [ ] Index diagnostics: `"tuple index %d out of range for type
   '(int, char)'"`, `"tuple index must be a constant expression"`,
   `"cannot cast to tuple type"`, `"tuple element %d has incomplete
   type"`.
-- `tccdbg.c`: mark tuple structs `nodebug` in M1
+- [ ] `tccdbg.c`: mark tuple structs `nodebug` in M1
   (`STRUCT_NODEBUG()`, `tccdbg.c:1747`).  M5 can emit DWARF as an
   anonymous struct with fields `$0`, `$1`, ... or a
   `DW_TAG_structure_type` named `(int, char)` if debuggers accept it.
-- `-fdump-decls`/`psyms()`: tuple fields are anonymous
+- [ ] `-fdump-decls`/`psyms()`: tuple fields are anonymous
   (`anon_sym++ | SYM_FIELD`), so they are not linked into
   `table_ident`; check that the dump does not print meaningless
   field names.
 
 ### 9. Options, docs, tracker (`libtcc.c`, `README.md`, `TODO.md`)
 
-- `-lang=d` sets `lang_d` in `TCC_OPTION_lang` (`libtcc.c:2080`);
+- [ ] `-lang=d` sets `lang_d` in `TCC_OPTION_lang` (`libtcc.c:2080`);
   `tdc` does the same (`tcc.c:347`).  Only the `$` forms need it;
   type tuples and `(...)` run-time literals work in both modes.
-- No `-ftuples` flag: run-time tuples are enabled by the context
+- [ ] No `-ftuples` flag: run-time tuples are enabled by the context
   rule, not by a mode bit.  A future opt-in for the `$` forms would
   add a `TCCState.tuples` bit next to `lang_d` (`tcc.h:816`).
-- `README.md`: add a "Tuples" subsection under "D-style language
+- [ ] `README.md`: add a "Tuples" subsection under "D-style language
   extensions" (`README.md:245`), after slices and before aliases, and
   a sentence in "Language modes" (`README.md:201`) explaining the
   three spellings: `(T1, T2)` types, `$(...)` compile time, `(...)`
   run time.
-- `TODO.md`: cross-reference the reflection proposal
+- [ ] `TODO.md`: cross-reference the reflection proposal
   (`TODO.md:151`-188) and note that `$fields`/`$members` return
   compile-time tuples.
 
@@ -1242,14 +1242,14 @@ comma-expression compatibility tests and a cross-mode build.
 Status: implemented (see D8).  Cost of the probe, measured on tcc
 compiling itself:
 
-- without PGO, +1.35% instructions (247.7M -> 251.1M) against
+- [ ] without PGO, +1.35% instructions (247.7M -> 251.1M) against
   `c80978ea`, the last commit without any tuple support, and +1.25%
   against `8bde9b76`, the reverted first attempt (248.0M).  The
   difference is the price of probing instead of guessing;
-- in the `make pgo PGO_CC=clang` build, 258.2M -> 264.2M Valgrind
+- [ ] in the `make pgo PGO_CC=clang` build, 258.2M -> 264.2M Valgrind
   `I refs` (+2.32%) against `c80978ea`, and 260.4M -> 264.2M
   (+1.44%) against `8bde9b76`;
-- throughput 4.34 -> 4.17 Mlines/s, which is within the 1 ms
+- [ ] throughput 4.34 -> 4.17 Mlines/s, which is within the 1 ms
   resolution of the timer (see the notes at the end of the
   repository's `AGENTS.md`), so `I refs` is the number to trust.
 
@@ -1270,25 +1270,25 @@ code beyond the rodata blob; `-lang=c` still parses `$(x)` as a call
 to `$`.
 Status: implemented.  Notes:
 
-- `$(e)` pushes the element's `SValue` unchanged, so it costs
+- [ ] `$(e)` pushes the element's `SValue` unchanged, so it costs
   nothing at run time and works anywhere a constant does, including
   the operand of `$if`.  Any top-level comma -- including the
   trailing one of `$(e,)` -- makes a tuple.
-- `$(e1, ..., en)` allocates the struct layout of the equivalent
+- [ ] `$(e1, ..., en)` allocates the struct layout of the equivalent
   tuple type, reserves `size` bytes in `rodata_section` with
   `section_add()`, and fills them with `init_putv()` at each field
   offset, so byte order, relocations and `long double` are correct
   for a cross target.  The blob is emitted even when only a
   constant index is used; see open question 16.
-- `t[i]` on a value that is a blob reference looks the element up in
+- [ ] `t[i]` on a value that is a blob reference looks the element up in
   the side table and pushes it directly, so `$(1, 2)[0]` is usable
   in `enum`, array bounds, `static assert` and `$assert` with no
   code and no load.  A nested tuple is stored as a nested
   `TupleConst`, so `$($(1, 2)[0], 3)` folds through both levels.
-- The side table is reset in `tccgen_compile()` next to the
+- [ ] The side table is reset in `tccgen_compile()` next to the
   `anon_sym` reset, because a `tcc_compile()` call starts a fresh
   translation unit.
-- "No code beyond the rodata blob" was checked with `objdump`:
+- [ ] "No code beyond the rodata blob" was checked with `objdump`:
   `int f(void) { return $(30, 31)[1]; }` compiles to
   `mov $0x1f,%eax` and never reads the blob, and
   `sizeof($(1, 2))` emits neither code nor a blob, because
@@ -1296,18 +1296,18 @@ Status: implemented.  Notes:
   zero-sized one.  A `$if (0)` branch is only scanned, so a `$(...)`
   inside it emits nothing either.  There is no `.expect` way to
   observe this in `tests/tests2/`, so it stays a manual check.
-- Diagnostics: `'$': element %d is not a compile-time constant`
+- [ ] Diagnostics: `'$': element %d is not a compile-time constant`
   (reported for the first offending element in any context, so
   `$(x, 1)` and `$(1, x)` both report the right index),
   `empty '$()' tuple`, and
   `tuple index %d out of range for type '(int, int)'` for both
   positive and negative constant indices.
-- D mode only: a function named `$` can no longer be called in
+- [ ] D mode only: a function named `$` can no longer be called in
   `-lang=d`, because `$(` is the constructor; `-lang=c` is
   unchanged and is covered by `427`.  `$` as the subscript length
   still works in D mode because the check in `unary()` comes before
   the `nb_dollar_ctx` branch.
-- `$if` opens no scope of its own (D9): the selected branch is
+- [ ] `$if` opens no scope of its own (D9): the selected branch is
   replayed into the enclosing scope, so `$if (1) int x = 1;` leaves
   `x` visible after the statement, `$if (0) int a; else int b;`
   leaves `b`, and a nested `$if` behaves the same way.  Braces keep
@@ -1316,26 +1316,26 @@ Status: implemented.  Notes:
   can shadow an outer name; at file scope the braces are stripped by
   `d_scan_body(..., file_scope = 1)` and the declarations land in
   module scope, exactly as for `version`/`debug`.
-- A constant tuple has the tuple type of its elements, by structural
+- [ ] A constant tuple has the tuple type of its elements, by structural
   identity, so `(int, int) p = $(1, 2);` works while
   `(long, long) q = $(1, 2);` is diagnosed exactly like the
   equivalent struct mismatch.  Element-wise conversion on assignment
   and casts is M3; `(T)` casts to a tuple type stay rejected by the
   M1 rule.
-- `make sani-tests2.421` through `429` are clean.  The sanitizer
+- [ ] `make sani-tests2.421` through `429` are clean.  The sanitizer
   build caught one leak in the first version: when an element after
   the first turned out not to be constant, the `types`, `vals` and
   `nested` arrays collected for the earlier elements were dropped on
   the `tcc_error()` path.  They are freed before the diagnostic now.
   The blob and its side-table entry are not reported, because LSan
   finds them through the `tuple_consts` root.
-- Cost of M2, recorded in `bench/pgo-history.tsv` against
+- [ ] Cost of M2, recorded in `bench/pgo-history.tsv` against
   `e1d9d2ec` (the last commit before it, whose numbers are identical
   to M1's `0fcb9ae4`, since the commits in between are docs only):
 
-  - clang: 264,184,304 -> 264,620,964 Valgrind `I refs`
+  - [ ] clang: 264,184,304 -> 264,620,964 Valgrind `I refs`
     (+0.165%);
-  - gcc: 231,490,739 -> 232,242,076 (+0.325%).
+  - [ ] gcc: 231,490,739 -> 232,242,076 (+0.325%).
 
   The throughput readings (clang 4.00 -> 3.86, gcc 4.17 -> 4.36
   Mlines/s) move in opposite directions, which confirms that they
@@ -1413,80 +1413,80 @@ and pulled in with `FLAGS += $(subst 425,425+,$1)`.
 
 Additional coverage:
 
-- A `tests/libtcc_test.c` case that compiles a string containing a
+- [ ] A `tests/libtcc_test.c` case that compiles a string containing a
   tuple through the library API, to prove the feature does not
   depend on the `tcc` driver.
-- The full `./configure && make -j$(nproc) -B && make -j$(nproc)
+- [ ] The full `./configure && make -j$(nproc) -B && make -j$(nproc)
   test` sequence for every milestone that touches the compiler.
-- `make pgo PGO_CC=clang` after M1, M2, M3 and M5; record the
+- [ ] `make pgo PGO_CC=clang` after M1, M2, M3 and M5; record the
   Mlines/s and Valgrind `I refs` against `bench/pgo-history.tsv`.
-- A `-lang=c` build of a source that defines and calls a function
+- [ ] A `-lang=c` build of a source that defines and calls a function
   named `$`, to prove the C-mode `$` behaviour is unchanged.
 
 ## Risks and limitations
 
-- **Parser regression in `decl()`.**  `parse_btype()` is called
+- [ ] **Parser regression in `decl()`.**  `parse_btype()` is called
   speculatively on every statement.  The scan/replay hook must leave
   the token stream exactly as it found it on the "not a tuple" path.
   Mitigation: the `409`/`410` comma-compatibility tests, plus a
   debug build with `-fdump-decls` on the existing tests.
-- **Context-flag leakage.**  The run-time tuple flag must be cleared
+- [ ] **Context-flag leakage.**  The run-time tuple flag must be cleared
   when descending into a subexpression and restored afterwards.
   Otherwise `x + (a, b)`, `f((a, b), c)` or a comma expression inside
   a tuple element could be read as a tuple.  Mitigation: set the flag
   at the six sites only, clear it at the top of `unary()`, and cover
   each nesting case in `417`/`418`.
-- **Run-time tuples in C mode.**  They rely on the expected type
+- [ ] **Run-time tuples in C mode.**  They rely on the expected type
   being a tuple, which only new code can produce.  If the context
   plumbing turns out to be imprecise at any site, gate the flag on
   `lang_d` as a fallback; the type system and ABI do not change.
-- **`$(...)` call compatibility.**  In `-lang=d`, a function named
+- [ ] **`$(...)` call compatibility.**  In `-lang=d`, a function named
   `$` can no longer be called as `$(...)`; it is parsed as a
   compile-time value or tuple.  This is an intentional, documented
   break.  C mode is unaffected.  If the break ever matters, preserve
   `$ (x)` (with a space) by checking the source character before `(`
   when `$` is matched; the tokenizer still knows the position.
-- **`$`-word capture.**  `$if` and `$foreach` are contextual, so a
+- [ ] **`$`-word capture.**  `$if` and `$foreach` are contextual, so a
   variable named `$if` immediately followed by `(` is a static `if`.
   This is the same trade-off as `$assert`; keep the set of `$`-words
   small and document each one.
-- **Structural vs. nominal types.**  A tuple must never become
+- [ ] **Structural vs. nominal types.**  A tuple must never become
   compatible with a plain struct that happens to have the same
   fields.  `compare_types()` checks `is_tuple` on both sides and
   returns 0 for a tuple/struct pair.  Add a test for
   `__builtin_types_compatible_p((int, char), struct { int a; char b; })`
   returning 0.
-- **Type symbol lifetime.**  A tuple type created inside a function
+- [ ] **Type symbol lifetime.**  A tuple type created inside a function
   can escape through `auto` inference or a return type.  Allocate
   tuple type symbols and tuple constant blob symbols on
   `global_stack`, not on the function's `local_stack`; otherwise
   `sym_pop()` can free the type while a `CType` still points at it.
-- **Side-table key reuse.**  If a blob symbol is popped and a new
+- [ ] **Side-table key reuse.**  If a blob symbol is popped and a new
   symbol reuses its address, a stale table entry could match.  The
   `global_stack` allocation above prevents this; free the table at
   TU end.
-- **Cross-compilation.**  Constant tuple blobs must use the target's
+- [ ] **Cross-compilation.**  Constant tuple blobs must use the target's
   byte order and representation.  Emit them with `init_putv()`
   (`tccgen.c:9624`), not with a raw `CValue` memcpy.
-- **`long double` and 128-bit elements.**  `CValue` has `ld` and
+- [ ] **`long double` and 128-bit elements.**  `CValue` has `ld` and
   `tab[]`; `VT_QLONG`/`VT_QFLOAT` are ABI-only and should not appear
   as source-level tuple elements.  Test `long double` layout against
   the equivalent struct on i386 and x86-64.
-- **ABI is platform-dependent.**  Tuples are not a wire format.  A
+- [ ] **ABI is platform-dependent.**  Tuples are not a wire format.  A
   tuple passed across a gcc/tcc boundary only works if the equivalent
   struct is declared identically.  Document this in the README.
-- **Debug info.**  M1 suppresses tuple debug info.  A user debugging
+- [ ] **Debug info.**  M1 suppresses tuple debug info.  A user debugging
   a tuple-typed variable sees no type or an anonymous struct.  M5
   must emit a usable type before tuples are recommended for general
   use.
-- **Code size.**  A compile-time tuple always emits a rodata blob,
+- [ ] **Code size.**  A compile-time tuple always emits a rodata blob,
   even if it is only indexed at compile time.  M5 can make the blob
   lazy; until then, keep `$(...)` constants out of hot code or accept
   the few dead bytes.
-- **`-b` bounds checking.**  Tuple field access goes through
+- [ ] **`-b` bounds checking.**  Tuple field access goes through
   `gaddrof()` and offset arithmetic; reuse the `.` postfix's
   `VT_MUSTBOUND` handling (`tccgen.c:7413`) and test with `-b`.
-- **Comma-expression surprises.**  `auto t = (a, b);` stays an
+- [ ] **Comma-expression surprises.**  `auto t = (a, b);` stays an
   `int`, and `(a, b)` is a tuple only where a tuple is expected.
   Document it prominently; this is the price of not breaking comma
   expressions.
@@ -1549,25 +1549,25 @@ Additional coverage:
     projections of one member list, one type-level and one
     value-level.
 
-    - `$tupleof(T)` is a *type tuple*: the member types in
+    - [ ] `$tupleof(T)` is a *type tuple*: the member types in
       declaration order.  It is usable wherever a type is
       (`$tupleof(S) x;`, a parameter list, a typedef), needs no side
       table and no rodata, and is the one to implement first --
       it is M1 machinery applied to a struct's member list.
-    - `$fields(T)` is a *compile-time value tuple* of reflection
+    - [ ] `$fields(T)` is a *compile-time value tuple* of reflection
       nodes, each with `.name`, `.type`, `.offset`, `.size`,
       `.is_pointer`, ...  It needs M2 (value tuples, a node type,
       rodata) and M4's `$foreach` to be useful.
-    - They must agree exactly: same arity and declaration order, so
+    - [ ] They must agree exactly: same arity and declaration order, so
       that `$fields(T)[i].type` is `$tupleof(T)[i]` and generic code
       can walk `$foreach (f; $fields(T))` and index either form by
       the same `i`.  `$fields` is `$tupleof` plus per-member
       metadata, not a different list.  `$members` is that list
       widened to methods and nested types, so only its field
       entries project to `$tupleof`.
-    - Anonymous aggregates are flattened in both, because their
+    - [ ] Anonymous aggregates are flattened in both, because their
       members are members of the enclosing struct.
-    - The invariant is easiest to keep if `$fields` is built on top
+    - [ ] The invariant is easiest to keep if `$fields` is built on top
       of `$tupleof`: derive the metadata from the same member walk
       that produces the types instead of walking the members a
       second time.  Then arity and order cannot drift apart, and a
@@ -1591,86 +1591,86 @@ Additional coverage:
 
 ## Alternatives considered
 
-- **A new `VT_TUPLE` basic type.**  Rejected: `VT_BTYPE` is full,
+- [ ] **A new `VT_TUPLE` basic type.**  Rejected: `VT_BTYPE` is full,
   widening it renumbers `VT_UNSIGNED` and every type flag, and every
   backend switch would need an audit.  The slice implementation
   already abandoned `VT_SLICE` for an anonymous struct.
-- **A struct with a generated tag name.**  Rejected: names cannot
+- [ ] **A struct with a generated tag name.**  Rejected: names cannot
   encode qualifiers, nested tuples and anonymous struct elements
   without collisions; `table_ident` would grow; `struct_find()` is
   the wrong lookup for a structural type.
-- **A library `Tuple` type.**  Rejected for P1/P2: a library type
+- [ ] **A library `Tuple` type.**  Rejected for P1/P2: a library type
   cannot provide compile-time type tuples, destructuring or
   reflection without templates.  It remains a reasonable user-level
   alternative for P3 if the built-in type is not enough.
-- **`(...)` for value tuples everywhere.**  Rejected: it silently
+- [ ] **`(...)` for value tuples everywhere.**  Rejected: it silently
   changes `(a, b)` from a comma expression to a tuple in valid C and
   D code.  The context-directed rule gets the syntax without the
   breakage.
-- **One spelling for both kinds (`$(...)` with run-time elements).**
+- [ ] **One spelling for both kinds (`$(...)` with run-time elements).**
   Rejected: a literal whose meaning depends on whether its elements
   happen to be constant is hard to read, makes compile-time
   evaluation implicit, and would need a silent fallback from
   constant to run-time construction.  Separate spellings make the
   intent explicit and keep `$(...)` usable as a compile-time
   diagnostic.
-- **`$run`-style prefix with a bare expression (`$EXPR`).**  Rejected
+- [ ] **`$run`-style prefix with a bare expression (`$EXPR`).**  Rejected
   for now: `$` is an identifier character, so `$x` is a single token
   today; the bare form needs a dedicated lexer mode, re-lexes every
   `$`-prefixed identifier, breaks the textual `$assert` match, and
   collides with opDollar.  `$(EXPR)` gives the same meaning.
-- **`$` as a `tcctok.h` keyword.**  Rejected: it would reserve every
+- [ ] **`$` as a `tcctok.h` keyword.**  Rejected: it would reserve every
   `$`-prefixed identifier and change valid programs.  Contextual
   matching is what `$assert` already does.
-- **`${...}`.**  Rejected: braces already mean blocks, initializers
+- [ ] **`${...}`.**  Rejected: braces already mean blocks, initializers
   and `$run { ... }`; `$(...)` is unambiguous and mirrors `(...)`.
-- **`tuple(...)` builtin.**  Rejected as the primary spelling: it
+- [ ] **`tuple(...)` builtin.**  Rejected as the primary spelling: it
   reads like a function call and needs a reserved identifier.  It is
   a possible C-mode fallback.
-- **Token replay instead of a constant side table.**  Rejected:
+- [ ] **Token replay instead of a constant side table.**  Rejected:
   `$(e1, e2)[0]` would re-evaluate the elements on every index and
   cost O(n) per access.  The side table makes indexing O(1) and
   preserves side-effect semantics.
-- **A separate tuple ABI.**  Rejected: reusing the struct ABI means
+- [ ] **A separate tuple ABI.**  Rejected: reusing the struct ABI means
   no backend changes, and tuples interoperate with equivalent
   structs.  The cost is platform-dependent layout, which is already
   true for structs.
 
 ## Acceptance criteria
 
-- **P1:** `-lang=c` and `-lang=d` accept `typedef (int, char) Pair;`,
+- [ ] **P1:** `-lang=c` and `-lang=d` accept `typedef (int, char) Pair;`,
   `Pair p = {1, 'a'};`, `p[0]`, nested tuples, tuple parameters and
   returns, `sizeof`/`_Alignof`/`typeof`/`_Generic`, compound literals,
   and `__builtin_types_compatible_p((int, char), (int, char))`.
   A tuple is not compatible with a plain struct of the same layout.
-- **P2:** `-lang=d` accepts `$(...)` constants in `enum`, array
+- [ ] **P2:** `-lang=d` accepts `$(...)` constants in `enum`, array
   bounds, `static assert` and `$assert`; `$(1, 2)[0]` folds at
   compile time and emits only the rodata blob; `$(e)` is a value and
   `$(e,)` a 1-tuple; `$if` works on a constant condition;
   `-lang=c` still treats `$(x)` as a call to `$`.
-- **P3:** `(...)` builds a run-time tuple in initializer,
+- [ ] **P3:** `(...)` builds a run-time tuple in initializer,
   assignment, argument, return, cast and destructuring contexts, in
   C and in D; tuple assignment/copy, tuple arguments and returns, and
   `auto (a, b) = expr;` work; the ABI matches the equivalent struct
   for 8-, 16- and >16-byte tuples.
-- **Separate spellings:** `$(x, y)` requires constant elements and
+- [ ] **Separate spellings:** `$(x, y)` requires constant elements and
   is an error when one is not constant; `(x, y)` is a tuple only in
   a tuple-expected context and a comma expression everywhere else;
   neither spelling is accepted where the other is required.
-- **Comma compatibility:** every valid C and D comma expression in
+- [ ] **Comma compatibility:** every valid C and D comma expression in
   `409`/`410`/`417`/`418` keeps its meaning; `auto t = (a, b);` is an
   `int`; `f((a, b))` is one argument; `x + (a, b)` is an int.
-- **Modes:** type tuples and `(...)` run-time literals work in C and
+- [ ] **Modes:** type tuples and `(...)` run-time literals work in C and
   D; only the `$` forms are `-lang=d` only.
-- **`$` family:** `$(e)` is a value, `$(e,)` a 1-tuple, `$(e1, e2)`
+- [ ] **`$` family:** `$(e)` is a value, `$(e,)` a 1-tuple, `$(e1, e2)`
   a tuple; `$if`/`$foreach` are contextual `$`-words, not keywords;
   `int $x;`, `int $if;` and a function named `$` still parse; opDollar
   (`a[$]`, `a[$-1]`, `s[0..$]`) is unchanged.
-- **Robustness:** out-of-range indices, non-constant indices,
+- [ ] **Robustness:** out-of-range indices, non-constant indices,
   incompatible assignments, `void`/function/VLA/incomplete elements
   and casts to tuples produce actionable diagnostics, not compiler
   crashes.
-- **Verification:** `./configure && make -j$(nproc) -B && make
+- [ ] **Verification:** `./configure && make -j$(nproc) -B && make
   -j$(nproc) test` passes; `make pgo PGO_CC=clang` shows no
   regression in Mlines/s or Valgrind `I refs` against
   `bench/pgo-history.tsv`.

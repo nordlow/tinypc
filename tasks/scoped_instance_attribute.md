@@ -26,11 +26,11 @@ non-transitive `scope` semantics.
 
 ## Goal
 
-- Accept `@scoped` as a variable attribute/modifier (`@scoped T x;` or
+- [ ] Accept `@scoped` as a variable attribute/modifier (`@scoped T x;` or
   `T x @scoped;`) in D language mode (`-lang=d`).
-- Enforce **transitive** escape analysis at compile time on mutable
+- [ ] Enforce **transitive** escape analysis at compile time on mutable
   references, while permitting `@immutable` references to escape safely.
-- Issue precise diagnostic errors on scope violations.
+- [ ] Issue precise diagnostic errors on scope violations.
 
 ## Surface Syntax
 
@@ -58,37 +58,37 @@ void foo() {
 ### Phase 1: Lexer & Attribute Definitions
 
 1. **Token definition (`tcctok.h`):**
-   - Register `TOK_scoped` and `TOK_immutable` or handle as D attribute
+   - [ ] Register `TOK_scoped` and `TOK_immutable` or handle as D attribute
      keywords.
 2. **Attribute structure (`tcc.h`):**
-   - Add `int scoped;` and `int imm;` flags to `AttrDef`, `Sym`,
+   - [ ] Add `int scoped;` and `int imm;` flags to `AttrDef`, `Sym`,
      and `CType` structs.
 
 ### Phase 2: Parsing & Propagation
 
 1. **`parse_d_attributes()` (`tccgen.c`):**
-   - Recognize `@scoped` and `@immutable` in `parse_d_attributes()`
+   - [ ] Recognize `@scoped` and `@immutable` in `parse_d_attributes()`
      and set respective flags.
 2. **Transitive Type Qualification (`CType`):**
-   - Propagate scoped properties transitively across fields, skipping
+   - [ ] Propagate scoped properties transitively across fields, skipping
      any field or subtype marked `@immutable`.
 
 ### Phase 3: Transitive Escape Analysis & Checks
 
 1. **Assignment & Field Extraction Checks (`gassign()` & member access):**
-   - When accessing fields of a `@scoped` instance (`n.mut_ptr`), check if
+   - [ ] When accessing fields of a `@scoped` instance (`n.mut_ptr`), check if
      the field type is `@immutable`.
-   - If `@immutable`, permit assignment to broader scopes.
-   - If mutable, disallow assigning or copying to wider lifetimes
+   - [ ] If `@immutable`, permit assignment to broader scopes.
+   - [ ] If mutable, disallow assigning or copying to wider lifetimes
      (globals, statics, outer scopes) and emit compile error:
      `"transitive escape of mutable @scoped reference '%s'"` via
      `tcc_error_noabort()`.
 2. **Return Statement Checks (`parse_return()` in `tccgen.c`):**
-   - Disallow returning mutable scoped references, while permitting
-   - `@immutable` references/strings to be returned safely.
+   - [ ] Disallow returning mutable scoped references, while permitting
+   - [ ] `@immutable` references/strings to be returned safely.
 
 ## Acceptance Criteria
 
-- Transitive `@scoped` attribute enforcement on mutable instance fields.
-- Exemption allowing `@immutable` fields to escape scopes safely.
-- Regression test suite under `tests/tests2/`.
+- [ ] Transitive `@scoped` attribute enforcement on mutable instance fields.
+- [ ] Exemption allowing `@immutable` fields to escape scopes safely.
+- [ ] Regression test suite under `tests/tests2/`.

@@ -51,17 +51,17 @@ functions, math helpers, and template/inlined wrappers.
 2. **Implementation Strategy:**
    During function definition parsing in `tccgen.c`, when the parser encounters
    `=>` where a function body (`{`) is expected:
-   - Parse the return expression `expr`.
-   - Desugar it internally into an implicit `return expr;` statement inside
+   - [ ] Parse the return expression `expr`.
+   - [ ] Desugar it internally into an implicit `return expr;` statement inside
      a synthesized compound block.
-   - Hand off the resulting AST node stream to the existing function compiler,
+   - [ ] Hand off the resulting AST node stream to the existing function compiler,
      type checker, return type deduction engine, and code generator.
 3. **Benefits of Zero Special Representation:**
-   - **Zero Backend Impact:** Code generators (`x86_64-gen.c`, etc.), ABIs,
+   - [ ] **Zero Backend Impact:** Code generators (`x86_64-gen.c`, etc.), ABIs,
      stack frames, and debugging stabs require zero modifications.
-   - **Zero Symbol Table Bloat:** `Sym` and `FuncAttr` do not need extra flags
+   - [ ] **Zero Symbol Table Bloat:** `Sym` and `FuncAttr` do not need extra flags
      or AST node variants.
-   - **Full Feature Reuse:** Automatically inherits support for local variables,
+   - [ ] **Full Feature Reuse:** Automatically inherits support for local variables,
      temporaries, return type inference (`auto`), cleanup guards, and
      debug info from normal functions.
 
@@ -70,13 +70,13 @@ functions, math helpers, and template/inlined wrappers.
 ## Implementation Plan
 
 1. **Parser Extension (`tccgen.c`):**
-   - In function definition parsing, check for `TOK_DARROW` (`=>`) in place
+   - [ ] In function definition parsing, check for `TOK_DARROW` (`=>`) in place
      of `{`.
-   - Parse the single expression, build an implicit `return` statement node,
+   - [ ] Parse the single expression, build an implicit `return` statement node,
      and compile it as a standard function body.
 2. **Return Type Inference (`auto`):**
-   - Leverage existing type deduction rules for `auto` return types by evaluating
+   - [ ] Leverage existing type deduction rules for `auto` return types by evaluating
      the expression's type during parsing/analysis.
 3. **Regression Tests:**
-   - Add test cases under `tests/tests2/` covering basic expression functions,
+   - [ ] Add test cases under `tests/tests2/` covering basic expression functions,
      `auto` return type deduction, and multi-parameter expressions.
