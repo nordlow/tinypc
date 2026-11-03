@@ -11,11 +11,7 @@ Extend slice indexing, slicing, and range expressions in TinyPC (TPC) from exclu
    -  Length of slice: `hi - lo + 1` (when `hi >= lo`).
    - [x] Supports expressions, constants, and `$`: e.g., `arr[0..=$-1]` or `arr[1..=10]`.
 
-2. **Multidimensional Inclusive Slicing:**
-   -  Syntax: `arr[iS..=iE, jS..=jE]`
-   -  Semantics: Multi-dimensional inclusive range slicing along axes.
-
-3. **Foreach Range Integration:**
+2. **Foreach Range Integration:**
    -  Syntax: `foreach (i; lo..=hi)`
    -  Semantics: Inclusive integer range iteration from `lo` to `hi` inclusive.
 
@@ -31,6 +27,7 @@ Extend slice indexing, slicing, and range expressions in TinyPC (TPC) from exclu
 ## Acceptance Criteria
 
 - [x] **P1:** Support `arr[lo..=hi]` slice indexing and range expressions returning slices with inclusive upper bound `hi`.
-- [ ] **P2:** Support multidimensional inclusive slicing (`A[iS..=iE, jS..=jE]`) [x] `foreach (i; lo..=hi)` inclusive loops.
+- [x] **P2:** Support `foreach (i; lo..=hi)` inclusive loops.
 - [x] **P3:** Full integration with bounds checking (`-bt`) and D-style safety/purity checks.
+
 - [x] **Verification:** `./configure && make -j$(nproc) -B && make -j$(nproc) test` passes with new regression tests under `tests/tests2/`.
