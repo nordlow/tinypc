@@ -7319,8 +7319,6 @@ static Sym *make_string_sym(const char *s)
     int len = strlen(s) + 1;
     unsigned long off = section_add(rodata_section, len, 1);
     memcpy(rodata_section->data + off, s, len);
-    AttrDef ad = {0};
-    ad.section = rodata_section;
     CType type;
     type.t = VT_BYTE | VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE;
     type.ref = NULL;
