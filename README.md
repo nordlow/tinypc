@@ -77,6 +77,24 @@ make install
 On BSD hosts use `gmake` instead of `make`.  For Windows, see
 [`win32/tcc-win32.txt`](win32/tcc-win32.txt).
 
+### Building with Ninja (parallel path)
+
+A Python + Ninja build is provided as a parallel, faster-incremental
+alternative to GNU Make.  It produces the same native `tcc` and
+`libtcc1.a`:
+
+```sh
+./configure --ninja
+ninja -C build
+ninja -C build test
+```
+
+`./configure --ninja` runs `./configure` as usual and then invokes
+`tools/build`, which writes `build/build.ninja`.  `ninja -C build test`
+delegates to the existing test suite.  The Make-based build remains the
+primary, fully-featured path (PGO, cross-targets, installation); the
+Ninja path is intended for fast local iteration.
+
 The TPC sources require a C11 host compiler.  The Makefile builds with
 the GNU C11 dialect (`-std=gnu11`) via the `CSTD` variable so that
 features from later C standards are not used accidentally.  See

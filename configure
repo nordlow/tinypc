@@ -169,9 +169,10 @@ for opt do
   ;;
   --config-*) confvars_set "${opt#--config-}"; suggest="no"
   ;;
-  --help|-h) show_help="yes"
+  --ninja) ninja_gen="yes"
   ;;
-  -q) quiet=yes
+  --help|-h) show_help="yes"
+  ;;  -q) quiet=yes
   ;;
   *) echo "configure: WARNING: unrecognized option $opt"
   ;;
@@ -732,6 +733,10 @@ fi
 echo "@set VERSION $version" > config.texi
 
 rm -f $TMPN* $CONFTEST
+
+if test "$ninja_gen" = "yes"; then
+  python3 ./tools/build --source . || python ./tools/build --source .
+fi
 
 # ---------------------------------------------------------------------------
 # build tree in object directory if source path is different from current one

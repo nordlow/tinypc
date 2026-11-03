@@ -8,13 +8,21 @@ regressions are introduced. Choose the command by what you changed:
 - **Changes to the compiler or its sources** (anything that affects
   the built `tcc` binary or runtime libraries): run
 
-      make -j$(nproc) && make -j$(nproc) test
+      ./configure --ninja && ninja -C build && ninja -C build test
 
-  Running `make -j$(nproc) test` alone is NOT sufficient, since it can test a
-  stale binary.
+  `./configure --ninja` is cheap (~100 ms) and regenerates `build/build.ninja`,
+  so running it every iteration guarantees a fresh, in-sync build.
 
-- **Changes only under `tests/`** (including `tests/tests2/`): `make
-  -j$(nproc) test` is sufficient.
+  The Make-based equivalent remains `make -j$(nproc) && make
+  -j$(nproc) test`.
+
+  Running `ninja -C build test` (or `make -j$(nproc) test`) alone is NOT
+  sufficient, since it can test a stale binary.
+
+- Since `./configure --ninja` is cheap and Ninja is incremental (unchanged
+  targets are skipped), the single command above is appropriate for *all*
+  changes, including tests-only ones.  There is no need for a separate
+  lighter verification path.
 
 - **Compiler performance benchmark** (whenever you changed compiler
   sources): after the regression tests pass, run `make pgo-bench`
@@ -22,6 +30,7 @@ regressions are introduced. Choose the command by what you changed:
   `HEAD^`) and *with* the changes, and include both printed results
   (throughput in Mlines/s and instruction count) in your final
   summary to demonstrate performance impact.
+
 Run the applicable command after every change while
 iterating. Incremental builds are fast, so don't batch up edits before
 verifying.
