@@ -258,7 +258,7 @@ using Clang or GCC with maximum preferred optimizations and
 Profile-Guided Optimization (PGO) via the automated Makefile target:
 
 ```bash
-ninja -C build pgo   # honors PGO_CC env var, defaults to clang
+ninja -C build pgo   # honors PGO_CC env var, defaults to cc
 ```
 
 *(Note: GNU Make assigns a default built-in value to `CC`
