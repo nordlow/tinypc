@@ -1,1 +1,6 @@
-450_d_tuple_assign.c:18: error: cannot convert '(int, int)' to 'int'
+swap 2 1
+call 5 6
+const 2 1
+alias 3 4
+index 11 12
+comma 12 12

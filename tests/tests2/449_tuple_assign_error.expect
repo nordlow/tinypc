@@ -1,20 +1,23 @@
 [test_non_lvalue_literal]
-449_tuple_assign_error.c:4: error: lvalue expected
+449_tuple_assign_error.c:4: error: tuple assignment destination is not an lvalue
 
 [test_non_lvalue_expression]
-449_tuple_assign_error.c:7: error: lvalue expected
+449_tuple_assign_error.c:7: error: tuple assignment destination is not an lvalue
 
 [test_non_lvalue_void]
 449_tuple_assign_error.c:10: error: tuple assignment destination is not an lvalue
 
 [test_too_many]
+449_tuple_assign_error.c:13: error: tuple literal has more than 2 element(s)
 
 [test_too_few]
-449_tuple_assign_error.c:16: error: expression expected before ')'
+449_tuple_assign_error.c:16: error: tuple literal has 1 element(s), expected 2
 
 [test_non_tuple_literal]
+449_tuple_assign_error.c:19: error: cannot convert 'int' to '(int, int)'
 
 [test_non_tuple_object]
+449_tuple_assign_error.c:22: error: cannot convert 'int' to '(int, int)'
 
 [test_function_arity]
-449_tuple_assign_error.c:26: error: cannot convert '(int, int, int)' to 'int'
+449_tuple_assign_error.c:26: error: cannot convert '(int, int, int)' to '(int, int)'

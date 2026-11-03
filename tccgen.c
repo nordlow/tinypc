@@ -7581,8 +7581,9 @@ static int try_tuple_assign(void)
         tok_str_add(ts, '(');
         tok_str_add(ts, first);
         tok_str_add2(ts, tok, &tokc);
+        /* the manually copied ',' is already a top-level comma */
+        has_comma = tok == ',';
         next();
-        has_comma = 0;
         scan_paren_group_rest(ts, 0, &has_comma);
     } else if (tok == '*' || tok == '(') {
         ts = scan_paren_group(&dup, &has_comma, 0);
