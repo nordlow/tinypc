@@ -2558,6 +2558,9 @@ static void parse_number(const char *p)
                 tok = TOK_CDOUBLE;
                 tokc.d = strtod(token_buf, NULL);
             }
+            /* imaginary literal suffix */
+            if (toup(ch) == 'I' || toup(ch) == 'J')
+                ch = *p++;
         }
     } else {
         unsigned long long n, n1;

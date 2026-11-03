@@ -84,13 +84,13 @@ its own dedicated regression test under `tests/tests2/`:
        type aliases successfully).
 
 2. **Step 2: Type Flags**
-   - [ ] **2a:** Define `VT_COMPLEX` and `VT_IMAGINARY` modifier bits in
+   - [x] **2a:** Define `VT_COMPLEX` and `VT_IMAGINARY` modifier bits in
      `tcc.h`.
      - *Verification Test:* Compile-check header and basic type flag
        bitwise operations.
 
 3. **Step 3: Literals**
-   - [ ] **3a:** Extend lexer numeric suffix parsing for `i`/`j`.
+   - [x] **3a:** Extend lexer numeric suffix parsing for `i`/`j`.
      - *Verification Test:* `NN_imaginary_token.c` (verifies tokens carry
        correct imaginary suffix flags).
    - [ ] **3b:** Implement constant expression evaluation for pure
