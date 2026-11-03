@@ -1575,6 +1575,13 @@ compiler so that features from later C standards are not used by
 accident.  The @code{CSTD} make variable can be overridden if the host
 compiler needs a different dialect.
 
+A parallel build using Python and Ninja is also available:
+@command{./configure --ninja} generates @file{build/build.ninja}, after
+which @command{ninja -C build} builds @command{tcc} and
+@command{libtcc1.a}, @command{ninja -C build test} runs the test suite,
+and @command{ninja -C build pgo} / @command{ninja -C build pgo-bench}
+perform profile-guided optimization.
+
 @section File reading
 
 The @code{BufferedFile} structure contains the context needed to read a

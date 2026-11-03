@@ -91,9 +91,16 @@ ninja -C build test
 
 `./configure --ninja` runs `./configure` as usual and then invokes
 `tools/build`, which writes `build/build.ninja`.  `ninja -C build test`
-delegates to the existing test suite.  The Make-based build remains the
-primary, fully-featured path (PGO, cross-targets, installation); the
-Ninja path is intended for fast local iteration.
+delegates to the existing test suite.  PGO is also available:
+
+```sh
+ninja -C build pgo
+ninja -C build pgo-bench
+```
+
+The Make-based build remains the primary, fully-featured path
+(cross-targets, installation); the Ninja path is intended for fast local
+iteration and performance work.
 
 The TPC sources require a C11 host compiler.  The Makefile builds with
 the GNU C11 dialect (`-std=gnu11`) via the `CSTD` variable so that
