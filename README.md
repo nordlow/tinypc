@@ -109,8 +109,12 @@ TEST=448 ninja -C build sani-one  # single test under sanitizers
 Code coverage:
 
 ```sh
-ninja -C build tcov-test       # run suite with coverage; see build/tcc_c.tcov
+ninja -C build tcov-test       # run suite with coverage
 ```
+
+Coverage files (`*.tcov`) are written next to the compiled sources (in
+`tests/tests2/`); the suite's final `make clean` removes them, so copy
+them out beforehand if you need to inspect them.
 
 ### Make-based equivalents
 
