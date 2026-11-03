@@ -533,7 +533,7 @@ fi
 
 # a final configuration tuning
 if test "$cc_name" != "tcc"; then
-  OPT1="-Wdeclaration-after-statement" #-fno-strict-aliasing
+  OPT1="" #-fno-strict-aliasing
   # we want -Wno- but gcc does not always reject unknown -Wno- options
   if test "$cc_name" = "clang"; then
     OPT2= #"-Wstring-plus-int"
