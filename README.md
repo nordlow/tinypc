@@ -96,6 +96,11 @@ delegates to the existing test suite.  PGO is also available:
 ```sh
 ninja -C build pgo
 ninja -C build pgo-bench
+```
+
+Sanitizer pass (memory/UB checks):
+
+```sh
 ninja -C build sani            # whole suite under ASan/UBSan
 TEST=448 ninja -C build sani-one  # single test under sanitizers
 ```
