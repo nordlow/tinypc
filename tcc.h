@@ -1607,6 +1607,7 @@ ST_DATA const int *macro_ptr;
 ST_DATA int parse_flags;
 ST_DATA int tok_flags;
 ST_DATA CString tokcstr; /* current parsed string, if any */
+ST_DATA int tok_is_imaginary;
 
 /* display benchmark infos */
 ST_DATA int tok_ident;

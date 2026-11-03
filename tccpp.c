@@ -35,6 +35,7 @@ ST_DATA int tok;
 ST_DATA CValue tokc;
 ST_DATA const int *macro_ptr;
 ST_DATA CString tokcstr; /* current parsed string, if any */
+ST_DATA int tok_is_imaginary;
 
 /* display benchmark infos */
 ST_DATA int tok_ident;
@@ -2376,6 +2377,8 @@ static void parse_number(const char *p)
     unsigned int bn[BN_SIZE];
     long double d;
 
+    tok_is_imaginary = 0;
+
     /* number */
     q = token_buf;
     ch = *p++;
@@ -2559,8 +2562,10 @@ static void parse_number(const char *p)
                 tokc.d = strtod(token_buf, NULL);
             }
             /* imaginary literal suffix */
-            if (toup(ch) == 'I' || toup(ch) == 'J')
+            if (toup(ch) == 'I' || toup(ch) == 'J') {
+                tok_is_imaginary = 1;
                 ch = *p++;
+            }
         }
     } else {
         unsigned long long n, n1;
@@ -2653,6 +2658,10 @@ static void parse_number(const char *p)
 	if (ucount)
 	    ++tok; /* `TOK_CU`... */
         tokc.i = n;
+    }
+    if (toup(ch) == 'I' || toup(ch) == 'J') {
+        tok_is_imaginary = 1;
+        ch = *p++;
     }
     if (ch)
         tcc_error("invalid number");

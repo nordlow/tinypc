@@ -93,9 +93,9 @@ its own dedicated regression test under `tests/tests2/`:
    - [x] **3a:** Extend lexer numeric suffix parsing for `i`/`j`.
      - [ ] *Verification Test:* `NN_imaginary_token.c` (verifies tokens carry
        correct imaginary suffix flags).
-   - [ ] **3b:** Implement constant expression evaluation for pure
+   - [x] **3b:** Implement constant expression evaluation for pure
      imaginary literals.
-     - [ ] *Verification Test:* `NN_imaginary_literal.c` (evaluates
+     - [x] *Verification Test:* `455_imaginary_literal.c` (evaluates
        compile-time imaginary constants `2.5i`).
 
 4. **Step 4: Declarations**

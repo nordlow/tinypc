@@ -7950,8 +7950,12 @@ ST_FUNC void unary(void)
     case TOK_CINT:
     case TOK_CCHAR:
 	t = VT_INT;
- push_tokc:
+    push_tokc:
 	type.t = t;
+        if (tok_is_imaginary) {
+            type.t |= VT_IMAGINARY;
+            tok_is_imaginary = 0;
+        }
 	vsetc(&type, VT_CONST, &tokc);
         next();
         break;
