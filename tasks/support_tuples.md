@@ -706,7 +706,7 @@ static Sym *make_tuple_type(CType *elems, int n)
 {
     CType st;
     Sym *s, **ps;
-    AttributeDef ad;
+    AttrDef ad;
     int i;
 
     st.t = VT_STRUCT;

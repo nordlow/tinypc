@@ -61,7 +61,7 @@ void foo() {
    - Register `TOK_scoped` and `TOK_immutable` or handle as D attribute
      keywords.
 2. **Attribute structure (`tcc.h`):**
-   - Add `int scoped;` and `int imm;` flags to `AttributeDef`, `Sym`,
+   - Add `int scoped;` and `int imm;` flags to `AttrDef`, `Sym`,
      and `CType` structs.
 
 ### Phase 2: Parsing & Propagation

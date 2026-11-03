@@ -383,7 +383,7 @@ Ordered by (productivity gain) / (risk x effort):
 
 - **Attribute table** (about one day, low risk).  `parse_attribute()`
   is a large switch over `TOK_*` pairs; every attribute needs two
-  tokens, a case, and `AttributeDef`/`SymAttr` bits.  Replace it with
+  tokens, a case, and `AttrDef`/`SymAttr` bits.  Replace it with
   a table of `{ name, flags, handler }` shared by
   `__attribute__((...))` and the pending `@name(...)` syntax.  This
   makes `immutable`, `inout`, `nocopy` and future attributes cheap.
