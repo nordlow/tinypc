@@ -13,30 +13,30 @@ ergonomics.
 ## Syntax & Semantics
 
 1. **Multi-Index Indexing:**
-   - [ ] Syntax: `arr[i, j, k, ...]`
-   - [ ] Semantics: Flattens or computes strided multi-dimensional index
+   -  Syntax: `arr[i, j, k, ...]`
+   -  Semantics: Flattens or computes strided multi-dimensional index
      offset: $\text{offset} = i \cdot s_0 + j \cdot s_1 + k \cdot s_2 + \dots$,
      where $s_x$ are compile-time or runtime stride dimensions.
-   - [ ] Works on static multi-dimensional arrays (`T[N1][N2][N3]`) and
+   -  Works on static multi-dimensional arrays (`T[N1][N2][N3]`) and
      dynamic/slice multi-dimensional views.
 
 2. **Multi-Dimensional Slicing:**
-   - [ ] Syntax: `arr[iS..iE, jS..jE, ...]` (half-open),
+   -  Syntax: `arr[iS..iE, jS..jE, ...]` (half-open),
      `arr[iS..=iE, jS..=jE, ...]` (inclusive), and full-axis colons
      (`arr[i, :, k]`).
-   - [ ] Semantics: Returns a multi-dimensional slice or strided view
+   -  Semantics: Returns a multi-dimensional slice or strided view
      spanning bounds `[iS..iE)` or entire axes for `:`.
-- [ ] Integrates with TPC's existing slice system (`T[..]`) and bounds
+-  Integrates with TPC's existing slice system (`T[..]`) and bounds
   checking (`-bt`).
-- [ ] **Named Parameters / Arguments Compatibility:** Both `:` and `..` syntax
+-  **Named Parameters / Arguments Compatibility:** Both `:` and `..` syntax
   inside indexing brackets `[...]` will be allowed as long as they do not
   clash with named parameters or keyword arguments (if introduced).
 
 
 3. **Subscript / Unicode Indexing (`Aᵢⱼ₉`):**
-   - [ ] Syntax: Identifiers and indexing expressions incorporating Unicode
+   -  Syntax: Identifiers and indexing expressions incorporating Unicode
      subscript characters (e.g., `₀₋₉`, `ₐ`, `ᵢ`, `ⱼ`, `ₖ`).
-   - [ ] Semantics: Lexical and identifier normalization mapping subscript
+   -  Semantics: Lexical and identifier normalization mapping subscript
      characters to standard indices or variable components for
      mathematical conciseness inspired by Julia/APL.
 
@@ -63,15 +63,15 @@ Different ecosystem paradigms handle multi-dimensional array memory layout
 differently:
 
 1. **NumPy (C-contiguous / Row-Major):**
-   - [ ] The last dimension varies fastest in memory. Stride for dimension $i$
+   -  The last dimension varies fastest in memory. Stride for dimension $i$
      decreases from left to right. Ideal for C-language interop and row-wise
      traversal.
 2. **Julia (Fortran-contiguous / Column-Major):**
-   - [ ] The first dimension varies fastest in memory. Stride for dimension $i$
+   -  The first dimension varies fastest in memory. Stride for dimension $i$
      increases from left to right. Ideal for mathematical and linear algebra
      computations (BLAS/LAPACK interop).
 3. **Mojo (Explicit Strides & Custom Layouts):**
-   - [ ] Allows arbitrary compile-time or runtime strides and layout qualifiers
+   -  Allows arbitrary compile-time or runtime strides and layout qualifiers
      enabling zero-copy transposes and strided slices.
 
 ### Convenient Expression in TPC
@@ -79,15 +79,15 @@ differently:
 To express these layouts cleanly without boilerplate:
 - [ ] **Layout Attributes:** Support `@`-attribute layout specifiers on array and
   slice types (e.g., `@layout(row) int[N, M]` or `@layout(col) int[N, M]`).
-- [ ] **Easy Switchability & Zero-Copy Transpose:** Layouts must be easily
+-  **Easy Switchability & Zero-Copy Transpose:** Layouts must be easily
   switchable between row-major and column-major orders without copying data,
   either via attribute annotations or view-casting methods (e.g.
   `.layout(row)` / `.layout(col)`).
-- [ ] **Standard Strided View Descriptor:** Represent multi-dimensional views as
+-  **Standard Strided View Descriptor:** Represent multi-dimensional views as
   compact runtime descriptors containing pointer, shape array, and stride
   array, allowing zero-copy slicing and seamless interop with NumPy C-API
   and Julia arrays.
-- [ ] **Matrix & Vector Constructors via Macros:** Matrix and vector literals can
+-  **Matrix & Vector Constructors via Macros:** Matrix and vector literals can
   be elegantly constructed using preprocessor macros combined with compound
   literals or tuple syntax (e.g., `#define vec(...) (Vector){__VA_ARGS__}` or
   matrix macros expanding into nested array initializers).

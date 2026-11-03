@@ -13,8 +13,8 @@ existing codebase string buffer types (`CString` and `StringSlice` defined in
 Currently, TinyPC codebase occasionally relies on raw pointer and size pairs
 (`char *buf, size_t buf_size`) or legacy string helpers alongside existing
 structured buffer types:
-- [ ] **`StringSlice`**: Non-owning immutable string slice view (`ptr`, `len`).
-- [ ] **`CString`**: Dynamic string buffer descriptor (`size`, `size_allocated`,
+-  **`StringSlice`**: Non-owning immutable string slice view (`ptr`, `len`).
+-  **`CString`**: Dynamic string buffer descriptor (`size`, `size_allocated`,
   `data`).
 
 Additionally, referencing design patterns from `blitz` (`str.h` / `fstr.h`),
@@ -25,14 +25,14 @@ safety and high performance.
 ## Proposed Design
 
 1. **Leverage and Extend Existing Structs (`tcc.h`):**
-   - [ ] Use `CString` for mutable, growing or bounded buffers.
-   - [ ] Use `StringSlice` (optionally enhanced with bitfield flags from blitz)
+   -  Use `CString` for mutable, growing or bounded buffers.
+   -  Use `StringSlice` (optionally enhanced with bitfield flags from blitz)
      for read-only string slices and views.
 2. **Method-like / Helper API Refactoring:**
-   - [ ] Adapt string copy/cat utilities to accept `CString *` or bounded buffers
+   -  Adapt string copy/cat utilities to accept `CString *` or bounded buffers
      rather than raw `char *buf, size_t buf_size` pairs.
 3. **Integration Across Compiler:**
-   - [ ] Refactor high-traffic string formatting and path manipulation sites in
+   -  Refactor high-traffic string formatting and path manipulation sites in
      `libtcc.c`, `tccgen.c`, and `tccpp.c`.
 
 ## Acceptance Criteria

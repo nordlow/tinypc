@@ -6,18 +6,18 @@ Extend slice indexing, slicing, and range expressions in TinyPC (TPC) from exclu
 ## Syntax & Semantics
 
 1. **Inclusive Slice Range Syntax:**
-   - [x] Syntax: `arr[lo..=hi]`
-   - [x] Semantics: Represents the inclusive range from index `lo` through `hi` (`[lo, hi]`), including both `lo` and `hi`.
-   - [x] Length of slice: `hi - lo + 1` (when `hi >= lo`).
+   -  Syntax: `arr[lo..=hi]`
+   -  Semantics: Represents the inclusive range from index `lo` through `hi` (`[lo, hi]`), including both `lo` and `hi`.
+   -  Length of slice: `hi - lo + 1` (when `hi >= lo`).
    - [x] Supports expressions, constants, and `$`: e.g., `arr[0..=$-1]` or `arr[1..=10]`.
 
 2. **Multidimensional Inclusive Slicing:**
-   - [ ] Syntax: `arr[iS..=iE, jS..=jE]`
-   - [ ] Semantics: Multi-dimensional inclusive range slicing along axes.
+   -  Syntax: `arr[iS..=iE, jS..=jE]`
+   -  Semantics: Multi-dimensional inclusive range slicing along axes.
 
 3. **Foreach Range Integration:**
-   - [x] Syntax: `foreach (i; lo..=hi)`
-   - [x] Semantics: Inclusive integer range iteration from `lo` to `hi` inclusive.
+   -  Syntax: `foreach (i; lo..=hi)`
+   -  Semantics: Inclusive integer range iteration from `lo` to `hi` inclusive.
 
 ## Design & Implementation Plan
 

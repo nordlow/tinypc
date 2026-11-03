@@ -33,12 +33,12 @@ manifest type aliases rather than value-level iteration.
 
 ## Milestones
 
-- [ ] **R1:** `$tupleof(T)` as a type-level expression usable in `typedef`,
+-  **R1:** `$tupleof(T)` as a type-level expression usable in `typedef`,
   `sizeof`, and `typeof`.  Exit: new test `tests/tests2/44?_d_tupleof.c`.
-- [ ] **R2:** `$fields(T)` returning a constant tuple of field names (strings)
+-  **R2:** `$fields(T)` returning a constant tuple of field names (strings)
   and types.  Exit: destructuring/foreach over `$fields(S)`.
-- [ ] **R3:** `$members(T)`, RTTI tables, UFCS syntax.
-- [ ] **R4:** `$for`/`$while` control flow over reflection nodes.
+-  **R3:** `$members(T)`, RTTI tables, UFCS syntax.
+-  **R4:** `$for`/`$while` control flow over reflection nodes.
 
 ## Related
 

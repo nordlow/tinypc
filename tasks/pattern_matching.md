@@ -10,7 +10,7 @@ expressions, tuples, structs, and tagged unions.
 ## Syntax & Semantics
 
 1. **`match` Expression / Statement:**
-   - [ ] Syntax:
+   -  Syntax:
      ```c
      match (expr) {
          case pattern1: body1;
@@ -18,22 +18,22 @@ expressions, tuples, structs, and tagged unions.
          default: body3;
      }
      ```
-   - [ ] Semantics: Evaluates `expr` once and matches it sequentially against
+   -  Semantics: Evaluates `expr` once and matches it sequentially against
      patterns, binding destructuring variables in scope for matching branches.
 
 2. **Pattern Kinds, Wildcard (`_`), and Ignore Operator (`@_`):**
-   - [ ] Literal patterns (`42`, `"hello"`)
-   - [ ] Wildcard / Catch-all patterns (`_`): Plain `_` can be used in C and D
+   -  Literal patterns (`42`, `"hello"`)
+   -  Wildcard / Catch-all patterns (`_`): Plain `_` can be used in C and D
      as a wildcard/ignore symbol when it does not shadow an existing
      identifier in scope.
-   - [ ] Binding / Identifier patterns (`let x`)
-   - [ ] **Ignore Operator (`@_`):** In compatibility mode, allows explicitly
+   -  Binding / Identifier patterns (`let x`)
+   -  **Ignore Operator (`@_`):** In compatibility mode, allows explicitly
      ignoring specific tuple elements or struct fields during
      destructuring (e.g., `case (x, @_ , y):`), avoiding unused variable
      warnings or strict positional binding requirements.
-   - [ ] Tuple destructuring patterns (`(a, b, c)`) leveraging runtime and
+   -  Tuple destructuring patterns (`(a, b, c)`) leveraging runtime and
      compile-time tuples from `support_tuples.md`.
-   - [ ] Struct / Enum destructuring patterns (`Point { x, y }`).
+   -  Struct / Enum destructuring patterns (`Point { x, y }`).
 
 ## Dependencies
 

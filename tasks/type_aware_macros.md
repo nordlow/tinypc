@@ -15,13 +15,13 @@ type-checked, expression-safe inline macro functions.
 ## Semantics & Design
 
 1. **Type-Checking:**
-   - [ ] Arguments passed to `macro` functions are type-checked against parameter
+   -  Arguments passed to `macro` functions are type-checked against parameter
      declarations at the call site before expansion.
 2. **Hygienic / Safe Expansion:**
-   - [ ] Prevents double-evaluation side effects (e.g., `MAX(a++, b++)` evaluates
+   -  Prevents double-evaluation side effects (e.g., `MAX(a++, b++)` evaluates
      arguments safely or warns/errors).
 3. **Type Parameters:**
-   - [ ] Ability to accept types as arguments (since templates are out of scope).
+   -  Ability to accept types as arguments (since templates are out of scope).
 
 ## Implementation Details
 

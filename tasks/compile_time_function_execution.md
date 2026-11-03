@@ -12,19 +12,19 @@ generator instead of adding an interpreter to the frontend.
 
 ## Goal
 
-- [ ] Accept `$run(expr)` in constant expressions and `$run { ... }` as a
+-  Accept `$run(expr)` in constant expressions and `$run { ... }` as a
   file-scope statement in `-lang=d` mode.
-- [ ] Compile the payload into a hidden wrapper function with the normal
+-  Compile the payload into a hidden wrapper function with the normal
   backend, so CTFE observes exactly the same ABI, struct layout,
   integer-promotion and overflow behaviour as the eventual program.
-- [ ] Execute the wrapper by relocating a *private snapshot* of the
+-  Execute the wrapper by relocating a *private snapshot* of the
   translation unit's sections, calling the wrapper through its symbol
   index, and discarding the snapshot afterwards.
-- [ ] Push the result back into the parser as an ordinary constant
+-  Push the result back into the parser as an ordinary constant
   (`VT_CONST` value or a reference to materialised data), so it can
   feed array sizes, `enum` values, initialisers, `static assert`, and
   `$assert`.
-- [ ] Report CTFE crashes and timeouts as ordinary compile errors instead
+-  Report CTFE crashes and timeouts as ordinary compile errors instead
   of aborting or hanging the compiler.
 
 Non-goals: an interpreter over the token stream, D's full CTFE purity
@@ -70,11 +70,11 @@ $run {
 }
 ```
 
-- [ ] `$run` is a *contextual* keyword, not a `tcctok.h` keyword.  It is
+-  `$run` is a *contextual* keyword, not a `tcctok.h` keyword.  It is
   matched textually, the way `$assert` is (`tccgen.c:10401`).  It only
   has special meaning in D mode and only when followed by `(` or `{`,
   so existing identifiers named `$run` keep working.
-- [ ] `$run` is one member of the `$` compile-time family (`$(...)`,
+-  `$run` is one member of the `$` compile-time family (`$(...)`,
   `$if`, `$foreach`, `$assert`).  The shared lexing rule -- `$` is
   special only before `(` (or `{` for `$run`) -- is specified in
   `tasks/support_tuples.md`, including the rule that `$if` opens no
@@ -318,74 +318,74 @@ Two semantic points the implementation must pin down:
 
 ### 1. Parser hooks (`tccgen.c`)
 
-- [ ] **Declarations**: add `static int check_d_ctfe_run(int l);` next to
+-  **Declarations**: add `static int check_d_ctfe_run(int l);` next to
   the other D helpers (`tccgen.c:181`-`185`) and call it from
   `decl()` after `check_d_static_assert()` (`tccgen.c:11204`).  It
   must reject `l != VT_CONST` with `"$run is only allowed at file
   scope"`, mirroring the `unittest` check at `tccgen.c:11212`.
-- [ ] **Expressions**: hook the `tok_identifier:` label in `unary()`
+-  **Expressions**: hook the `tok_identifier:` label in `unary()`
   (`tccgen.c:7011`), after `t = tok; next();` and before
   `sym_find(t)`.  Trigger on `lang_d && t >= TOK_UIDENT &&
   !strcmp(get_tok_str(t, &tokc), "$run") && tok == '('`.  Guard with
   `func_ind >= 0` to reject block scope in M1.
-- [ ] **Statements** (M3): hook `block()` right after `next()`
+-  **Statements** (M3): hook `block()` right after `next()`
   (`tccgen.c:8686`), in the same shape as the `scope(exit)` case at
   `tccgen.c:8826`-`8846`.
-- [ ] `$run` must *not* be added to `tcctok.h`; keeping it a plain
+-  `$run` must *not* be added to `tcctok.h`; keeping it a plain
   identifier is what allows the contextual behaviour and avoids
   breaking `-lang=c` sources that use `$` in identifiers
   (`dollars_in_identifiers` defaults to 1, `libtcc.c:881`).
 
 ### 2. Wrapper synthesis (`tccgen.c`)
 
-- [ ] `static Sym *do_ctfe_wrapper(CType *ret, TokenString *body, int
+-  `static Sym *do_ctfe_wrapper(CType *ret, TokenString *body, int
   with_out_param)` -- the `do_unittest()` body generalised, returning
   the symbol so the driver can read its `->c` index.
-- [ ] `struct ctfe_parse_ctx` plus `ctfe_save_parse()` /
+-  `struct ctfe_parse_ctx` plus `ctfe_save_parse()` /
   `ctfe_restore_parse()`.
-- [ ] A `TCC_TLS int nb_ctfe` counter for wrapper names.
-- [ ] Suppress debug and coverage emission around the synthesis
+-  A `TCC_TLS int nb_ctfe` counter for wrapper names.
+-  Suppress debug and coverage emission around the synthesis
   (`debug_modes = 0`, save/restore `tcc_state->test_coverage`).
-- [ ] **Dead-code residue**: the wrapper stays in the parent's `.text`
+-  **Dead-code residue**: the wrapper stays in the parent's `.text`
   and is emitted into every object file.  M1 accepts this (it is a
   dead `static` function, a few dozen bytes).  Trimming options, in
   order of increasing risk, are listed under *Open questions*.
 
 ### 3. Snapshot and clone (`tccrun.c`, `tccelf.c`)
 
-- [ ] `static TCCState *tcc_snapshot_new(TCCState *s1);`
-- [ ] `static void tcc_snapshot_free(TCCState *s2);`
-- [ ] Both live in `tccrun.c` next to `rt_mem()` because they only exist
+-  `static TCCState *tcc_snapshot_new(TCCState *s1);`
+-  `static void tcc_snapshot_free(TCCState *s2);`
+-  Both live in `tccrun.c` next to `rt_mem()` because they only exist
   for `TCC_IS_NATIVE` builds; declare them in the internal section of
   `tcc.h` (not in `libtcc.h`, which is the public ABI).
-- [ ] `Section` has a `s1` back-pointer (`tcc.h:596`) that must be
+-  `Section` has a `s1` back-pointer (`tcc.h:596`) that must be
   repointed at the clone; `new_section()` (`tccelf.c:229`) does this
   for fresh sections and is the model for the copy loop.
-- [ ] `sym_attrs` (`tcc.h:982`) is mutated by `build_got_entries()` and
+-  `sym_attrs` (`tcc.h:982`) is mutated by `build_got_entries()` and
   `relocate_syms()`, so it must be cloned as an array, not shared.
 
 ### 4. Relocation driver (`tccrun.c`)
 
-- [ ] `static int tcc_relocate_snapshot(TCCState *s2);` -- a copy of
+-  `static int tcc_relocate_snapshot(TCCState *s2);` -- a copy of
   `tcc_relocate_ex()` (`tccrun.c:330`) with a `snapshot` flag that
   (a) skips `tcc_add_runtime()` / `resolve_common_syms()` /
   `build_got_entries()`, (b) skips `cleanup_symbols()` /
   `cleanup_sections()` at `copy == 3`, and (c) returns the relocated
   size.
-- [ ] Replace the TLS error at `tccrun.c:389` with a CTFE-aware message
+-  Replace the TLS error at `tccrun.c:389` with a CTFE-aware message
   when in snapshot mode: `"$run: thread-local storage is not
   supported"`.
-- [ ] `st_link()` / `st_unlink()` around the call, so crash reporting
+-  `st_link()` / `st_unlink()` around the call, so crash reporting
   resolves frames in the snapshot image.
 
 ### 5. Result materialisation (`tccgen.c`)
 
-- [ ] Scalars: `vpushi()` for integers, `vsetc()` with `VT_CONST` and the
+-  Scalars: `vpushi()` for integers, `vsetc()` with `VT_CONST` and the
   right `CValue` member for floating types.
-- [ ] Aggregates (M2): allocate a hidden rodata object with
+-  Aggregates (M2): allocate a hidden rodata object with
   `section_add()` and `get_sym_ref()`, then `vpushsym()` -- the same
   path string literals and compound literals already use.
-- [ ] Provenance mapping (M2): given a returned address, find the clone
+-  Provenance mapping (M2): given a returned address, find the clone
   section containing it, compute `offset`, look for a parent symbol
   whose section and range cover `offset`, and re-emit
   `parent_sym + (offset - parent_offset)`.  Anything else is an
@@ -393,21 +393,21 @@ Two semantic points the implementation must pin down:
 
 ### 6. Options, diagnostics, documentation
 
-- [ ] `-fno-ctfe` / `-fctfe=off`: make `$run` an error even in
+-  `-fno-ctfe` / `-fctfe=off`: make `$run` an error even in
   `-lang=d`, for hermetic builds.  Wire it like the other `TCCState`
   booleans (`tcc.h` flags block, parsed in `tcc_parse_args`).
-- [ ] `-fctfe-timeout=<seconds>` (M4): `alarm()`/`SIGALRM` or a watchdog
+-  `-fctfe-timeout=<seconds>` (M4): `alarm()`/`SIGALRM` or a watchdog
   thread that longjmps out of the payload.
-- [ ] `-Wctfe` (M4): warn when a `$run` payload is not `@pure`/`@det`
+-  `-Wctfe` (M4): warn when a `$run` payload is not `@pure`/`@det`
   (see `deterministic_attribute.md`) or when CTFE is used in a build
   that also produces `-c` output, since the result then depends on
   the host.
-- [ ] `version(CTFE)` and a `__ctfe` macro that is 1 while a payload is
+-  `version(CTFE)` and a `__ctfe` macro that is 1 while a payload is
   being compiled, so shared code can branch
   (`version(ctfe) { ... }` in the `check_d_conditional()` style at
   `tccgen.c:11084`).  The wrapper is dead code, so the runtime branch
   never executes.
-- [ ] README: a new subsection under "D-style language extensions"
+-  README: a new subsection under "D-style language extensions"
   (`README.md:234`), next to `unittest` and `$assert`, plus a
   cross-reference from the compile-time reflection proposal in
   `TODO.md:151`-`186`.
@@ -522,32 +522,32 @@ Additional coverage:
 
 ## Risks and limitations
 
-- [ ] **`build_got_entries()` re-entrancy.**  It rewrites `r_info` and
+-  **`build_got_entries()` re-entrancy.**  It rewrites `r_info` and
   adds GOT/PLT entries; if it is not idempotent, the second call (the
   real link after a `$run`) would corrupt relocations.  Mitigation:
   the `got_built` flag, plus a test that mixes `$run` with `-run` and
   with `-o` in one TU.
-- [ ] **`tcc_add_runtime()` re-entrancy.**  Adding `libtcc1.a` twice
+-  **`tcc_add_runtime()` re-entrancy.**  Adding `libtcc1.a` twice
   duplicates symbols; the flag is mandatory, not an optimisation.
-- [ ] **Host privileges.**  A payload runs with the compiler's
+-  **Host privileges.**  A payload runs with the compiler's
   privileges: it can open files, read the environment, `fork()`, or
   `exit()`.  `exit`/`abort` are intercepted; the rest is documented
   as "`$run` is a compile-time side-effecting construct", the same
   stance Jai and C++26 `constexpr` callbacks take.  `@pure`/`@det`
   (see `deterministic_attribute.md`) is the recommended way to keep
   payloads reproducible.
-- [ ] **Determinism.**  A payload that reads the clock, the environment
+-  **Determinism.**  A payload that reads the clock, the environment
   or an address makes the build non-reproducible.  `-Wctfe` (M4) is
   the diagnostic; caching (M4) must be off by default for
   non-`@det` payloads.
-- [ ] **`long double` ABI.**  Reading an x87 80-bit return value from
+-  **`long double` ABI.**  Reading an x87 80-bit return value from
   generated code into the compiler process assumes host and target
   agree.  Gate on `TCC_IS_NATIVE` and reject `long double` results on
   targets where tcc's representation differs from the host's.
-- [ ] **Debug info and dumps.**  The wrapper must not appear in DWARF or
+-  **Debug info and dumps.**  The wrapper must not appear in DWARF or
   in `-fdump-decls` output; suppress `debug_modes` and skip
   `psyms()` for CTFE symbols.
-- [ ] **`.text` growth.**  Every `$run` leaves a dead wrapper behind.
+-  **`.text` growth.**  Every `$run` leaves a dead wrapper behind.
   For a compiler that advertises tiny output this is a real cost, and
   M4 should either trim it or compile the wrapper directly into the
   snapshot (which requires the parser to run against the clone, with
@@ -576,7 +576,7 @@ Additional coverage:
 
 ## Alternatives considered
 
-- [ ] **Interpreter over the token stream / AST.**  No ABI drift, but it
+-  **Interpreter over the token stream / AST.**  No ABI drift, but it
   needs a second semantics for every operator, struct layout and
   calling convention, and it cannot reuse `libtcc1` helpers.  This is
   the option the task explicitly rejects.

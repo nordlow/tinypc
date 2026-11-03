@@ -8,23 +8,23 @@ instances and `@init` construction methods.
 
 ## Definitions & Distinction
 
-- [ ] **Allocator:** An abstract interface or strategy responsible for
+-  **Allocator:** An abstract interface or strategy responsible for
   providing raw memory blocks (e.g., heap, heap-free-list, pool).
-- [ ] **Arena:** A concrete allocator strategy that allocates memory
+-  **Arena:** A concrete allocator strategy that allocates memory
   monotonically via bump-pointer from a contiguous region and deallocates
   all objects simultaneously.
 
 ## Syntax Specification
 
 1. **Memory Allocation:**
-   - [ ] Syntax: `allocator.new(&x, CTOR_ARGS)`
-   - [ ] Semantics: Allocates uninitialized storage for the type of `x` (a
+   -  Syntax: `allocator.new(&x, CTOR_ARGS)`
+   -  Semantics: Allocates uninitialized storage for the type of `x` (a
    pointer `T*`) using the specified `allocator`, assigns the resulting
    address to `x`.
 
 2. **Object Initialization:**
-   - [ ] Syntax: `x.@init(CTOR_ARGS)`
-   - [ ] Semantics: Invokes the constructor/initializer method on the newly
+   -  Syntax: `x.@init(CTOR_ARGS)`
+   -  Semantics: Invokes the constructor/initializer method on the newly
    allocated object instance `x`.
 
 ## Example Usage

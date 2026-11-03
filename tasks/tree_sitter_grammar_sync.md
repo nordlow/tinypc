@@ -10,17 +10,17 @@ guards, attributes).
 ## Scope & Requirements
 
 1. **Parser-Grammar Alignment:**
-   - [ ] Map TPC-specific language extensions (tuples `(T1, T2)`, slices `T[]`,
+   -  Map TPC-specific language extensions (tuples `(T1, T2)`, slices `T[]`,
      destructuring assignment `(a, b) = expr`, `foreach` loops, attributes,
      etc.) into Tree-sitter node rules in `grammar.js`.
-   - [ ] Maintain bidirectional traceability or generation scripts between
+   -  Maintain bidirectional traceability or generation scripts between
      `tccgen.c` token/parser states and Tree-sitter grammar productions.
 
 2. **Automated Sync / Codegen:**
-   - [ ] Add a build target or helper script (e.g., `make treesitter-sync` or
+   -  Add a build target or helper script (e.g., `make treesitter-sync` or
      `tools/sync-grammar`) that inspects parser additions or tests and
      validates `grammar.js` coverage.
-   - [ ] Ensure CI / test suite verifies that all syntax constructs parsed by
+   -  Ensure CI / test suite verifies that all syntax constructs parsed by
      `tcc` / `tpc` have corresponding valid Tree-sitter rules.
 
 3. **Acceptance Criteria:**

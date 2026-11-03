@@ -25,13 +25,13 @@ Introducing a `@static` qualifier (or type attribute) provides:
 
 ## Proposed Semantics
 
-- [ ] **Explicit Qualification:** A variable, parameter, or pointer type can be
+-  **Explicit Qualification:** A variable, parameter, or pointer type can be
   annotated with `@static` (e.g., `@static char *` or `char * @static`).
-- [ ] **Inference:** The compiler automatically infers `@static` for expressions
+-  **Inference:** The compiler automatically infers `@static` for expressions
   and pointers pointing to static storage data, most notably string literals
   (`"hello"`), global `const` variables, and address-of expressions of
   file-scope static objects.
-- [ ] **Interoperability:** Seamless interoperation with standard C pointers,
+-  **Interoperability:** Seamless interoperation with standard C pointers,
   treating `@static` as a stricter provenance/lifetime qualifier (similar
   to `const` in terms of const-correctness propagation).
 

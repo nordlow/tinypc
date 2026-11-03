@@ -32,11 +32,11 @@ each line with its source expression (`$L` / `$R`).
 
 ## Requirements
 
-- [ ] Evaluate `$L` and `$R` exactly once (no double evaluation or
+-  Evaluate `$L` and `$R` exactly once (no double evaluation or
   repeated side effects).
-- [ ] Use the type's debug/pretty-printer when available, and fall back to
+-  Use the type's debug/pretty-printer when available, and fall back to
   a default representation otherwise.
-- [ ] Keep the passing path free of any formatting cost.
+-  Keep the passing path free of any formatting cost.
 
 ## Bonus
 
@@ -45,5 +45,5 @@ differing element (and index) between `$L` and `$R`.
 
 ## Open questions
 
-- [ ] Which operators beyond comparisons (e.g. `&&`, `||`) should get
+-  Which operators beyond comparisons (e.g. `&&`, `||`) should get
   diagnostics?

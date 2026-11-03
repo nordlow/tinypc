@@ -26,11 +26,11 @@ non-transitive `scope` semantics.
 
 ## Goal
 
-- [ ] Accept `@scoped` as a variable attribute/modifier (`@scoped T x;` or
+-  Accept `@scoped` as a variable attribute/modifier (`@scoped T x;` or
   `T x @scoped;`) in D language mode (`-lang=d`).
-- [ ] Enforce **transitive** escape analysis at compile time on mutable
+-  Enforce **transitive** escape analysis at compile time on mutable
   references, while permitting `@immutable` references to escape safely.
-- [ ] Issue precise diagnostic errors on scope violations.
+-  Issue precise diagnostic errors on scope violations.
 
 ## Surface Syntax
 

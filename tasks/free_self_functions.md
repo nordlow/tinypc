@@ -17,7 +17,7 @@ expressed as free self-functions.
 ## Semantics & Syntax
 
 1. **Free Self-Function Definition:**
-   - [ ] Functions take the struct instance as their first parameter (conventionally
+   -  Functions take the struct instance as their first parameter (conventionally
      named `self` or similar):
      ```c
      void Point_print(Point* self, int offset) {
@@ -25,12 +25,12 @@ expressed as free self-functions.
      }
      ```
 2. **Dot-Syntax Invocation (UFCS Integration):**
-   - [ ] When calling `pt.Point_print(10)` or `pt.print(10)` (if named/aliased),
+   -  When calling `pt.Point_print(10)` or `pt.print(10)` (if named/aliased),
      the compiler automatically rewrites it to `Point_print(&pt, 10)` or
      `Point_print(pt, 10)` based on parameter passing semantics (by pointer vs
      by value).
 3. **Mandatory Method Style:**
-   - [ ] Investigate enforcing that struct methods cannot be declared inside the
+   -  Investigate enforcing that struct methods cannot be declared inside the
      struct body but must instead be defined as free self-functions, keeping
      struct layouts purely data-focused and decoupling data representation
      from behavior.

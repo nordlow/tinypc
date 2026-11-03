@@ -11,7 +11,7 @@ Rust), managing object aliasing and mutation is critical for preventing
 data races and undefined behavior without heavy locking overhead. 
 
 Reference capabilities restrict how references can be aliased and shared:
-- [ ] **Write-Isolation:** Ensuring an object has a single exclusive owner.
+-  **Write-Isolation:** Ensuring an object has a single exclusive owner.
 - [ ] **Move-Only Semantics:** Transferring ownership across scopes or tasks
   without allowing duplicate mutable aliases.
 

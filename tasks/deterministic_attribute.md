@@ -9,13 +9,13 @@ of the rule set is discussed in
 
 Two related but distinct guarantees are involved:
 
-- [ ] **Purity** — the function is a mathematical function of its
+-  **Purity** — the function is a mathematical function of its
   arguments.  It writes no global mutable state, performs no I/O, and
   calls no function that does, so the only thing an observer can see
   is the returned value and the objects handed to it.  Everything it
   reads or writes is reachable through its own parameters and locals,
   which means it may still mutate that memory in place (see below).
-- [ ] **Determinism** — the values the function computes depend only on
+-  **Determinism** — the values the function computes depend only on
   its arguments and immutable state.  It does not let raw memory
   addresses, the clock, the environment, or thread interleaving
   influence a result, so code in its scope cannot vary with allocator
@@ -66,32 +66,32 @@ such as for algorithms like quick sort) as long as it does not touch
 mutable global state.
 
 This model distinguishes between:
-- [ ] **Weak purity**: a function qualified as `@pure` (may modify its
+-  **Weak purity**: a function qualified as `@pure` (may modify its
   arguments/output parameters by reference).
-- [ ] **Strong purity**: a weakly pure function where all its
+-  **Strong purity**: a weakly pure function where all its
   (`immutable`) parameters cannot change during the lifetime of the
   function's execution.
 
 Two consequences:
 
-- [ ] Mutating a parameter is allowed even though the caller can observe
+-  Mutating a parameter is allowed even though the caller can observe
   it; the guarantee is that nothing *outside* the arguments is
   observable.
-- [ ] Purity does not imply `const`: a `@pure` in-place algorithm takes
+-  Purity does not imply `const`: a `@pure` in-place algorithm takes
   `int *`, not `const int *`.
 ## Proposal
 
-- [ ] `@deterministic` (alias `@det`) demands determinism at function or
+-  `@deterministic` (alias `@det`) demands determinism at function or
   block scope.  Address-dependent results (ordering by address,
   hashing addresses, printing addresses) silently break
   reproducibility, so they are rejected rather than merely documented.
-- [ ] `@pure` implies `@deterministic`.  A pure function that reports
+-  `@pure` implies `@deterministic`.  A pure function that reports
   different results across runs for the same arguments is not a
   useful building block for caching, memoisation, or reproducible
   builds, and purity-based optimisation decisions become hard to
   reason about.  Non-determinism therefore has to be requested
   explicitly.
-- [ ] Non-determinism is opt-in via `@nodet`: a `@nodet` block, statement,
+-  Non-determinism is opt-in via `@nodet`: a `@nodet` block, statement,
   or function declaration is the only place where non-deterministic
   operations are permitted inside a `@pure` or `@det` scope.
 
@@ -126,13 +126,13 @@ runs of the same binary.
 
 ## Allowed
 
-- [ ] Dereference (`*p`, `p->f`), assignment, and passing pointers.
-- [ ] Array/slice indexing and slicing (`p[i]`, `&p[i]`, `p[a..b]`),
+-  Dereference (`*p`, `p->f`), assignment, and passing pointers.
+-  Array/slice indexing and slicing (`p[i]`, `&p[i]`, `p[a..b]`),
   despite their desugaring to offset arithmetic.
-- [ ] Writing through a pointer, slice, or other output parameter,
+-  Writing through a pointer, slice, or other output parameter,
   including in-place algorithms such as the `sort` above.
-- [ ] Pointer equality and relational comparison against zero / null (`p == NULL`, `p != NULL`, `!p`), as the null address is invariant across runs and platforms.
-- [ ] Allocation, in `@det` code: the address itself is a handle that may
+-  Pointer equality and relational comparison against zero / null (`p == NULL`, `p != NULL`, `!p`), as the null address is invariant across runs and platforms.
+-  Allocation, in `@det` code: the address itself is a handle that may
   be stored, dereferenced, and passed on.  Only letting that address
   leak into a computed value is forbidden.
 
@@ -173,55 +173,55 @@ int bucket(void *p) @pure
 }
 ```
 
-- [ ] On a function, `@nodet` means the function is not `@det`, so `@det`
+-  On a function, `@nodet` means the function is not `@det`, so `@det`
   code and other `@pure` functions can only call it from a `@nodet`
   region.
-- [ ] On a block or statement, it suppresses determinism diagnostics for
+-  On a block or statement, it suppresses determinism diagnostics for
   that region only.
-- [ ] It is inherited into nested blocks and lambdas, but not into a
+-  It is inherited into nested blocks and lambdas, but not into a
   non-`@nodet` function called from inside the region.
-- [ ] Repetition should be flagged: a warning for `@nodet` in code that is
+-  Repetition should be flagged: a warning for `@nodet` in code that is
   not itself `@pure`/`@det`, where it has no effect.
 
 ## Open questions
 
-- [ ] What exactly `@pure` implies beyond no side effects: D-style weak
+-  What exactly `@pure` implies beyond no side effects: D-style weak
   purity (immutable globals readable) or strong purity.  See
   [pure_attribute_semantics.md](pure_attribute_semantics.md).
-- [ ] Should `@nodet` be usable on a single expression
+-  Should `@nodet` be usable on a single expression
   (`x = @nodet p ? 1 : 0`), or only on statements and blocks?
-- [ ] Block syntax (`@det { ... }`) and inheritance into lambdas and macro
+-  Block syntax (`@det { ... }`) and inheritance into lambdas and macro
   expansions.
-- [ ] Escape hatch for runtime/allocator code that is deterministic but
+-  Escape hatch for runtime/allocator code that is deterministic but
   cannot be annotated (libc wrappers): `@trusted`, `@nodet`, or both?
-- [ ] Function pointers: forbid comparison and casting, and require the
+-  Function pointers: forbid comparison and casting, and require the
   pointee type to be `@det` before it may be called from `@det` code?
-- [ ] Should `malloc` be callable from `@pure` (D allows allocation in
+-  Should `malloc` be callable from `@pure` (D allows allocation in
   pure code), or only from `@det`?
-- [ ] Aliasing: may a `@pure` function write through a parameter that is
+-  Aliasing: may a `@pure` function write through a parameter that is
   also reachable from immutable global state (D forbids this), and
   does `restrict` change the answer?
-- [ ] Diagnostics: one error per forbidden category with a fix-it hint
+-  Diagnostics: one error per forbidden category with a fix-it hint
   ("use slice indexing instead of pointer arithmetic"), and a note
   pointing at the `@pure`/`@det` declaration that introduced the
   requirement.
-- [ ] Does the `@pure` -> `@det` inference apply to declarations without a
+-  Does the `@pure` -> `@det` inference apply to declarations without a
   body, forwarding the requirement to the caller's link-time view?
 
 ## Tests
 
-- [ ] One negative test per forbidden operation; positive tests for
+-  One negative test per forbidden operation; positive tests for
   indexing, slicing, null checks, and dereference.
-- [ ] Verify `p[i]` and `&p[i]` are accepted while `*(p + i)` is rejected.
-- [ ] `@pure` function that computes an address-dependent value is
+-  Verify `p[i]` and `&p[i]` are accepted while `*(p + i)` is rejected.
+-  `@pure` function that computes an address-dependent value is
   rejected; the same function with `@nodet` compiles.
-- [ ] `@pure` in-place sort writes through its `int *` parameter and
+-  `@pure` in-place sort writes through its `int *` parameter and
   compiles; writing to a file-scope array instead is rejected.
-- [ ] `@det` function may write through an output parameter, and `@pure`
+-  `@det` function may write through an output parameter, and `@pure`
   may too; neither may write to global mutable state.
-- [ ] Calling a non-`@det` extern from `@det` code is rejected; the call
+-  Calling a non-`@det` extern from `@det` code is rejected; the call
   inside `@nodet` is accepted.
-- [ ] `@nodet` on one statement does not silence diagnostics in the
+-  `@nodet` on one statement does not silence diagnostics in the
   surrounding function.
-- [ ] Forward declarations (`int f(int x) @pure;`) carry the implied
+-  Forward declarations (`int f(int x) @pure;`) carry the implied
   `@det`, so a non-deterministic body is rejected at the definition.

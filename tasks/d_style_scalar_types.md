@@ -15,33 +15,33 @@ primitive aliases.
 ## Supported D Scalar Types
 
 1. **Exact-Width / Integral Types:**
-   - [ ] `byte` (signed 8-bit integer)
-   - [ ] `ubyte` (unsigned 8-bit integer)
-   - [ ] `short` (signed 16-bit integer)
-   - [ ] `ushort` (unsigned 16-bit integer)
-   - [ ] `int` (signed 32-bit integer)
-   - [ ] `uint` (unsigned 32-bit integer)
-   - [ ] `long` (signed 64-bit integer)
-   - [ ] `ulong` (unsigned 64-bit integer)
-   - [ ] `cent` (signed 128-bit integer)
-   - [ ] `ucent` (unsigned 128-bit integer)
+   -  `byte` (signed 8-bit integer)
+   -  `ubyte` (unsigned 8-bit integer)
+   -  `short` (signed 16-bit integer)
+   -  `ushort` (unsigned 16-bit integer)
+   -  `int` (signed 32-bit integer)
+   -  `uint` (unsigned 32-bit integer)
+   -  `long` (signed 64-bit integer)
+   -  `ulong` (unsigned 64-bit integer)
+   -  `cent` (signed 128-bit integer)
+   -  `ucent` (unsigned 128-bit integer)
 
 2. **Character & String Types:**
-   - [ ] `char` (unsigned 8-bit UTF-8 code unit)
-   - [ ] `wchar` (unsigned 16-bit UTF-16 code unit)
-   - [ ] `dchar` (unsigned 32-bit UTF-32 code unit)
+   -  `char` (unsigned 8-bit UTF-8 code unit)
+   -  `wchar` (unsigned 16-bit UTF-16 code unit)
+   -  `dchar` (unsigned 32-bit UTF-32 code unit)
 
 3. **Boolean Type:**
-   - [ ] `bool` (1-byte boolean type)
+   -  `bool` (1-byte boolean type)
 
 4. **Floating-Point & Extended Precision:**
-   - [ ] `float` (32-bit IEEE float)
-   - [ ] `double` (64-bit IEEE double)
-   - [ ] `real` (extended precision floating-point, e.g. 80-bit x87 or 128-bit float)
+   -  `float` (32-bit IEEE float)
+   -  `double` (64-bit IEEE double)
+   -  `real` (extended precision floating-point, e.g. 80-bit x87 or 128-bit float)
 
 5. **Imaginary & Complex Scalar Types:**
-   - [ ] `ifloat`, `idouble`, `ireal` (imaginary types)
-   - [ ] `cfloat`, `cdouble`, `creal` (complex types)
+   -  `ifloat`, `idouble`, `ireal` (imaginary types)
+   -  `cfloat`, `cdouble`, `creal` (complex types)
 
 ## Implementation Details
 

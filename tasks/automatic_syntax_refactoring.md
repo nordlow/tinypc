@@ -5,25 +5,25 @@
 Implement an automated file in-place refactoring pass in TinyPC (TPC)
 to modernize legacy C constructs into preferred D-style idiomatic
 constructs:
-- [ ] C-style arrays (`int arr[N]`) $\to$ D-style type-first arrays (`int[N] arr`)
-- [ ] C-style indexing/counting `for` loops $\to$ D-style `foreach` and `foreach_reverse`
+-  C-style arrays (`int arr[N]`) $\to$ D-style type-first arrays (`int[N] arr`)
+-  C-style indexing/counting `for` loops $\to$ D-style `foreach` and `foreach_reverse`
 
 ## Refactoring Transformations
 
 1. **Type-First Array Syntax:**
-   - [ ] Match: `T var[N]` (variable definitions, function parameters, typedefs).
-   - [ ] Replace: `T[N] var`.
-   - [ ] Preserves array sizes, qualifiers (`const`, `immutable`, `volatile`), and multi-dimensional shapes.
+   -  Match: `T var[N]` (variable definitions, function parameters, typedefs).
+   -  Replace: `T[N] var`.
+   -  Preserves array sizes, qualifiers (`const`, `immutable`, `volatile`), and multi-dimensional shapes.
 
 2. **Loop Modernization (`for` $\to$ `foreach` / `foreach_reverse`):**
-   - [ ] Match: C `for` loops of the form:
+   -  Match: C `for` loops of the form:
      `for (int i = 0; i < N; ++i)` or `for (int i = N - 1; i >= 0; --i)` iterating over an array or range.
-   - [ ] Replace: D-style `foreach (i; 0..N)` or `foreach_reverse (i; 0..N)`.
+   -  Replace: D-style `foreach (i; 0..N)` or `foreach_reverse (i; 0..N)`.
 
 ## CLI Interface & Safety
 
-- [ ] Command: `tpc --refactor=<rule> <file.c>` or `tpc --refactor-all <dir>`
-- [ ] Safety: Dry-run mode (`--refactor-dry-run`) showing git-style diffs before modifying files in-place; refuses to refactor files with compiler diagnostics errors.
+-  Command: `tpc --refactor=<rule> <file.c>` or `tpc --refactor-all <dir>`
+-  Safety: Dry-run mode (`--refactor-dry-run`) showing git-style diffs before modifying files in-place; refuses to refactor files with compiler diagnostics errors.
 
 ## Acceptance Criteria
 

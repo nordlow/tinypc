@@ -12,19 +12,19 @@ them under `qemu-arm` with pass/fail comparison against the existing
 
 Feasible, but with a few corrections to the original draft:
 
-- [ ] **There is no runtime `-target arm` flag.** TinyCC cross-compilers
+-  **There is no runtime `-target arm` flag.** TinyCC cross-compilers
   are separate binaries built at configure time (`./configure
   --enable-cross && make cross-arm`), which produce `arm-tcc` (and
   variants such as `arm-eabi-tcc` / `arm-vfp-tcc`, depending on the
   tree version).
-- [ ] **An ARM sysroot is required.** `qemu-user` only emulates the CPU
+-  **An ARM sysroot is required.** `qemu-user` only emulates the CPU
   and syscalls. The compiled binaries still need ARM crt files, libc,
   and a dynamic loader. Arch has no official ARM cross-glibc, so use
   an AUR/ALARM toolchain package (e.g. `arm-linux-gnueabihf-glibc`) or
   a manually extracted Arch Linux ARM rootfs.
-- [ ] **`tcc -run` cannot work cross-arch.** The test harness must compile
+-  **`tcc -run` cannot work cross-arch.** The test harness must compile
   to an executable first, then execute it under QEMU.
-- [ ] **Binfmt is optional.** Invoking `qemu-arm -L <sysroot> ./test`
+-  **Binfmt is optional.** Invoking `qemu-arm -L <sysroot> ./test`
   explicitly is more reproducible than relying on binfmt registration.
 
 ## Prerequisites
@@ -77,15 +77,15 @@ Feasible, but with a few corrections to the original draft:
 
 ## Out of Scope
 
-- [ ] ARM64, RISC-V, and other targets (follow-up, since the same harness
+-  ARM64, RISC-V, and other targets (follow-up, since the same harness
   should generalize).
-- [ ] Fixing ARM backend bugs uncovered by the tests (file separately).
-- [ ] CI integration.
+-  Fixing ARM backend bugs uncovered by the tests (file separately).
+-  CI integration.
 
 ## Risks and Open Questions
 
-- [ ] Which ARM ABI variant (hard-float vs. soft-float) is the primary target?
-- [ ] Does the current tree's ARM backend still pass `tcctest.c`? Failures
+-  Which ARM ABI variant (hard-float vs. soft-float) is the primary target?
+-  Does the current tree's ARM backend still pass `tcctest.c`? Failures
   here may predate this task.
 - [ ] QEMU user-mode quirks (signals, threads, `/proc`) may cause spurious
   failures; distinguish these from real bugs.

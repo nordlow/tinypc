@@ -22,7 +22,7 @@ mode, eliminating the need for repetitive `#ifdef DEBUG` preprocessor boilerplat
      }
      ```
 2. **`@debug` Attribute / Statement:**
-   - [ ] Functions or statements annotated with `@debug` compile conditionally based
+   -  Functions or statements annotated with `@debug` compile conditionally based
      on debug flags.
 
 ## Implementation Details (`tccpp.c`, `tccgen.c`)

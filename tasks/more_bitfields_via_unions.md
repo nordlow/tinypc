@@ -11,10 +11,10 @@ performance or binary compatibility.
 ## Target Fields & Bitfield Layouts
 
 ### 1. `CType.t` (`int t`)
-- [ ] **Current usage:** Packs basic types, qualifiers (`const`, `volatile`,
+-  **Current usage:** Packs basic types, qualifiers (`const`, `volatile`,
   `immutable`, `restrict`), storage classes, and signedness flags into a
   raw integer using bitmasks (e.g., `VT_BTYPE`, `VT_VAL_*`).
-- [ ] **Proposed Anonymous Union Representation:**
+-  **Proposed Anonymous Union Representation:**
   ```c
   typedef struct CType {
       union {
@@ -32,8 +32,8 @@ performance or binary compatibility.
   ```
 
 ### 2. `SValue.r` & `SValue.r2` (`unsigned short r`, `unsigned short r2`)
-- [ ] **Current usage:** Packs register allocation indices and `VT_*` storage flags.
-- [ ] **Proposed Anonymous Union Representation:**
+-  **Current usage:** Packs register allocation indices and `VT_*` storage flags.
+-  **Proposed Anonymous Union Representation:**
   ```c
   typedef struct SValue {
       CType type; /**< Complete C type descriptor */
@@ -56,9 +56,9 @@ performance or binary compatibility.
   ```
 
 ### 3. `Sym.r` (`unsigned short r`)
-- [ ] **Current usage:** Associated register, or `VT_CONST`/`VT_LOCAL` storage
+-  **Current usage:** Associated register, or `VT_CONST`/`VT_LOCAL` storage
   class and lvalue flags for symbols in the symbol table.
-- [ ] **Proposed Anonymous Union Representation:**
+-  **Proposed Anonymous Union Representation:**
   ```c
   typedef struct Sym {
       int v; /**< Symbol token identifier */
@@ -75,17 +75,17 @@ performance or binary compatibility.
   ```
 
 ### 4. Other Packed Integer Fields in Compiler Structs
-- [ ] **`ExprValue.pcrel`:** Can be integrated into a union combining raw flags
+-  **`ExprValue.pcrel`:** Can be integrated into a union combining raw flags
   with structured relocation flags.
-- [ ] **`BufferedFile` flags & line states:** Encapsulating raw integer state
+-  **`BufferedFile` flags & line states:** Encapsulating raw integer state
   flags into bitfield-backed unions for cleaner source tracking.
 
 ## Benefits of Anonymous C11 Unions
 
-- [ ] **Direct Syntax:** Anonymous unions allow accessing bitfields directly as
+-  **Direct Syntax:** Anonymous unions allow accessing bitfields directly as
   `type.btype`, `sval.reg_index`, or `sym.reg_index` without needing
   intermediate member names or `.raw` wrappers.
-- [ ] **Zero Overhead & Full Compatibility:** Compiles to zero-cost bitmask/shift
+-  **Zero Overhead & Full Compatibility:** Compiles to zero-cost bitmask/shift
   instructions while keeping the underlying integer fully accessible for raw
   bitwise operations where necessary.
 

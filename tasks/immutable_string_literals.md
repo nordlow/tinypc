@@ -21,30 +21,30 @@ specifications.
 
 ## Specification
 1. **Detection**:
-   - [ ] Immutable qualification is enabled when `tcc_state->lang_d` is
+   -  Immutable qualification is enabled when `tcc_state->lang_d` is
      active (or when immutable qualification is explicitly enabled).
 2. **Type Construction (`str_init` in `tccgen.c`)**:
-   - [ ] When immutable qualification is enabled, string literal element
+   -  When immutable qualification is enabled, string literal element
      types (`TOK_STR`, `TOK_LSTR`, and `__FUNC__`) are qualified with
      both `VT_QUALIFIER_CONSTANT` and `VT_QUALIFIER_IMMUTABLE`.
-   - [ ] Resulting array type: `immutable char[N]` (or `immutable
+   -  Resulting array type: `immutable char[N]` (or `immutable
      wchar_t[N]`).
-   - [ ] Decay type in expressions: `@immutable char*` (or `@immutable
+   -  Decay type in expressions: `@immutable char*` (or `@immutable
      wchar_t*`).
 3. **Semantics & Assignments**:
-   - [ ] Assigning or passing an `@immutable char*` / `immutable char[]` to a
+   -  Assigning or passing an `@immutable char*` / `immutable char[]` to a
      mutable pointer (`char*`) or mutable slice (`char[..]`) correctly
      triggers a compile-time diagnostic (`assignment discards
      'immutable' qualifier`), enforcing that immutable string literals
      cannot alias or corrupt mutable references.
-   - [ ] Array initialization (copying string literal data into a local
+   -  Array initialization (copying string literal data into a local
      mutable array buffer, e.g., `char buf[6] = "hello";`) remains
      valid via value/copy semantics.
 
 ## Verification
-- [ ] Add regression tests under `tests/tests2/`:
-  - [ ] `386_immutable_string_literal.c` / `.expect`: verify `@immutable
+-  Add regression tests under `tests/tests2/`:
+  -  `386_immutable_string_literal.c` / `.expect`: verify `@immutable
     char*` type and read operations.
-  - [ ] `387_immutable_string_literal_error.c` / `.expect`: verify
+  -  `387_immutable_string_literal_error.c` / `.expect`: verify
     compile-time errors when attempting to write to or discard
     immutable qualification from string literals.
