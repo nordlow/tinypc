@@ -78,3 +78,6 @@ libtcc.dylib
 .serena/.gitignore
 .serena/project.yml
 tcc_s
+
+**/.agent-shell/
+.agent-shell/
