@@ -20,7 +20,7 @@ existing structured buffer types:
   `blitz/str.h`. Consider unifying on the name `StrV` or `StrSlice`.
 - `CString`: dynamic string buffer descriptor (`size`,
   `size_allocated`, `data`). Should be merged with with `FStr` in
-  `blitz/ftr.h`.
+  `blitz/ftr.h`. Should be qualified `__attribute((nocopy))`.
 
 Referencing design patterns from `blitz` (`str.h` / `fstr.h`), string
 slices can be enriched with metadata bitfields (such as `isNullTerm`,
