@@ -1372,7 +1372,7 @@ ST_FUNC Sym *external_global_sym(int v, CType *type)
    `This` avoids type conflicts if the symbol is used from C too */
 ST_FUNC Sym *external_helper_sym(int v)
 {
-    CType ct = { VT_ASM_FUNC, NULL };
+    CType ct = { { VT_ASM_FUNC }, NULL };
     return external_global_sym(v, &ct);
 }
 
@@ -7728,7 +7728,6 @@ static int try_tuple_assign(void)
 static void gen_members_from_type(CType type1)
 {
     AttrDef ad;
-    int n = 0;
     memset(&ad, 0, sizeof ad);
     /* build a constant tuple of type values, one per field */
     {
@@ -7743,7 +7742,6 @@ static void gen_members_from_type(CType type1)
     CType *types = NULL;
     CValue *vals = NULL;
     Sym **syms = NULL;
-    TupleConst **nested = NULL;
 
     for (f = type1.ref->next; f; f = f->next, ++nf) {
     tuple_add_field(&plast, &f->type, nf);
@@ -8586,7 +8584,6 @@ special_math_val:
             skip(')');
             if ((type1.t & VT_BTYPE) != VT_STRUCT && !IS_ENUM(type1.t))
                 tcc_error("$members requires a struct, union or enum type");
-        members_impl:;
             gen_members_from_type(type1);
             break;
         }
