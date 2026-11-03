@@ -1,4 +1,4 @@
-# Encapsulate Bounded String Buffers into Container and View Structs
+# Encapsulate Bounded String Buffers into Owning Container and View/Slice Structs
 
 > **Status:** Proposed refactoring task.
 
