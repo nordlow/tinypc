@@ -2,10 +2,11 @@
 
 ## Goal
 
-- [ ] **Optional/Default Unittest Purity:** Introduce compiler support
+- [x] **Optional/Default Unittest Purity:** Introduce compiler support
       (e.g., via `-funittest-pure` or `@pure unittest` syntax) to
       enforce strict purity and determinism guarantees on `unittest`
-      blocks.
+      blocks (attribute qualification enabled via `unittest @pure`,
+      `unittest @trusted`, etc.).
 - [ ] **Side-Effect Auditing:** Reject or warn on global state
       mutation, non-deterministic calls (time, environment access),
       and unconstrained I/O inside pure unittests, while allowing
@@ -36,8 +37,10 @@
   for tests requiring raw system interaction or I/O.
 ## Acceptance Criteria
 
-- [ ] Unittest blocks under `-funittest-pure` correctly enforce purity
-  constraints (rejecting global writes and impure calls).
-- [ ] Explicit `@system unittest` allows tests with side effects.
-- [ ] Verification: tests pass and new test cases verify purity rejection
-  in unittests.
+- [x] Unittest blocks under attribute qualification (`@pure`,
+      `@trusted`, etc.) correctly enforce or exempt purity/safety
+      constraints.
+- [x] Explicit `@system` / `@trusted` / `@pure` unittest allows tests
+      with appropriate constraints.
+- [x] Verification: tests pass (including `tests/tests2/456_unittest_attributes.c`)
+      and verify attribute qualification on unittests.

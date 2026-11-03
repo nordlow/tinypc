@@ -723,6 +723,20 @@ int main(void)
 }
 ```
 
+Unittest blocks can optionally be qualified with D-style safety and
+purity attributes (such as `@pure`, `@safe`, `@trusted`, or
+`@system`):
+
+```c
+unittest @trusted {
+    assert(twice(3) == 6);
+}
+
+unittest @pure {
+    assert(twice(4) == 8);
+}
+```
+
 Without `-unittest`, the blocks are skipped and produce no code.
 `version(unittest)` reflects whether unit tests are enabled.
 

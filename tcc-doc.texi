@@ -32,6 +32,7 @@ This manual documents version @value{VERSION} of the Tiny Poly Compiler.
 * Invoke::                      Invocation of tcc (command line, options).
 * Clang::                       ANSI C and extensions.
 * Dext::                        D language extensions and compile-time features.
+* asm::                         Assembler syntax.
 * linker::                      Output file generation and supported targets.
 * Bounds::                      Automatic bounds-checking of C code.
 * Libtcc::                      The libtcc library.
@@ -1124,13 +1125,41 @@ evaluated at compile time.
 TinyPC supports compile-time reflection for structs and types:
 
 @itemize
-@item @strong{@code{$tupleof(T)}}: Member types of struct @code{T} as a
-type tuple (D's @code{T.tupleof}).
-@item @strong{@code{$fields(T)}} and @strong{@code{$members(T)}}:
-Compile-time reflection nodes providing member names, types, offsets,
-sizes, and pointers for zero-boilerplate serialization and graph
-traversal.
+ @item @strong{@code{$tupleof(T)}}: Member types of struct @code{T} as a
+ type tuple (D's @code{T.tupleof}).
+ @item @strong{@code{$fields(T)}} and @strong{@code{$members(T)}}:
+ Compile-time reflection nodes providing member names, types, offsets,
+ sizes, and pointers for zero-boilerplate serialization and graph
+ traversal.
+ @end itemize
+
+@section Safety and Purity Attributes
+
+TinyPC supports D-style function and block attributes for safety and purity checking:
+
+@itemize
+@item @strong{@code{@@safe}}: Enforces safety constraints (pointer arithmetic and indexing are rejected). Active by default in @option{-lang=d} mode.
+@item @strong{@code{@@trusted}} and @strong{@code{@@system}}: Exempt statements, loops (@code{for}, @code{foreach}), and blocks from safety checks.
+@item @strong{@code{@@pure}}: Enforces functional purity and determinism (disallowing global/static variable access and non-deterministic pointer arithmetic or relational comparisons).
 @end itemize
+
+@section Unittest Blocks
+
+D-style @code{unittest} blocks contain test cases compiled and run only when @option{-unittest} is given. Unittest blocks can optionally be qualified with D-style safety and purity attributes (such as @code{@@pure}, @code{@@trusted}, or @code{@@system}):
+
+@example
+static int twice(int x) @@pure @{ return 2 * x; @}
+
+unittest @@trusted @{
+    assert(twice(3) == 6);
+@}
+
+unittest @@pure @{
+    assert(twice(4) == 8);
+@}
+@end example
+
+Without @option{-unittest}, unittest blocks are skipped and produce no code.  @code{version(unittest)} reflects whether unit tests are enabled.
 
 @node asm
 @chapter TinyPC Assembler
