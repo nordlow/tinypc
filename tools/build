@@ -137,7 +137,7 @@ def main():
     L.append("  command = make -C %s tests2.$$TEST" % src)
     L.append("  description = TEST-ONE")
     L.append("")
-    L.append("build one: run_one | %s/tcc %s/libtcc1.a" % (bld, bld))
+    L.append("build test-one: run_one | %s/tcc %s/libtcc1.a" % (bld, bld))
     L.append("  phony = 1")
     L.append("")
     L.append("rule run_pgo")
