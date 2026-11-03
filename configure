@@ -58,7 +58,7 @@ test -n "$CC" && cc="$CC"
 test -n "$AR" && ar="$AR"
 
 # set default CFLAGS if unset in environment
-test -z "$CFLAGS" && CFLAGS="-Wall -O2"
+test -z "$CFLAGS" && CFLAGS="-Wall -O2 -fno-diagnostics-show-caret"
 
 # find source path
 source_path=${0%configure}

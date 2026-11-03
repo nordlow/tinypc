@@ -8663,7 +8663,6 @@ special_math_val:
                 || !strcmp(get_tok_str(t, NULL), "$offsetof")
                 || !strcmp(get_tok_str(t, NULL), "$valueof"))) {
             int want_name = !strcmp(get_tok_str(t, NULL), "$nameof");
-            int want_value = !strcmp(get_tok_str(t, NULL), "$valueof");
             skip('(');
             expr_eq();
             if (!vtop->sym || !vtop->sym->asm_label) {
