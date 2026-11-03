@@ -58,8 +58,23 @@ int atexit(void (*function)(void))
 typedef struct rt_frame {
     void *ip, *fp, *sp;
 } rt_frame;
+/* `runmain.o` may also be linked without `tcc_run`(), which is what normally
+   registers `__rt_exit`, and without libc (`tcc -nostdlib -run`).  All of the
+   symbols used by the fallback are therefore optional. */
+__attribute__((noreturn, weak)) void __rt_exit(rt_frame *, int);
+__attribute__((weak)) int fflush(void *);
+__attribute__((weak)) void _exit(int code);
 
-__attribute__((noreturn)) void __rt_exit(rt_frame *, int);
+__attribute__((noreturn))
+static void rt_exit_fallback(int code)
+{
+    if (fflush)
+        fflush(0);
+    if (_exit)
+        _exit(code);
+    for (;;)
+        ;
+}
 
 void exit(int code)
 {
@@ -68,6 +83,8 @@ void exit(int code)
     __run_on_exit(code);
     f.fp = 0;
     f.ip = exit;
+    if (!__rt_exit)
+        rt_exit_fallback(code);
     __rt_exit(&f, code);
 }
 
