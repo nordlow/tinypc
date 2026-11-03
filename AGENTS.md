@@ -8,7 +8,7 @@ regressions are introduced. Choose the command by what you changed:
 - **Changes to the compiler or its sources** (anything that affects
   the built `tcc` binary or runtime libraries): run
 
-      ./configure --ninja && ninja -C build && ninja -C build test
+      ./configure --ninja && ninja -C build check
 
   `./configure --ninja` is cheap (~100 ms) and regenerates `build/build.ninja`,
   so running it every iteration guarantees a fresh, in-sync build.
@@ -230,7 +230,7 @@ When you find a hang, report: the stage and command, process state
 minimal reproducer, and the fix. After fixing, run the full
 verification sequence above (including
 
-`./configure --ninja && ninja -C build && ninja -C build test`),
+`./configure --ninja && ninja -C build check`),
 
 and add a regression test under `tests/tests2/` where the hang was
 caused by the compiler.  Never "fix" a hang by only raising a timeout.
