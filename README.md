@@ -842,11 +842,17 @@ assert(cond, "descriptive failure message");
 ```
 
 If the condition fails at runtime, it prints an assertion failure message and aborts.
+
 ### Pointer-to-struct member access
 
 For a pointer to a struct, `x.field` is accepted as a synonym for
 `x->field`, including chained access and compound assignment:
 
+Available in all modes, this extension does not break backwards
+compatibility with valid standard C code because standard C requires
+`->` for pointer-to-struct member access and treats `.` on pointer
+types as a type error. It eases transitioning between passing
+parameters by value versus reference.
 ```c
 struct Point { int x, y; };
 struct Node { struct Node *next; int val; };
