@@ -107,7 +107,7 @@ def git_hash(srcdir):
             ["git", "-C", srcdir, "log", "-1", "--date=short",
              "--pretty=format:%cd " + ref + "@%h"],
             stderr=subprocess.DEVNULL, text=True).strip()
-        diff = subprocess.check_output(
+        diff = subprocess.run(
             ["git", "-C", srcdir, "diff", "--quiet"],
             stderr=subprocess.DEVNULL).returncode
         if diff != 0:

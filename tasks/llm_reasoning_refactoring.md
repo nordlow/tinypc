@@ -428,6 +428,9 @@ generation and must be investigated before the phase lands.
 ## Verification performed so far
 
 - `./configure --ninja && ninja -C build check`: `ALL TESTS PASSED`.
+- `ninja -C build config` prints the effective configuration, and
+  `ninja -C build compdb` writes `compile_commands.json` in the source
+  root from the same flags the Ninja rules use.
 - `ninja -C build sani`: two compiler leaks were found and fixed
   (`449_tuple_assign_error`, `436_d_tuple_destructure_error`).  The
   remaining failures (`332_d_darray`, `334_d_darray_bcheck`,
@@ -455,6 +458,13 @@ generation and must be investigated before the phase lands.
    make the Makefile a forwarding shim.
 9. **P8 — measure and iterate.**  Run the benchmark from Workstream E
    after each phase.
+
+Status: P0 is implemented.  `docs/architecture.md` holds the module
+map and the macro classification; `tools/build` writes
+`build/config.json` and `build/compile_commands.json`; and the
+`config` and `compdb` targets expose them.  Deleting `#if 0` blocks
+remains open: it is mechanical but touches target files that are not
+built locally, so it should land as its own reviewable change.
 
 ## Acceptance criteria
 

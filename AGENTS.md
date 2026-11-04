@@ -1,5 +1,11 @@
 # Agent Instructions
 
+## Where things are
+
+`docs/architecture.md` maps the build inputs, source fragments and
+configuration macros.  `ninja -C build config` prints the effective
+configuration; `ninja -C build compdb` writes `compile_commands.json`.
+
 ## Verification (required)
 
 After ANY change to this repository, run:

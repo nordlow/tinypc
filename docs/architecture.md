@@ -24,13 +24,13 @@ points into the code instead of loading a whole translation unit.
 
 | Path | Responsibility | Key entry points |
 |------|----------------|------------------|
-| `tcc.c` | Front-end entry point.  With `ONE_SOURCE=1` it also includes the other compiler fragments. | `main`, `tcc_compile` |
+| `tcc.c` | Front-end entry point.  With `ONE_SOURCE=1` it also includes the other compiler fragments. | `main`, `set_environment`, `default_outputfile` |
 | `tcctools.c` | Small front-end helpers and `-m32`/`-m64` handling. | tool setup, target selection |
-| `libtcc.c` | `TCCState` lifetime, options, allocator, file and library handling. | `tcc_new`, `tcc_delete`, `tcc_set_options`, `tcc_add_file`, `tcc_output_file` |
-| `tccpp.c` | Lexer, token table, token strings, macro expansion, directives and includes. | `next`, `next_nomacro`, `tok_alloc`, `begin_macro`, `tcc_preprocess` |
+| `libtcc.c` | `TCCState` lifetime, options, allocator, file and library handling. | `tcc_new`, `tcc_delete`, `tcc_set_options`, `tcc_add_file`, `tcc_compile` |
+| `tccpp.c` | Lexer, token table, token strings, macro expansion, directives and includes. | `next`, `next_nomacro`, `tok_alloc`, `begin_macro`, `preprocess` |
 | `tccgen.c` | Parser and target-neutral code generator: types, expressions, statements, initialisation, slices and tuples. | `tccgen_init`, `gen_function`, `block`, `expr`, `gen_op` |
 | `tccdbg.c` | Debug information: STABS and DWARF line, type and symbol output. | `tcc_debug_new`, `tcc_debug_end`, `tcc_debug_funcstart` |
-| `tccelf.c` | ELF sections, symbols, relocations, dynamic linking and the object/link writer. | `tccelf_new`, `new_section`, `put_elf_sym`, `tcc_output_file` helpers |
+| `tccelf.c` | ELF sections, symbols, relocations, dynamic linking and the object/link writer. | `tccelf_new`, `new_section`, `put_elf_sym`, `tcc_output_file` |
 | `tccasm.c` | GNU assembler syntax parser and the shared assembler expression code. | `tcc_assemble`, `tcc_assemble_inline` |
 | `tccrun.c` | `-run` support: relocation, memory protection, execution, backtraces and unwinding. | `tcc_relocate`, `tcc_run`, `tcc_run_free` |
 | `tcc.h` | Core types and cross-fragment declarations.  Split by subsystem sections. | `TCCState`, `SValue`, `CType`, `Sym` |
