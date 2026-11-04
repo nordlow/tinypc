@@ -95,4 +95,6 @@ list the motive and affected symbols in the commit message.
 
 ## Documentation
 
-Changes to language syntax or/and semantics must always be reflected in README.md and tcc-doc.texi in the same commit.
+Changes to language syntax or semantics must be reflected in
+`README.md` and `tcc-doc.texi`. Ensure these edits are included
+whenever a language feature is added or modified and ready for review.
