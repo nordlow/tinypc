@@ -72,3 +72,23 @@ For long-running steps, start them in the background and poll
   the `tests/tests2/` framework.
 - **Preserving Tests:** Never remove existing tests unless explicitly
   approved via a query you propose that proves the test is wrong.
+
+## Dead code removal
+
+When removing dead code like the `#if 0` branch in:
+
+```c
+static long double f3_NaN(void)
+{
+#if 0
+    // ARM's default NaN usually has just the top fraction bit set:
+    u128_t x = {  0, 0x7fff800000000000 };
+#else
+    // GCC's library sets all fraction bits:
+    u128_t x = { -1, 0x7fffffffffffffff };
+#endif
+    return x.f;
+}
+```
+
+list the motive and affected symbols in the commit message.
