@@ -473,7 +473,7 @@ map and the macro classification; `tools/build` writes
 remains open: it is mechanical but touches target files that are not
 built locally, so it should land as its own reviewable change.
 
-Status: P1 is implemented.  `tccgen.c` is now 2,080 lines and the
+Status: P1 is implemented.  `tccgen.c` is now 2,081 lines and the
 largest fragment is 2,352 lines.  The fragments are include files, so
 the change is behavioural no-op apart from line numbers in two
 internal `init_assert` messages.  Preprocessed output matches the
@@ -495,6 +495,17 @@ declarations, so splitting them by constant group would add files
 without changing what an agent reads for a question about that
 format.  `elf.h` also has to stay in `tcc.h` because `TCCState` embeds
 `ElfW_Rel`, `ElfSym` and `addr_t`.
+
+Status: P3 is implemented.  `tccpp.c` is 659 lines with six fragments
+(195–1,016 lines), and `tccelf.c` is 390 lines with four fragments
+(568–1,605 lines), so every hand-written source is below the 3,000-line
+acceptance limit.  Concatenating the fragments reproduces both original
+files byte for byte.  The ELF writer boundary sits after the
+`#ifndef ELF_OBJ_ONLY` block, which originally spanned the
+relocation/output seam, so that conditional stays inside one fragment.
+`tools/build` tracks the fragments through the depfile and the
+`Makefile` lists them as prerequisites of `tccpp.o`, `tccelf.o`,
+`tcc.o` and `tcc_p`.
 
 ## Acceptance criteria
 

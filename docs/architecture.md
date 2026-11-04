@@ -75,6 +75,37 @@ The build's depfile tracks them; a change to any fragment rebuilds
 | `tccgen-d.c` | D conditional compilation, destructuring, asserts and `$` forms. | 1395 |
 | `tccgen-decl.c` | Declarations and slice assignment. | 549 |
 
+### Preprocessor and lexer fragments
+
+`tccpp.c` includes these files in order.  As with `tccgen.c`, they
+share its translation unit and static state, so they are not compiled
+on their own.  `tools/build` tracks them through the depfile and the
+`Makefile` lists them as prerequisites of `tccpp.o`, `tcc.o` and
+`tcc_p`.
+
+| Fragment | Responsibility | Lines |
+|----------|----------------|------:|
+| `tccpp.c` | Globals, tiny allocator, dynamic strings, token table and `skip`/`expect`. | 659 |
+| `tccpp-lex.c` | Character input, comments and stray backslashes, token-string buffers and the macro stack. | 716 |
+| `tccpp-dir.c` | `#define`/`#undef`, includes and cached includes, conditional evaluation, pragmas and directive dispatch. | 749 |
+| `tccpp-token.c` | Escape sequences, string and numeric literal scanning, and the raw token reader. | 1016 |
+| `tccpp-macro.c` | Macro argument substitution, token pasting and the public `next`/`unget_tok` interface. | 589 |
+| `tccpp-init.c` | Target predefined macros and preprocessor start-up and teardown. | 224 |
+| `tccpp-out.c` | `-E` output, token spacing and `PP_DEBUG` define printing. | 195 |
+
+### ELF and linker fragments
+
+`tccelf.c` includes these files in order, with the same translation-unit
+and dependency rules.
+
+| Fragment | Responsibility | Lines |
+|----------|----------------|------:|
+| `tccelf.c` | Globals, section allocation and lookup, version bookkeeping. | 390 |
+| `tccelf-sym.c` | String and symbol tables, ELF and GNU hashes, symbol lookup and listing. | 706 |
+| `tccelf-reloc.c` | Symbol and section relocation, GOT/PLT, runtime helpers, dynamic symbol binding, section/segment layout and the dynamic section. | 1605 |
+| `tccelf-out.c` | ELF and binary image writers, section ordering, target note/attribute sections and `-c` object output. | 568 |
+| `tccelf-load.c` | Object, archive and DLL loading, symbol versioning and linker-script parsing. | 983 |
+
 ## Host and target backends
 
 | Path | Responsibility | Key entry points |
