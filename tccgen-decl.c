@@ -224,12 +224,6 @@ static int decl(int l)
                 ad.asm_label = asm_label_instr();
                 /* parse one last attribute list, after asm label */
                 parse_attribute(&ad);
-            #if 0
-                /* gcc does not allow `__asm__`("label") with function definition,
-                   but why not ... */
-                if (tok == '{')
-                    expect(";");
-            #endif
             }
 
 #ifdef TCC_TARGET_PE

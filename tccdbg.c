@@ -731,19 +731,6 @@ static void dwarf_file(TCCState *s1)
     return;
 }
 
-#if 0
-static int dwarf_uleb128_size (unsigned long long value)
-{
-    int size =  0;
-
-    do {
-        value >>= 7;
-        size++;
-    } while (value != 0);
-    return size;
-}
-#endif
-
 static int dwarf_sleb128_size (long long value)
 {
     int size =  0;

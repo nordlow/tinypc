@@ -1659,16 +1659,6 @@ ST_FUNC void *dlsym(void *handle, const char *symbol);
 ST_FUNC void tcc_run_free(TCCState *s1);
 #endif
 
-/* ------------ tcctools.c ----------------- */
-#if 0 /* included in tcc.c */
-ST_FUNC int tcc_tool_ar(TCCState *s, int argc, char **argv);
-#ifdef TCC_TARGET_PE
-ST_FUNC int tcc_tool_impdef(TCCState *s, int argc, char **argv);
-#endif
-ST_FUNC int tcc_tool_cross(TCCState *s, char **argv, int option);
-ST_FUNC int gen_makedeps(TCCState *s, const char *target, const char *filename);
-#endif
-
 #include "tcc-dbg.h"
 
 /********************************************************/

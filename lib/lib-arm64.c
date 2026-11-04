@@ -52,13 +52,8 @@ static long double f3_infinity(int sgn)
 
 static long double f3_NaN(void)
 {
-#if 0
-    // ARM's default NaN usually has just the top fraction bit set:
-    u128_t x = {  0, 0x7fff800000000000 };
-#else
     // GCC's library sets all fraction bits:
     u128_t x = { -1, 0x7fffffffffffffff };
-#endif
     return x.f;
 }
 
@@ -77,13 +72,6 @@ static int fp3_detect_NaNs(long double *f,
 #define a (*a)
 #define b (*b)
 {
-#if 0
-    // Detect signalling NaNs:
-    if (a_exp == 32767 && (a.x0 | a.x1 << 16) && !(a.x1 >> 47 & 1))
-        return fp3_convert_NaN(f, a_sgn, a);
-    if (b_exp == 32767 && (b.x0 | b.x1 << 16) && !(b.x1 >> 47 & 1))
-        return fp3_convert_NaN(f, b_sgn, b);
-#endif
     // Detect quiet NaNs:
     if (a_exp == 32767 && (a.x0 | a.x1 << 16))
         return fp3_convert_NaN(f, a_sgn, a);

@@ -598,15 +598,6 @@ ST_FUNC void update_storage(Sym *sym)
         esym->st_other |= ST_PE_EXPORT;
 #endif
 
-#if 0
-    printf("storage %s: bind=%c vis=%d exp=%d imp=%d\n",
-        get_tok_str(sym->v, NULL),
-        sym_bind == STB_WEAK ? 'w' : sym_bind == STB_LOCAL ? 'l' : 'g',
-        sym->a.visibility,
-        sym->a.dllexport,
-        sym->a.dllimport
-        );
-#endif
 }
 
 /* ------------------------------------------------------------------------- */

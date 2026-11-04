@@ -353,15 +353,6 @@ void __store_test_coverage (unsigned char * p, int warn_uncovered)
 		blocks = 1;
             fprintf (fp, "        -:    0:Function:%s %.02f%%\n",
 		     func->function, 100.0 * (double) blocks_run / blocks);
-#if 0
-	    for (j = 0; j < func->n_line; j++) {
-	        unsigned int fline = func->line[j].fline;
-	        unsigned int lline = func->line[j].lline;
-		unsigned long long count = func->line[j].count;
-
-		fprintf (fp, "%u %u %llu\n", fline, lline, count);
-	    }
-#endif
 	    for (j = 0; j < func->n_line;) {
 	        unsigned int fline = func->line[j].fline;
 	        unsigned int lline = func->line[j].lline;

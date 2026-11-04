@@ -388,10 +388,6 @@ ST_FUNC int set_elf_sym(Section *s, addr_t value, unsigned long size,
 		   we can override.  */
 		goto do_patch;
             } else {
-#if 0
-                printf("new_bind=%x new_shndx=%x new_vis=%x old_bind=%x old_shndx=%x old_vis=%x\n",
-                       sym_bind, shndx, new_vis, esym_bind, esym->st_shndx, esym_vis);
-#endif
                 tcc_error_noabort("link symbol '%s' defined twice", name);
             }
         } else {
