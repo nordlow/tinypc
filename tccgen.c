@@ -4600,6 +4600,17 @@ ST_FUNC void vstore(void)
         check_stack_address_escape(vtop[-1].sym, vtop->sym, 0, NULL);
     }
 
+    if (vtop[-1].r & VT_SLICE_LENGTH) {
+        if (cur_scope->fn.safety == FUNC_SAFETY_SAFE)
+            tcc_error("modification of slice '.length' not allowed in @safe scope"
+                      " (use '.resize(n)' or @trusted code)");
+        else {
+            if (cur_scope->fn.safety == FUNC_SAFETY_UNKNOWN)
+                cur_scope->fn.safety = FUNC_SAFETY_INFERRED_SYSTEM;
+            if (root_scope->fn.safety == FUNC_SAFETY_UNKNOWN)
+                root_scope->fn.safety = FUNC_SAFETY_INFERRED_SYSTEM;
+        }
+    }
     if ((vtop[-1].r & VT_LVAL) && vtop[-1].sym && vtop[-1].sym->a.final_var) {
         if (vtop[-1].sym->a.assigned)
             tcc_error("assignment to final variable '%s'", get_tok_str(vtop[-1].sym->v & ~SYM_FIELD, NULL));
@@ -9448,6 +9459,7 @@ special_math_val:
                     next();
                     vtop->type.t = VT_SIZE_T;
                     vtop->type.ref = NULL;
+                    vtop->r |= VT_SLICE_LENGTH;
                     continue;
                 } else if (is_resize) {
                     next();
@@ -10567,6 +10579,15 @@ static void vla_leave(Scope *o)
 /* ------------------------------------------------------------------------- */
 /* local scopes */
 
+/* `Reject` an explicit `@system` scope nested inside an `@safe` scope.
+   Only `@trusted` may relax the safety level of a `@safe` scope.  */
+static void check_system_scope_override(FuncSafety safety)
+{
+    if (safety == FUNC_SAFETY_SYSTEM
+        && cur_scope->fn.safety == FUNC_SAFETY_SAFE)
+        tcc_error("@system is not allowed in @safe scope; use @trusted instead");
+}
+
 static Scope *push_scope(void)
 {
     Scope *o;
@@ -10594,6 +10615,7 @@ static Scope *new_scope(void)
     ++local_scope;
 
     if (pending_block_safety) {
+        check_system_scope_override(pending_block_safety);
         cur_scope->fn.safety = pending_block_safety;
         pending_block_safety = 0;
     }
@@ -11107,6 +11129,7 @@ again:
     } else if (t == '@') {
         unget_tok('@');
         parse_d_attributes(&ad);
+        check_system_scope_override(ad.f.func_safety);
         if (tok == '{') {
             t = tok;
             next();
@@ -11141,8 +11164,10 @@ again:
             cur_scope->fn.pure = pending_block_pure;
             pending_block_pure = 0;
         }
-        if (ad.f.func_safety)
+        if (ad.f.func_safety) {
+            check_system_scope_override(ad.f.func_safety);
             cur_scope->fn.safety = ad.f.func_safety;
+        }
         if (ad.f.func_pure)
             cur_scope->fn.pure = ad.f.func_pure;
 

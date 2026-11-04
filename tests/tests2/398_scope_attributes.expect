@@ -20,7 +20,7 @@
 398_scope_attributes.c:75: error: pointer arithmetic not allowed in @safe scope
 
 [test_safe_system_override]
-20
+398_scope_attributes.c:86: error: @system is not allowed in @safe scope; use @trusted instead
 
 [test_safe_trusted_override]
 20
@@ -30,4 +30,4 @@
 20
 
 [test_function_safe_override]
-40
+398_scope_attributes.c:122: error: @system is not allowed in @safe scope; use @trusted instead

@@ -1,0 +1,32 @@
+[test_safe_assign]
+473_d_safe_slice_length.c:9: error: modification of slice '.length' not allowed in @safe scope (use '.resize(n)' or @trusted code)
+
+[test_safe_compound_assign]
+473_d_safe_slice_length.c:17: error: modification of slice '.length' not allowed in @safe scope (use '.resize(n)' or @trusted code)
+
+[test_safe_increment]
+473_d_safe_slice_length.c:25: error: modification of slice '.length' not allowed in @safe scope (use '.resize(n)' or @trusted code)
+
+[test_safe_decrement]
+473_d_safe_slice_length.c:33: error: modification of slice '.length' not allowed in @safe scope (use '.resize(n)' or @trusted code)
+
+[test_safe_block]
+473_d_safe_slice_length.c:42: error: modification of slice '.length' not allowed in @safe scope (use '.resize(n)' or @trusted code)
+
+[test_safe_trusted_block]
+2
+
+[test_safe_system_block]
+473_d_safe_slice_length.c:66: error: @system is not allowed in @safe scope; use @trusted instead
+
+[test_safe_read]
+4
+
+[test_system_assign]
+2
+
+[test_trusted_assign]
+2
+
+[test_inferred_system]
+473_d_safe_slice_length.c:109: error: calling @system function not allowed in @safe scope

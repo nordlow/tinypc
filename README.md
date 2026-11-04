@@ -491,8 +491,9 @@ a.resize(100);       /* grow or shrink; growing preserves elements */
 `~=` reallocates as needed and integrates with the bounds checker.
 `.dup` and `.idup` produce independent copies; `~` concatenates two
 slices (or arrays converted to slices).  `.length` and `.ptr` are the
-fields of the slice header; use `.resize(n)` when a length change
-should reallocate the element storage.
+fields of the slice header; direct assignment to `.length` is rejected
+in `@safe` code.  Use `.resize(n)` when a length change should
+reallocate the element storage.
 
 ### Foreach
 
@@ -658,14 +659,15 @@ compiler currently has no plans for templates nor type-aware macros
 (though some plan for templates and macros will be added later on).
 
 The `@safe` is enforced for functions and blocks: pointer
-arithmetic and pointer indexing are rejected.  `@trusted` and
-`@system` mark statements, loops (`for`, `foreach`), and blocks as
-exempt from those checks.  `@pure` enforces functional purity and
-determinism (disallowing global/static variable access and
-non-deterministic pointer arithmetic or relational comparisons, while
-permitting pointer dereferencing and null checks).  `@nodet` serves as
-an opt-out for determinism requirements.  Detailed semantics are
-documented in
+arithmetic, pointer indexing, and direct slice `.length` modification
+are rejected.  `@trusted` marks statements, loops (`for`, `foreach`),
+and blocks as exempt from those checks.  `@system` is rejected inside
+a `@safe` scope; use `@trusted` to relax the checks locally.  `@pure`
+enforces functional purity and determinism (disallowing global/static
+variable access and non-deterministic pointer arithmetic or relational
+comparisons, while permitting pointer dereferencing and null checks).
+`@nodet` serves as an opt-out for determinism requirements.  Detailed
+semantics are documented in
 [tasks/pure_attribute_semantics.md](tasks/pure_attribute_semantics.md)
 and
 [tasks/deterministic_attribute.md](tasks/deterministic_attribute.md).

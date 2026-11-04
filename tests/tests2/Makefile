@@ -449,3 +449,5 @@ clean :
 471_d_slice_bounds_disabled.test : GEN = $(GEN-TCC)
 472_d_slice_reversed_range_error.test : FLAGS += -lang=d
 472_d_slice_reversed_range_error.test : GEN = $(GEN-TCC)
+473_d_safe_slice_length.test : FLAGS += -dt -lang=d
+473_d_safe_slice_length.test : GEN = $(GEN-TCC)
