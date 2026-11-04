@@ -1213,7 +1213,7 @@ special_math_val:
             int safe_divisor = 0;
             const char *check_file = NULL;
             int check_line = 0;
-
+            int missing_lower = 0, inclusive = 0;
             next();
             base_type = vtop->type;
             base_sv = vtop;
@@ -1255,13 +1255,38 @@ special_math_val:
                         root_scope->fn.safety = FUNC_SAFETY_INFERRED_SYSTEM;
                 }
             }
-            if (tok == TOK_TWODOTS || tok == TOK_DOTS
-                || (tcc_state->lang_d && tok == ']')) {
-                /* full slice: a[..], or a[] in D mode */
+            if (tok == TOK_TWODOTS || tok == TOK_DOTS) {
+                next();
+                if (tok == ']') {
+                    /* full slice: a[..] */
+                    if (nocode_wanted & DATA_ONLY_WANTED)
+                        tcc_error("slice expression is not computable at load time");
+                    skip(']');
+                    if (base_is_slice) {
+                        copy_slice_value();
+                    } else if (base_type.t & (VT_ARRAY | VT_VLA)) {
+                        CType slice_type, elem_type;
+                        slice_type.t = VT_STRUCT;
+                        elem_type = base_type.ref->type;
+                        elem_type.t |= base_type.t & (VT_QUALIFIER_CONSTANT | VT_QUALIFIER_IMMUTABLE);
+                        slice_type.ref = make_slice_type(&elem_type);
+                        convert_array_to_slice(&slice_type);
+                    } else {
+                        tcc_error("cannot slice a pointer without bounds");
+                    }
+                    slice_range_target = 1;
+                    continue;
+                }
+                missing_lower = 1;
+                vpushi(0);
+                if (tok == '=') {
+                    inclusive = 1;
+                    next();
+                }
+            } else if (tcc_state->lang_d && tok == ']') {
+                /* full slice: a[] in D mode */
                 if (nocode_wanted & DATA_ONLY_WANTED)
                     tcc_error("slice expression is not computable at load time");
-                if (tok != ']')
-                    next();
                 skip(']');
                 if (base_is_slice) {
                     copy_slice_value();
@@ -1310,7 +1335,9 @@ special_math_val:
                 elem_type = base_type;
             }
 
-            if (slice_check && tok >= TOK_UIDENT
+            if (missing_lower) {
+                /* lower bound already pushed as 0 */
+            } else if (slice_check && tok >= TOK_UIDENT
                 && !strcmp(get_tok_str(tok, NULL), "$")) {
                 TokenString *saved_macro = macro_stack_top();
                 TokenString *idx_ts = tok_str_alloc();
@@ -1325,16 +1352,22 @@ special_math_val:
             } else {
                 gexpr();
             }
-            if (tok == TOK_TWODOTS || tok == TOK_DOTS) {
-                int inclusive = 0;
-                next();
-                if (tok == '=') {
-                    inclusive = 1;
+            if (missing_lower || tok == TOK_TWODOTS || tok == TOK_DOTS) {
+                if (!missing_lower) {
                     next();
+                    if (tok == '=') {
+                        inclusive = 1;
+                        next();
+                    }
                 }
                 if (nocode_wanted & DATA_ONLY_WANTED)
                     tcc_error("slice expression is not computable at load time");
-                gexpr();
+                if (tok == ']') {
+                    /* missing upper bound: V[L..] => V[L..$] */
+                    gen_dollar();
+                } else {
+                    gexpr();
+                }
                 skip(']');
                 nb_dollar_ctx--;
                 if (slice_check)

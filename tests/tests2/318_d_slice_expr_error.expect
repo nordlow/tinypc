@@ -4,11 +4,5 @@
 [test_static_slice_expr]
 318_d_slice_expr_error.c:8: error: slice expression is not computable at load time
 
-[test_missing_upper_bound]
-318_d_slice_expr_error.c:12: error: expression expected before ']'
-
-[test_missing_lower_bound]
-318_d_slice_expr_error.c:16: error: ']' expected (got '1')
-
 [test_static_full_slice]
-318_d_slice_expr_error.c:21: error: slice expression is not computable at load time
+318_d_slice_expr_error.c:13: error: slice expression is not computable at load time

@@ -55,10 +55,18 @@ int main(void)
     cp.length = 0;
     printf("%ld %ld\n", (long)s.length, (long)cp.length);
 
+    /* missing bounds: V[L..] and V[..H] */
+    {
+        IntSlice sl = a[1..];
+        IntSlice sh = a[..3];
+        printf("%ld %d %d\n", (long)sl.length, sl.ptr[0], sl.ptr[3]);
+        printf("%ld %d %d\n", (long)sh.length, sh.ptr[0], sh.ptr[2]);
+    }
+
     /* the '...' range spelling is accepted as well */
     {
         IntSlice d = a[1...4];
         printf("%ld %d %d\n", (long)d.length, d.ptr[0], d.ptr[2]);
     }
     return 0;
-}
+ }
