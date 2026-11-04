@@ -121,12 +121,19 @@ after that plan.
 5. initialisation and output plumbing (`tccgen_init`,
    `tccgen_finish`, symbol and relocation glue, debug output).
 
-Keep the split mechanical: cut at top-level definitions, add the
-needed `ST_FUNC` declarations to the corresponding `tcc.h` section,
-update the source list in `tools/build` and `Makefile`, and do not
+Keep the split mechanical: cut at top-level definitions and do not
 rename anything in the same commit.  Each new file should be under
 3,000 lines; if a seam is larger, split it once more by the same
 rule.
+
+The fragments are included by `tccgen.c` rather than compiled as
+separate objects.  Sharing the translation unit keeps every static
+function and file-scope variable private, holds the token stream
+identical, and works in both `ONE_SOURCE` modes.  The trade-off is
+that an agent must follow the include chain from `tccgen.c`; the
+fragment table in `docs/architecture.md` makes that chain explicit.
+`tools/build` tracks the fragments through a GCC depfile, and the
+`Makefile` lists them as explicit prerequisites.
 
 ### A2. Split `tccelf.c` and `tccpp.c`
 
@@ -465,6 +472,12 @@ map and the macro classification; `tools/build` writes
 `config` and `compdb` targets expose them.  Deleting `#if 0` blocks
 remains open: it is mechanical but touches target files that are not
 built locally, so it should land as its own reviewable change.
+
+Status: P1 is implemented.  `tccgen.c` is now 2,080 lines and the
+largest fragment is 2,352 lines.  The fragments are include files, so
+the change is behavioural no-op apart from line numbers in two
+internal `init_assert` messages.  Preprocessed output matches the
+old file line for line except for those two numbers.
 
 ## Acceptance criteria
 

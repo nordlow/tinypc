@@ -38,6 +38,26 @@ points into the code instead of loading a whole translation unit.
 | `dwarf.h` | DWARF constants. | format definitions |
 | `coff.h` | COFF constants used by the PE target. | format definitions |
 
+### Code-generator fragments
+
+`tccgen.c` includes these files in order.  They share its translation
+unit and its static parser/code-generator state, so they are not
+compiled on their own and no internals are exported through `tcc.h`.
+The build's depfile tracks them; a change to any fragment rebuilds
+`tccgen.o`.
+
+| Fragment | Responsibility | Lines |
+|----------|----------------|------:|
+| `tccgen.c` | Globals, symbol and label stacks, value-stack primitives, relocation and start/finish. | 2080 |
+| `tccgen-gen.c` | Register/stack movement, generic operations, complex and cast code. | 2065 |
+| `tccgen-types.c` | Type size and compatibility, attributes, struct/union layout and declarations. | 2116 |
+| `tccgen-tuple.c` | Tuple layout and literals, slices, slice bounds checks, type predicates. | 2352 |
+| `tccgen-expr.c` | Unary/postfix parsing, operators, conditionals and constant expressions. | 1901 |
+| `tccgen-stmt.c` | Returns, switch, cleanups, scopes, blocks, `foreach` and `defer`. | 1254 |
+| `tccgen-init.c` | Initialisers, function generation and inline-function emission. | 1286 |
+| `tccgen-d.c` | D conditional compilation, destructuring, asserts and `$` forms. | 1395 |
+| `tccgen-decl.c` | Declarations and slice assignment. | 549 |
+
 ## Host and target backends
 
 | Path | Responsibility | Key entry points |

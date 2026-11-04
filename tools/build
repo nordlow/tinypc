@@ -135,7 +135,9 @@ def main():
     ar = os.environ.get("AR", config.get("AR", DEFAULT_AR))
 
     ghash = git_hash(src)
-    defs = "-DONE_SOURCE=0 -DTCC_GITHASH=\\\"%s\\\"" % ghash
+    # Single-quote the define so the revision string survives the shell
+    # even when it contains a space (for example "2026-11-04 dev@abc").
+    defs = "-DONE_SOURCE=0 -DTCC_GITHASH='\"%s\"'" % ghash
     tcc_bin = os.path.join(bld, "tcc")
     full_cflags = "%s %s %s -I%s -I%s -I%s/include" % (cflags, defs,
                                                        "-std=gnu11", src, bld,
@@ -153,7 +155,9 @@ def main():
     L.append("xflags = -B%s -I%s -I%s" % (src, src, bld))
     L.append("")
     L.append("rule cc")
-    L.append("  command = $cc -o $out -c $in $cflags")
+    L.append("  command = $cc -o $out -c $in $cflags -MMD -MF $out.d")
+    L.append("  depfile = $out.d")
+    L.append("  deps = gcc")
     L.append("  description = CC $out")
     L.append("")
     L.append("rule tcc_cc")
@@ -203,6 +207,8 @@ def main():
     L.append("  phony = 1")
     L.append("")
 
+    # tccgen.c includes the tccgen-*.c fragments; the cc rule's depfile
+    # tracks them, so there is no separate object for each fragment.
     libsrcs = ["libtcc.c", "tccpp.c", "tccgen.c", "tccdbg.c", "tccelf.c",
                "tccasm.c", "tccrun.c", "x86_64-gen.c", "x86_64-link.c",
                "i386-asm.c"]

@@ -281,6 +281,12 @@ $(X)%.o : %.c $(LIBTCC_INC)
 	$S$(CC) -o $@ -c $< $(addsuffix ,$(DEFINES) $(CFLAGS))
 
 # additional dependencies
+# tccgen.c is split into fragments that it includes; keep them as
+# dependencies so a fragment change rebuilds every object that pulls in
+# tccgen.c.
+TCCGEN_FRAGMENTS = tccgen-gen.c tccgen-types.c tccgen-tuple.c \
+	tccgen-expr.c tccgen-stmt.c tccgen-init.c tccgen-d.c tccgen-decl.c
+$(X)tcc.o $(X)tccgen.o $(CROSS_TARGET)-tcc.o : $(TCCGEN_FRAGMENTS)
 $(X)tcc.o : tcctools.c
 $(X)tcc.o : DEFINES += $(DEF_GITHASH)
 
@@ -310,7 +316,7 @@ $(CROSS_TARGET)-tcc$(EXESUF): $(TCC_FILES)
 	$S$(CC) -o $@ $^ $(LIBS) $(LDFLAGS)
 
 # profiling version
-tcc_p$(EXESUF): $($T_FILES)
+tcc_p$(EXESUF): $($T_FILES) $(TCCGEN_FRAGMENTS)
 	$S$(CC) -o $@ $< $(DEFINES) $(CFLAGS_P) $(LIBS_P) $(LDFLAGS_P)
 
 # static libtcc library
