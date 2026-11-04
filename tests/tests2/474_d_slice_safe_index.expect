@@ -1,0 +1,4 @@
+safe 13 12 11 11 13
+constant 10
+empty
+474_d_slice_safe_index.c:19: slice index 0 out of bounds (length 0)

@@ -13,11 +13,13 @@ such as `x[$/2]` and `x[$/3]`.
       `.length` at run time, replacing raw pointer arithmetic with
       checked slice boundaries, given `x` of `T[...]` for any type
       `T`.  `-fno-slice-bounds-check` disables the checks.
-- [ ] **P2 (Bounds Check Optimization):** Statically identify and omit
-      runtime bounds checks for provably safe index expressions (e.g.,
-      `0`, `$/2`, `$/3`, `$*2/3`, `$/4`, `$*2/4`, `$*3/4`, etc, and
-      static constants within `[0, $ - 1]`) even when `-b` is active.
-- [ ] **P3 (Safe `.length` Mutability Restrictions):** In `@safe`
+- [x] **P2 (Bounds Check Optimization):** Statically identify and
+      simplify runtime bounds checks for provably safe index
+      expressions (e.g., `$/2`, `$/3`, `$/4`, and their parenthesized
+      forms) even when `-b` is active.  The index/length comparison is
+      omitted; a cheaper `length != 0` guard remains because such an
+      index is only provably in bounds for a non-empty slice.
+- [x] **P3 (Safe `.length` Mutability Restrictions):** In `@safe`
       code, direct modification of a slice's `.length` property (e.g.,
       `x.length = ...` or `x.length += ...`) is a compilation error
       with descriptive diagnostics.  *Note:* Slices can be safely and
@@ -44,15 +46,16 @@ such as `x[$/2]` and `x[$/3]`.
    -  If `i` is out of bounds, invoke `bound_error()`.
 2. **Slice Slicing (`x[lo..hi]` and `x[lo..=hi]`):**
    -  Under `-b`, generate checks: `0 <= lo <= hi < x.length` (inclusive `lo..=hi`) or `0 <= lo <= hi <= x.length` (half-open `lo..hi`).
-3. **Optimizations (Safe Index Omission):**
+3. **Optimizations (Safe Index Simplification):**
    -  **Constant Indices:** If `i` is a constant integer `c` and slice length
      `$` is a constant or known, check at compile time or omit if valid.
-   -  **Divisions by 2 or 3 (`$/2`, `$/3`):** For any unsigned or positive
-     integer `$` (`length`), integer division by `2` or `3` yields an index
-     strictly satisfying `0 <= $ / k < $` for all `$` $\ge 1$.  Omit the
-     runtime bounds check for `$/2` and `$/3`.
-   -  **Lower Bound (`0`):** `x[0]` is omitted when slice is non-empty or
-     handled by standard checks.
+   -  **Divisions by k (`$/k`, `k >= 2`):** For any positive
+     integer `$` (`length`), integer division by `k` yields an index
+     strictly satisfying `0 <= $ / k < $` for all `$ >= 1`.  The
+     index/length comparison is replaced by a `length != 0` guard;
+     omitting even that guard would be unsound for an empty slice.
+   -  **Lower Bound (`0`):** `x[0]` keeps the ordinary check, because
+     the slice must be non-empty.
 
 ## Implementation Details (`tccgen.c`)
 
@@ -64,16 +67,21 @@ such as `x[$/2]` and `x[$/3]`.
 - [x] Add slice bounds-check emission in `[` postfix handling (`tccgen.c:7615`):
   - [x] For indexing: load slice `.length`, compare index `i` against it.
   - [x] For range slicing (`lo..hi` and `lo..=hi`): validate `lo`, `hi`, and range width.
-- [ ] Add an analysis helper `is_provably_safe_slice_index()` to detect `0`,
-  `$/2`, `$/3`, and compile-time constants within bounds.
+- [x] Add a token-level analysis helper (`subscript_safe_divisor()`)
+  that recognizes `$/k` and emits only the non-empty guard
+  (`gen_slice_nonempty_check()`).  Full omission is not sound for
+  `k = 1` or for an empty slice; `$*P/Q` forms are deliberately left
+  checked until the overflow behaviour of the multiplication is
+  specified.
 
 ## Acceptance Criteria
 
 - [x] D mode enables runtime bounds checking for slice indexing and
   slicing (`lo..hi` and `lo..=hi`) against slice `.length`; in C mode
   the same checks are enabled by `-b`.
-- [ ] `x[$/2]`, `x[$/3]`, and `x[0]` generate no redundant runtime bounds
-  checks under `-b`.
+- [x] `x[$/2]`, `x[$/3]`, and `x[$/4]` do not compare the computed
+  index against `.length`; they guard `length != 0` instead.  `x[0]`
+  keeps the ordinary check, since an empty slice must still trap.
 - [x] Out-of-bounds slice indexing/slicing triggers a clean runtime error
   naming the source location, the index or range, and the length.
 - [x] Verification: `./configure --ninja && ninja -C build check`

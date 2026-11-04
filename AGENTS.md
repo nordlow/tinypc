@@ -34,17 +34,22 @@ your final summary.  Details, PGO options and benchmark caveats are in
 
 ## Long-running commands
 
-If a command hangs or never finishes, read `docs/debugging-hangs.md`.
-Never "fix" a hang by only raising a timeout; if the compiler caused it, add
-a regression test under `tests/tests2/`.
+The Ninja rules for tests, benchmarks and sanitizers already wrap their
+commands in `timeout -k 5` and redirect stdin from `/dev/null`, so
+`ninja -C build check`, `sani`, `test-one` and `pgo-bench` cannot hang
+unboundedly.  A timed-out rule prints `TIMEOUT` and fails.
 
-**Rule 0: never run a potentially hanging command unbounded.** Always
-use `timeout`, redirect stdin, and capture output:
+**Rule 0: never run a potentially hanging command unbounded.** For
+direct `make`, compiler or test invocations, use `timeout`, redirect
+stdin, and capture output:
 
     timeout -k 5 120 ninja -C build test </dev/null >build.log 2>&1; echo "exit=$?"
 
 Exit code 124 means timeout (hang or just slow); 137 means it needed
-SIGKILL. For long-running steps, start them in the background and poll
+SIGKILL. If a command hangs or never finishes, read
+`docs/debugging-hangs.md`; never "fix" a hang by only raising a timeout;
+if the compiler caused it, add a regression test under `tests/tests2/`.
+For long-running steps, start them in the background and poll
 (`tail -f build.log`) rather than blocking.
 
 ## Adding tests

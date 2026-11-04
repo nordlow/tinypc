@@ -6751,6 +6751,201 @@ static void gen_slice_cmp_check(int a_loc, int b_loc, int op,
     gsym(cont);
 }
 
+/* `Capture` the tokens of a subscript index, stopping at the closing
+   ']' or at a top-level range operator.  `The` index is replayed with
+   'begin_macro()' so that the normal expression parser still generates
+   the code; the captured form is only inspected to omit a redundant
+   bounds comparison.  */
+static void scan_subscript_index(TokenString *ts)
+{
+    int depth = 0;
+
+    for (;;) {
+        int t = tok;
+        if (t == TOK_EOF)
+            break;
+        if (depth == 0 && (t == ']' || t == TOK_TWODOTS || t == TOK_DOTS)) {
+            /* keep the delimiter in the replay: the token was already
+               fetched from the outer stream and would otherwise be lost */
+            tok_str_add_tok(ts);
+            break;
+        }
+        tok_str_add_tok(ts);
+        if (t == '(' || t == '[' || t == '{')
+            ++depth;
+        else if (t == ')' || t == ']' || t == '}')
+            --depth;
+        next();
+    }
+    tok_str_add(ts, 0);
+}
+
+/* `A` cursor over a captured token string.  `Line` markers are skipped;
+   payload words of accepted tokens are consumed by the caller.  */
+typedef struct {
+    int *p, *end;
+} SubscriptCursor;
+
+static int subscript_peek(SubscriptCursor *c)
+{
+    while (c->p < c->end && *c->p == TOK_LINENUM)
+        c->p += 2;
+    return c->p < c->end ? *c->p : 0;
+}
+
+/* `A` value of the form `$ * P / Q`, represented as the rational
+   multiplier P/Q applied to the slice length.  `Constant` values are
+   tracked separately so that `$ * 0` and friends are rejected.  */
+typedef struct {
+    unsigned long long p, q;
+    unsigned long long constant;
+    int is_constant;
+} SubscriptFactor;
+
+static int parse_subscript_factor(SubscriptCursor *c, SubscriptFactor *f);
+
+static int parse_subscript_atom(SubscriptCursor *c, SubscriptFactor *f)
+{
+    int t = subscript_peek(c);
+
+    if (t == '(') {
+        ++c->p;
+        f->p = 1;
+        f->q = 1;
+        f->constant = 0;
+        f->is_constant = 0;
+        if (!parse_subscript_factor(c, f))
+            return 0;
+        if (subscript_peek(c) != ')')
+            return 0;
+        ++c->p;
+        return 1;
+    }
+    if (t >= TOK_UIDENT
+        && !strcmp(get_tok_str(t, NULL), "$")) {
+        ++c->p;
+        f->p = 1;
+        f->q = 1;
+        f->constant = 0;
+        f->is_constant = 0;
+        return 1;
+    }
+    if (t == TOK_CINT || t == TOK_CUINT) {
+        if (c->p + 1 >= c->end)
+            return 0;
+        f->p = 0;
+        f->q = 1;
+        f->constant = (unsigned)c->p[1];
+        f->is_constant = 1;
+        c->p += 2;
+        return 1;
+    }
+    return 0;
+}
+
+static int parse_subscript_factor(SubscriptCursor *c, SubscriptFactor *f)
+{
+    SubscriptFactor rhs;
+
+    if (!parse_subscript_atom(c, f))
+        return 0;
+    for (;;) {
+        int op = subscript_peek(c);
+        if (op != '*' && op != '/')
+            return 1;
+        ++c->p;
+        if (!parse_subscript_atom(c, &rhs))
+            return 0;
+        if (op == '*') {
+            if (f->is_constant && rhs.is_constant) {
+                if (rhs.constant && f->constant > ~0ULL / rhs.constant)
+                    return 0;
+                f->constant *= rhs.constant;
+            } else if (!f->is_constant && !rhs.is_constant) {
+                return 0;
+            } else if (rhs.is_constant) {
+                if (!rhs.constant)
+                    return 0;
+                if (f->p > ~0ULL / rhs.constant)
+                    return 0;
+                f->p *= rhs.constant;
+            } else {
+                if (!f->constant)
+                    return 0;
+                if (rhs.p > ~0ULL / f->constant)
+                    return 0;
+                rhs.p *= f->constant;
+                *f = rhs;
+            }
+        } else {
+            if (rhs.is_constant) {
+                if (!rhs.constant)
+                    return 0;
+                if (f->is_constant)
+                    f->constant /= rhs.constant;
+                else if (f->q > ~0ULL / rhs.constant)
+                    return 0;
+                else
+                    f->q *= rhs.constant;
+            } else {
+                return 0;
+            }
+        }
+    }
+}
+
+/* `Return` the divisor k when the captured subscript is exactly
+   `$/k` (or `$/(k)`), otherwise zero.  `The` comparison `index <
+   length` is then implied by `length != 0`, which is still checked.  */
+static int subscript_safe_divisor(TokenString *ts)
+{
+    SubscriptCursor c;
+    SubscriptFactor f;
+
+    c.p = ts->str;
+    c.end = ts->str + ts->len;
+    int end;
+
+    if (!parse_subscript_factor(&c, &f))
+        return 0;
+    end = subscript_peek(&c);
+    if (end != 0 && end != ']')
+        return 0;
+    if (f.is_constant || f.p != 1 || f.q < 2)
+        return 0;
+    return f.q < 0x7fffffffU ? (int)f.q : 0;
+}
+
+/* `Check` that the slice at 'slice_tmp' is non-empty.  `This` is the
+   whole bounds check for an index of the form `$/k`: such an index is
+   below the length for every non-empty slice.  `The` stack layout
+   `[ptr, index]` is left unchanged.  */
+static void gen_slice_nonempty_check(int slice_tmp, const char *file,
+                                     int line)
+{
+    CType size_type;
+    int fail, cont;
+
+    size_type.t = VT_SIZE_T;
+    size_type.ref = NULL;
+
+    save_regs(0);
+    vset(&size_type, VT_LOCAL | VT_LVAL, slice_tmp);
+    vpushi(0);
+    gen_op(TOK_GT);
+    fail = gvtst(1, 0);
+    cont = gjmp(0);
+    gsym(fail);
+
+    vpush_helper_func(tok_alloc_const("__slice_index_bounds_error"));
+    vpush_string(file);
+    vpushi(line);
+    vpushi(0);                  /* index is zero exactly when length is */
+    vset(&size_type, VT_LOCAL | VT_LVAL, slice_tmp);
+    gfunc_call(4);
+    gsym(cont);
+}
+
 /* `Check` the index on top of the stack against the length of the
    slice stored at local offset 'slice_tmp'.  `The` stack layout
    `[ptr, index]` is preserved, with the index converted to size_t.  */
@@ -8090,7 +8285,6 @@ static int try_tuple_assign(void)
     TokenString *ts, *dup;
     AttrDef ad;
     CType ttype, res;
-    CType *types = NULL;
     CType *saved_expect;
     Sym *s;
     Sym **plast;
@@ -8157,8 +8351,7 @@ static int try_tuple_assign(void)
         expr_eq();
         if (!(vtop->r & VT_LVAL) && !(vtop->type.t & VT_ARRAY))
             tcc_error("tuple assignment destination is not an lvalue");
-        types = tcc_realloc(types, (n + 1) * sizeof *types);
-        types[n++] = vtop->type;
+        ++n;
         if (tok != ',')
             break;
         next();
@@ -8171,7 +8364,7 @@ static int try_tuple_assign(void)
     s = tuple_begin();
     plast = &s->next;
     for (i = 0; i < n; ++i)
-        tuple_add_field(&plast, &types[i], i);
+        tuple_add_field(&plast, &vstack[base + i].type, i);
     ttype.t = VT_STRUCT;
     ttype.ref = tuple_layout(s);
     memset(&ad, 0, sizeof ad);
@@ -8217,7 +8410,6 @@ static int try_tuple_assign(void)
     memmove(&vstack[base], &vstack[base + n], above * sizeof *vstack);
     vtop -= n;
 
-    tcc_free(types);
     tuple_expect = saved_expect;
     return 1;
 }
@@ -9627,6 +9819,7 @@ special_math_val:
             CType base_type, elem_type;
             SValue *base_sv;
             int base_is_slice, slice_check = 0, slice_tmp = 0;
+            int safe_divisor = 0;
             const char *check_file = NULL;
             int check_line = 0;
 
@@ -9726,7 +9919,21 @@ special_math_val:
                 elem_type = base_type;
             }
 
-            gexpr();
+            if (slice_check && tok >= TOK_UIDENT
+                && !strcmp(get_tok_str(tok, NULL), "$")) {
+                TokenString *saved_macro = macro_stack_top();
+                TokenString *idx_ts = tok_str_alloc();
+
+                scan_subscript_index(idx_ts);
+                safe_divisor = subscript_safe_divisor(idx_ts);
+                begin_macro(idx_ts, 1);
+                next();
+                gexpr();
+                while (macro_stack_top() != saved_macro)
+                    end_macro();
+            } else {
+                gexpr();
+            }
             if (tok == TOK_TWODOTS || tok == TOK_DOTS) {
                 int inclusive = 0;
                 next();
@@ -9759,7 +9966,12 @@ special_math_val:
                 slice_range_target = 1;
             } else {
                 if (slice_check) {
-                    gen_slice_index_check(slice_tmp, check_file, check_line);
+                    if (safe_divisor >= 2)
+                        gen_slice_nonempty_check(slice_tmp, check_file,
+                                                 check_line);
+                    else
+                        gen_slice_index_check(slice_tmp, check_file,
+                                              check_line);
                     gen_slice_ptr_add();
                 } else {
                     gen_op('+');
@@ -12862,8 +13074,8 @@ static TupleConst *pop_int_tuple(const char *what)
 static void destructure_manifest_constant(void)
 {
     TupleConst *tc;
-    void **names = NULL;
-    int nb_names = 0, n, i;
+    TokenString *names = tok_str_alloc();
+    int n, i;
     CType type;
     Sym *s;
 
@@ -12871,7 +13083,7 @@ static void destructure_manifest_constant(void)
     for (;;) {
         if (tok < TOK_UIDENT)
             expect("identifier");
-        dynarray_add(&names, &nb_names, (void *)(intptr_t)tok);
+        tok_str_add(names, tok);
         next();
         if (tok != ',')
             break;
@@ -12886,19 +13098,18 @@ static void destructure_manifest_constant(void)
     expr_const1();
     tc = pop_int_tuple("manifest constant destructuring");
     n = tc->n;
-    if (n != nb_names) {
-        tcc_free(names);
+    if (n != names->len) {
         tcc_error("manifest constant destructuring pattern has %d names "
-                  "but the initializer has %d elements", nb_names, n);
+                  "but the initializer has %d elements", names->len, n);
     }
     for (i = 0; i < n; ++i) {
         type = tc->types[i];
         type.t = (type.t & ~VT_STORAGE) | VT_STORAGE_STATIC | VT_ENUM_VAL;
         type.ref = push_enum_ref();
-        s = sym_push((int)(intptr_t)names[i], &type, VT_CONST, 0);
+        s = sym_push(names->str[i], &type, VT_CONST, 0);
         s->enum_val = tc->vals[i].i;
     }
-    tcc_free(names);
+    tok_str_free(names);
     skip(';');
 }
 
@@ -13991,13 +14202,13 @@ static int decl_auto_tuple(AttrDef *ad)
     TokenString *init_str;
     CType deduced, ttype;
     Sym *f;
-    void **names = NULL;
-    int nb_names = 0, arity, i, addr, end_tok, ofs, r;
+    TokenString *names = tok_str_alloc();
+    int arity, i, addr, end_tok, ofs, r;
     skip('(');
     for (;;) {
         if (tok < TOK_UIDENT)
             expect("identifier");
-        dynarray_add(&names, &nb_names, (void *)(intptr_t)tok);
+        tok_str_add(names, tok);
         next();
         if (tok != ',')
             break;
@@ -14024,14 +14235,12 @@ static int decl_auto_tuple(AttrDef *ad)
     if (!is_tuple_type(&deduced)) {
         char buf[256];
         type_to_str(buf, sizeof buf, &deduced, NULL);
-        tcc_free(names);
         tcc_error("cannot destructure non-tuple type '%s'", buf);
     }
     arity = tuple_arity(&deduced);
-    if (arity != nb_names) {
-        tcc_free(names);
+    if (arity != names->len) {
         tcc_error("tuple destructuring pattern has %d names but the "
-                  "initializer has %d elements", nb_names, arity);
+                  "initializer has %d elements", names->len, arity);
     }
 
     /* one temporary, initialized from the replayed tokens */
@@ -14053,15 +14262,15 @@ static int decl_auto_tuple(AttrDef *ad)
     }
 #endif
 
-    for (i = 0; i < nb_names; ++i) {
-        int name = (int)(intptr_t)names[i];
+    for (i = 0; i < names->len; ++i) {
+        int name = names->str[i];
         f = tuple_field(&ttype, i, &ofs);
         r = VT_LOCAL;
         if (!(f->type.t & VT_ARRAY))
             r |= VT_LVAL;
         sym_push(name, &f->type, r, addr + ofs);
     }
-    tcc_free(names);
+    tok_str_free(names);
     unget_tok(end_tok);
     return end_tok;
 }

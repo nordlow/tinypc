@@ -59,6 +59,9 @@ Done when: the gap table exists and is reviewed.
 Done when: editing `tools/build` and running `ninja -C build` regenerates and
 rebuilds without a manual `./configure --ninja`.
 
+Status: done.  The generator edge lives in `tools/build` and Ninja
+restarts itself after regenerating `build.ninja`.
+
 ### 2. Tests as Ninja edges
 
 - Replace the delegation to the Make-driven suite with a small runner
@@ -82,10 +85,14 @@ counts), and changing one `.expect` file reruns only that test.
   `</dev/null`, with per-rule limits.
 - A timed-out test reports "TIMEOUT" and its log path.
 - Afterwards, shrink the "Debugging Hangs" prose in `AGENTS.md` (see
-  `agent_context_window_restructuring.md`).
+  `llm_reasoning_refactoring.md`).
 
 Done when: a deliberately hanging test fails in bounded time without any
 manual `timeout` wrapper.
+
+Status: done.  Every long-running rule is wrapped by `guarded()` in
+`tools/build`; a timeout prints `TIMEOUT` and fails.  `AGENTS.md` and
+`docs/debugging-hangs.md` now point at the built-in wrappers.
 
 ### 4. Port the Make-only functionality
 

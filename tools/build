@@ -19,6 +19,31 @@ LIBFILES = ["libtcc1.c", "stdatomic.c", "atomic.S", "builtin.c",
             "dsohandle.c", "runmain.c"]
 
 
+def guarded(limit, command):
+    """Wrap a long, potentially hanging command in a timeout."""
+    command = command.replace('"', '\\"')
+    return ("timeout -k 5 %d sh -c \"%s\" </dev/null || "
+            "{ rc=$$?; case $$rc in 124|137) echo TIMEOUT;; esac; "
+            "exit $$rc; }" % (limit, command))
+
+
+def read_config_mak(srcdir):
+    """Read the simple KEY=VALUE pairs written by configure."""
+    config = {}
+    path = os.path.join(srcdir, "config.mak")
+    try:
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                config[key] = value
+    except FileNotFoundError:
+        pass
+    return config
+
+
 def git_hash(srcdir):
     try:
         ref = subprocess.check_output(
@@ -48,11 +73,12 @@ def main():
     bld = os.path.abspath(args.builddir)
     os.makedirs(bld, exist_ok=True)
 
-    cc = DEFAULT_CC
-    cflags = DEFAULT_CFLAGS
-    ldflags = DEFAULT_LDFLAGS
-    libs = DEFAULT_LIBS
-    ar = DEFAULT_AR
+    config = read_config_mak(src)
+    cc = os.environ.get("CC", config.get("CC", DEFAULT_CC))
+    cflags = os.environ.get("CFLAGS", config.get("CFLAGS", DEFAULT_CFLAGS))
+    ldflags = os.environ.get("LDFLAGS", config.get("LDFLAGS", DEFAULT_LDFLAGS))
+    libs = os.environ.get("LIBS", DEFAULT_LIBS)
+    ar = os.environ.get("AR", config.get("AR", DEFAULT_AR))
 
     ghash = git_hash(src)
     defs = "-DONE_SOURCE=0 -DTCC_GITHASH=\\\"%s\\\"" % ghash
@@ -92,7 +118,14 @@ def main():
     L.append("  command = %s/c2str.exe %s/include/tccdefs.h $out" % (bld, src))
     L.append("  description = GEN $out")
     L.append("")
+    L.append("rule regenerate")
+    L.append("  command = cd %s && (python3 tools/build --builddir %s --source %s || python tools/build --builddir %s --source %s)" % (src, bld, src, bld, src))
+    L.append("  description = REGEN build.ninja")
+    L.append("  generator = 1")
+    L.append("")
 
+    L.append("build build.ninja: regenerate %s/tools/build %s/configure %s/config.mak %s/VERSION" % (src, src, src, src))
+    L.append("")
     L.append("build %s/c2str.exe: c2str" % bld)
     L.append("")
     L.append("build %s/tccdefs_.h: gen_defs %s/c2str.exe %s/include/tccdefs.h" % (bld, bld, src))
@@ -127,7 +160,7 @@ def main():
     L.append("")
 
     L.append("rule run_tests")
-    L.append("  command = make -C %s test" % src)
+    L.append("  command = %s" % guarded(900, "make -C %s test" % src))
     L.append("  description = TEST")
     L.append("")
     L.append("rule make_symlinks")
@@ -141,7 +174,7 @@ def main():
     L.append("  phony = 1")
     L.append("")
     L.append("rule run_check")
-    L.append("  command = cd %s && make -j$$(nproc) >/dev/null 2>&1 && make -j$$(nproc) test >/dev/null 2>&1 && echo 'ALL TESTS PASSED' || (echo 'TESTS FAILED'; exit 1)" % src)
+    L.append("  command = %s" % guarded(900, "cd %s && make -j$$(nproc) >/dev/null 2>&1 && make -j$$(nproc) test >/dev/null 2>&1 && echo 'ALL TESTS PASSED' || (echo 'TESTS FAILED'; exit 1)" % src))
     L.append("  description = CHECK")
     L.append("  pool = console")
     L.append("")
@@ -149,14 +182,14 @@ def main():
     L.append("  phony = 1")
     L.append("")
     L.append("rule run_one")
-    L.append("  command = make -C %s tests2.$$TEST" % src)
+    L.append("  command = %s" % guarded(120, "make -C %s tests2.$$TEST" % src))
     L.append("  description = TEST-ONE")
     L.append("")
     L.append("build test-one: run_one | %s/tcc %s/libtcc1.a" % (bld, bld))
     L.append("  phony = 1")
     L.append("")
     L.append("rule run_make")
-    L.append("  command = make -C %s $TARGET" % src)
+    L.append("  command = %s" % guarded(300, "make -C %s $TARGET" % src))
     L.append("  description = MAKE $TARGET")
     L.append("")
     # tcc_c: coverage-instrumented compiler (built by tcc itself)
@@ -167,7 +200,7 @@ def main():
     L.append("build %s/tcc_c: build_tcc_c %s/tcc.c | %s/tccdefs_.h" % (bld, src, bld))
     # tcov-test: run tests with TCC_LOCAL pointing at tcc_c
     L.append("rule run_tcov")
-    L.append("  command = make -C %s TCC_LOCAL=%s/tcc_c test" % (src, bld))
+    L.append("  command = %s" % guarded(900, "make -C %s TCC_LOCAL=%s/tcc_c test" % (src, bld)))
     L.append("  description = TCOV-TEST")
     L.append("")
     L.append("build tcov-test: run_tcov | %s/tcc_c" % bld)
@@ -179,21 +212,21 @@ def main():
         L.append("  phony = 1")
         L.append("")
     L.append("rule run_pgo")
-    L.append("  command = make -C %s pgo PGO_CC=%s" % (src, os.environ.get("PGO_CC", "cc")))
+    L.append("  command = %s" % guarded(1800, "make -C %s pgo PGO_CC=%s" % (src, os.environ.get("PGO_CC", "cc"))))
     L.append("  description = PGO")
     L.append("")
     L.append("build pgo: run_pgo")
     L.append("  phony = 1")
     L.append("")
     L.append("rule run_pgo_bench")
-    L.append("  command = make -C %s pgo-bench" % src)
+    L.append("  command = %s" % guarded(600, "make -C %s pgo-bench" % src))
     L.append("  description = PGO-BENCH")
     L.append("")
     L.append("build pgo-bench: run_pgo_bench | %s/tcc" % bld)
     L.append("  phony = 1")
     L.append("")
     L.append("rule run_sani")
-    L.append("  command = make -C %s sani-test" % src)
+    L.append("  command = %s" % guarded(1800, "make -C %s sani-test" % src))
     L.append("  description = SANI-TEST")
     L.append("")
     L.append("build sani: run_sani")
@@ -202,7 +235,7 @@ def main():
     L.append("  phony = 1")
     L.append("")
     L.append("rule run_sani_one")
-    L.append("  command = make -C %s sani-tests2.$$TEST" % src)
+    L.append("  command = %s" % guarded(300, "make -C %s sani-tests2.$$TEST" % src))
     L.append("  description = SANI-ONE")
     L.append("")
     L.append("build sani-one: run_sani_one")

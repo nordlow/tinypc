@@ -4,6 +4,11 @@
 
 Rule 0 (always run potentially hanging commands under `timeout`) also lives in `AGENTS.md`; the full text is repeated here.
 
+The Ninja test, benchmark and sanitizer rules already run under
+`timeout -k 5` with stdin closed, so a timed-out rule prints `TIMEOUT`
+instead of hanging.  Use the manual wrapper below for direct `make`,
+compiler or test invocations.
+
 **Rule 0: never run a potentially hanging command unbounded.** Always
 use `timeout`, redirect stdin, and capture output:
 
