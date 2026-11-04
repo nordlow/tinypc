@@ -139,16 +139,26 @@ The Make-based build remains the primary, fully-featured path
 (cross-targets, installation); the Ninja path is intended for fast local
 iteration and performance work.
 
-The TPC sources require a C11 host compiler.  The Makefile builds with
-the GNU C11 dialect (`-std=gnu11`) via the `CSTD` variable so that
-features from later C standards are not used accidentally.  See
-[`CodingStyle.md`](CodingStyle.md) for the accepted language extensions and
-language rules.  An explicit `-std=` in `CFLAGS` takes precedence; to
-override the default entirely:
+### Host compiler and C standard
 
-```sh
-make CSTD=-std=gnu99
-```
+The TPC sources require a C11 host compiler.  The build systems
+compile with the GNU C11 dialect (`-std=gnu11`) so that features from
+later C standards are not used accidentally.  See
+[`CodingStyle.md`](CodingStyle.md) for the accepted language extensions
+and language rules.
+
+An explicit `-std=` in `CFLAGS` takes precedence.  To override the
+default dialect:
+
+- With GNU Make (`CSTD` variable):
+  ```sh
+  make CSTD=-std=gnu99
+  ```
+- With Ninja (`CFLAGS` variable):
+  ```sh
+  CFLAGS="-std=gnu99" ./configure --ninja
+  ninja -C build
+  ```
 
 `makeinfo` is needed to build the documentation.  By default, `tcc` is
 installed in `/usr/local/bin`.  Run `./configure --help` for the
