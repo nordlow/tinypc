@@ -30,9 +30,9 @@ functions, math helpers, and template/inlined wrappers.
    [storage] return_type function_name(parameters) => expression;
    ```
 
-2. **Inferred Return Type (`auto`)**:
-   When combined with `auto`, the return type is deduced from the type of
-   the expression on the right-hand side of `=>`.
+2. **Inferred Return Type (`auto`)**: When combined with `auto`, the
+   return type is deduced from the type of the expression on the
+   right-hand side of `=>`.
 
 ---
 
@@ -52,31 +52,60 @@ functions, math helpers, and template/inlined wrappers.
    During function definition parsing in `tccgen.c`, when the parser encounters
    `=>` where a function body (`{`) is expected:
    - [ ] Parse the return expression `expr`.
-   - [ ] Desugar it internally into an implicit `return expr;` statement inside
-     a synthesized compound block.
-   - [ ] Hand off the resulting AST node stream to the existing function compiler,
-     type checker, return type deduction engine, and code generator.
+   - [ ] Desugar it internally into an implicit `return expr;`
+         statement.
+   - [ ] **No Scope Overhead:** The function does not introduce a new
+         lexical block scope; parameters reside directly in the
+         function scope and the expression evaluates within it.
+   - [ ] Hand off the resulting AST node stream to the existing
+         function compiler, type checker, return type deduction
+         engine, and code generator.
 3. **Benefits of Zero Special Representation:**
-   - [ ] **Zero Backend Impact:** Code generators (`x86_64-gen.c`, etc.), ABIs,
-     stack frames, and debugging stabs require zero modifications.
-   - [ ] **Zero Symbol Table Bloat:** `Sym` and `FuncAttr` do not need extra flags
-     or AST node variants.
-   - [ ] **Full Feature Reuse:** Automatically inherits support for local variables,
-     temporaries, return type inference (`auto`), cleanup guards, and
-     debug info from normal functions.
+   - [ ] **Zero Backend Impact:** Code generators (`x86_64-gen.c`,
+         etc.), ABIs, stack frames, and debugging stabs require zero
+         modifications.
+   - [ ] **Zero Symbol Table Bloat:** `Sym` and `FuncAttr` do not need
+         extra flags or AST node variants.
+   - [ ] **Full Feature Reuse:** Automatically inherits support for
+         local variables, temporaries, return type inference (`auto`),
+         cleanup guards, and debug info from normal functions.
 
----
+
+## Compiler Optimization Opportunities
+
+While expression functions desugar into standard functions without
+requiring special runtime representation or scope overhead, their
+restricted single-expression form unlocks several compiler
+optimizations:
+
+1. **Trivial Inlining:** Because the body is guaranteed to be a single
+   expression without complex control flow or local variable blocks,
+   small expression functions are ideal candidates for aggressive
+   automatic inlining.
+2. **Automatic Purity & CTFE Inference:** Analyzing whether a function
+   is `pure` or eligible for Compile-Time Function Execution (CTFE) is
+   simplified, as side-effect analysis reduces to inspecting a single
+   expression.
+3. **Trivial Tail-Call Optimization (TCO):** When the expression is a
+   function call (e.g., `int f(int x) => g(x);`), it is structurally
+   in terminal tail position, allowing trivial conversion to a tail
+   jump (`jmp`).
+4. **Zero-Scope Overhead:** Avoiding compound block allocation (`{
+   ... }`) and symbol scope push/pop operations saves memory and CPU
+   cycles during parsing and semantic analysis.
 
 ## Implementation Plan
 
 1. **Parser Extension (`tccgen.c`):**
-   - [ ] In function definition parsing, check for `TOK_DARROW` (`=>`) in place
-     of `{`.
-   - [ ] Parse the single expression, build an implicit `return` statement node,
-     and compile it as a standard function body.
+   - [ ] In function definition parsing, check for `TOK_DARROW` (`=>`)
+         in place of `{`.
+   - [ ] Parse the single expression, build an implicit `return`
+         statement node, and compile it as a standard function body.
 2. **Return Type Inference (`auto`):**
-   - [ ] Leverage existing type deduction rules for `auto` return types by evaluating
-     the expression's type during parsing/analysis.
+   - [ ] Leverage existing type deduction rules for `auto` return
+         types by evaluating the expression's type during
+         parsing/analysis.
 3. **Regression Tests:**
-   - [ ] Add test cases under `tests/tests2/` covering basic expression functions,
-     `auto` return type deduction, and multi-parameter expressions.
+   - [ ] Add test cases under `tests/tests2/` covering basic
+         expression functions, `auto` return type deduction, and
+         multi-parameter expressions.
