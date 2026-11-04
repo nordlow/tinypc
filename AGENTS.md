@@ -92,3 +92,7 @@ list the motive and affected symbols in the commit message.
   the `tests/tests2/` framework.
 - **Preserving Tests:** Never remove existing tests unless explicitly
   approved via a query you propose that proves the test is wrong.
+
+## Documentation
+
+Changes to language syntax or/and semantics must always be reflected in README.md and tcc-doc.texi in the same commit.
