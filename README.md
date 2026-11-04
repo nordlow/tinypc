@@ -144,8 +144,8 @@ iteration and performance work.
 The TPC sources require a C11 host compiler.  The build systems
 compile with the GNU C11 dialect (`-std=gnu11`) so that features from
 later C standards are not used accidentally.  See
-[`CodingStyle.md`](CodingStyle.md) for the accepted language extensions
-and language rules.
+[`CodingStyle.md`](CodingStyle.md) for the accepted language
+extensions and language rules.
 
 An explicit `-std=` in `CFLAGS` takes precedence.  To override the
 default dialect:
