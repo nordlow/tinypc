@@ -19,6 +19,8 @@
  */
 
 #include "tcc.h"
+#include "stab.h"
+#include "dwarf.h"
 
 /* stab debug support */
 

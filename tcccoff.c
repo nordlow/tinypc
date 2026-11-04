@@ -20,6 +20,7 @@
  */
 
 #include "tcc.h"
+#include "stab.h"
 
 /* XXX: this file uses tcc_error() to the effect of exit(1) */
 #undef _tcc_error

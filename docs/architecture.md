@@ -33,10 +33,27 @@ points into the code instead of loading a whole translation unit.
 | `tccelf.c` | ELF sections, symbols, relocations, dynamic linking and the object/link writer. | `tccelf_new`, `new_section`, `put_elf_sym`, `tcc_output_file` |
 | `tccasm.c` | GNU assembler syntax parser and the shared assembler expression code. | `tcc_assemble`, `tcc_assemble_inline` |
 | `tccrun.c` | `-run` support: relocation, memory protection, execution, backtraces and unwinding. | `tcc_relocate`, `tcc_run`, `tcc_run_free` |
-| `tcc.h` | Core types and cross-fragment declarations.  Split by subsystem sections. | `TCCState`, `SValue`, `CType`, `Sym` |
+| `tcc.h` | Umbrella header (1,778 lines): configuration macros, shared types, tokens, allocator and utility declarations, state accessors. | `TCCState`, `SValue`, `CType`, `Sym` |
 | `elf.h` | ELF constants and structures. | format definitions |
-| `dwarf.h` | DWARF constants. | format definitions |
+| `dwarf.h` | DWARF constants.  Included only by `tccdbg.c` and `tccrun.c`. | format definitions |
+| `stab.h` | STABS debug codes.  Included only by the debug, runtime and COFF files that emit them. | format definitions |
 | `coff.h` | COFF constants used by the PE target. | format definitions |
+
+### Declaration headers
+
+`tcc.h` includes these headers in dependency order.  They are not
+standalone: they assume the types and macros from `tcc.h` and from the
+headers listed above them, and they are only compiled through the
+umbrella.
+
+| Header | Responsibility | Lines |
+|--------|----------------|------:|
+| `tcc-pp.h` | Lexer and preprocessor state, token buffers, `next`/`preprocess` entry points. | 105 |
+| `tcc-gen.h` | Parser and code-generator state, symbol stacks, value-stack helpers, `gen_op`/`expr`. | 165 |
+| `tcc-elf.h` | ELF writer, symbol table, relocations, loader and archives. | 74 |
+| `tcc-backend.h` | The interface every target backend implements: linker and code-generator hooks. | 140 |
+| `tcc-asm.h` | Inline assembler entry points. | 25 |
+| `tcc-dbg.h` | Debug information, coverage and unwind-frame declarations. | 113 |
 
 ### Code-generator fragments
 
@@ -48,7 +65,7 @@ The build's depfile tracks them; a change to any fragment rebuilds
 
 | Fragment | Responsibility | Lines |
 |----------|----------------|------:|
-| `tccgen.c` | Globals, symbol and label stacks, value-stack primitives, relocation and start/finish. | 2080 |
+| `tccgen.c` | Globals, symbol and label stacks, value-stack primitives, relocation and start/finish. | 2081 |
 | `tccgen-gen.c` | Register/stack movement, generic operations, complex and cast code. | 2065 |
 | `tccgen-types.c` | Type size and compatibility, attributes, struct/union layout and declarations. | 2116 |
 | `tccgen-tuple.c` | Tuple layout and literals, slices, slice bounds checks, type predicates. | 2352 |

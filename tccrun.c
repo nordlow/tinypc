@@ -19,6 +19,8 @@
  */
 
 #include "tcc.h"
+#include "stab.h"
+#include "dwarf.h"
 
 /* only native compiler supports -run */
 #ifdef TCC_IS_NATIVE

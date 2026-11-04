@@ -20,6 +20,7 @@
 
 #define USING_GLOBALS
 #include "tcc.h"
+#include "stab.h"
 
 /********************************************************/
 /* global variables */

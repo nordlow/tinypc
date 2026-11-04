@@ -479,6 +479,23 @@ the change is behavioural no-op apart from line numbers in two
 internal `init_assert` messages.  Preprocessed output matches the
 old file line for line except for those two numbers.
 
+Status: P2 is implemented for `tcc.h`.  Its declaration sections moved
+into `tcc-pp.h`, `tcc-gen.h`, `tcc-elf.h`, `tcc-backend.h`,
+`tcc-asm.h` and `tcc-dbg.h`, which `tcc.h` includes in dependency
+order; `tcc.h` drops from 2,372 to 1,778 lines.  `dwarf.h` and
+`stab.h` are no longer included by the umbrella, only by the files
+that use their constants: `tccdbg.c` and `tccrun.c` for DWARF,
+`tccgen.c`, `tccdbg.c`, `tccrun.c` and `tcccoff.c` for STABS.
+Concatenating the moved text reproduces the old `tcc.h` byte for byte
+apart from those two include lines.
+
+`elf.h`, `dwarf.h` and `coff.h` themselves are not split.  They are
+vendored, single-concern format payloads with no compiler
+declarations, so splitting them by constant group would add files
+without changing what an agent reads for a question about that
+format.  `elf.h` also has to stay in `tcc.h` because `TCCState` embeds
+`ElfW_Rel`, `ElfSym` and `addr_t`.
+
 ## Acceptance criteria
 
 - No hand-written `.c` file exceeds 3,000 lines; generated tables and
